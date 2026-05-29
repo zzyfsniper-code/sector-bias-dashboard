@@ -131,32 +131,32 @@ var signals = SIG.signals, lastEntry = SIG.last_entry, lastExit = SIG.last_exit;
       name: 'entry',
       coord: ['2025-06-25', 8.8048],
       value: '▲',
-      symbol: 'pin', symbolRotate: 0, symbolSize: 18,
-      symbolOffset: [0, 6],
+      symbol: 'pin', symbolRotate: 180, symbolSize: 18,
+      symbolOffset: [0, 10],
       itemStyle: { color: '#f85149' }, label: { show: false }
     },
     {
       name: 'exit',
       coord: ['2025-11-21', 8.8104],
       value: '▼',
-      symbol: 'pin', symbolRotate: 180, symbolSize: 18,
-      symbolOffset: [0, -6],
+      symbol: 'pin', symbolRotate: 0, symbolSize: 18,
+      symbolOffset: [0, -10],
       itemStyle: { color: '#3fb950' }, label: { show: false }
     },
     {
       name: 'entry',
       coord: ['2026-01-06', 8.9032],
       value: '▲',
-      symbol: 'pin', symbolRotate: 0, symbolSize: 18,
-      symbolOffset: [0, 6],
+      symbol: 'pin', symbolRotate: 180, symbolSize: 18,
+      symbolOffset: [0, 10],
       itemStyle: { color: '#f85149' }, label: { show: false }
     },
     {
       name: 'exit',
       coord: ['2026-03-04', 8.7582],
       value: '▼',
-      symbol: 'pin', symbolRotate: 180, symbolSize: 18,
-      symbolOffset: [0, -6],
+      symbol: 'pin', symbolRotate: 0, symbolSize: 18,
+      symbolOffset: [0, -10],
       itemStyle: { color: '#3fb950' }, label: { show: false }
     },
   ],symbolKeepAspect:true },
@@ -196,12 +196,12 @@ var signals = SIG.signals, lastEntry = SIG.last_entry, lastExit = SIG.last_exit;
       coord: ['2025-06-25', 6.9906],
       value: '▲',
       symbol: 'pin',
-      symbolRotate: 0,
+      symbolRotate: 180,
       symbolSize: 24,
-      symbolOffset: [0, 8],
+      symbolOffset: [0, 12],
       itemStyle: { color: '#f85149' },
       label: {
-        show: true, position: 'top', distance: 2,
+        show: true, position: 'bottom', distance: 2,
         formatter: '▲ 入场', color: '#f85149', fontSize: 10, fontWeight: 600
       }
     },
@@ -210,12 +210,12 @@ var signals = SIG.signals, lastEntry = SIG.last_entry, lastExit = SIG.last_exit;
       coord: ['2025-11-21', -5.1196],
       value: '▼',
       symbol: 'pin',
-      symbolRotate: 180,
+      symbolRotate: 0,
       symbolSize: 24,
-      symbolOffset: [0, -8],
+      symbolOffset: [0, -12],
       itemStyle: { color: '#3fb950' },
       label: {
-        show: true, position: 'bottom', distance: 2,
+        show: true, position: 'top', distance: 2,
         formatter: '▼ 离场', color: '#3fb950', fontSize: 10, fontWeight: 600
       }
     },
@@ -224,12 +224,12 @@ var signals = SIG.signals, lastEntry = SIG.last_entry, lastExit = SIG.last_exit;
       coord: ['2026-01-06', 5.3074],
       value: '▲',
       symbol: 'pin',
-      symbolRotate: 0,
+      symbolRotate: 180,
       symbolSize: 24,
-      symbolOffset: [0, 8],
+      symbolOffset: [0, 12],
       itemStyle: { color: '#f85149' },
       label: {
-        show: true, position: 'top', distance: 2,
+        show: true, position: 'bottom', distance: 2,
         formatter: '▲ 入场', color: '#f85149', fontSize: 10, fontWeight: 600
       }
     },
@@ -238,12 +238,12 @@ var signals = SIG.signals, lastEntry = SIG.last_entry, lastExit = SIG.last_exit;
       coord: ['2026-03-04', -5.2197],
       value: '▼',
       symbol: 'pin',
-      symbolRotate: 180,
+      symbolRotate: 0,
       symbolSize: 24,
-      symbolOffset: [0, -8],
+      symbolOffset: [0, -12],
       itemStyle: { color: '#3fb950' },
       label: {
-        show: true, position: 'bottom', distance: 2,
+        show: true, position: 'top', distance: 2,
         formatter: '▼ 离场', color: '#3fb950', fontSize: 10, fontWeight: 600
       }
     },
