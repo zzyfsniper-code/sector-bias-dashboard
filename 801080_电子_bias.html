@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电子(申万) 乖离率看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #0d1117; color: #c9d1d9; padding: 24px;
+  }
+  .nav { margin-bottom: 16px; }
+  .nav a { color: #58a6ff; text-decoration: none; font-size: 13px; }
+  .nav a:hover { text-decoration: underline; }
+  .header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .header h1 { font-size: 22px; color: #f0f6fc; font-weight: 600; }
+  .header .code { font-size: 13px; color: #8b949e; }
+  .header .update { margin-left: auto; font-size: 12px; color: #6e7681; }
+  .cards { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .card {
+    background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+    padding: 16px 20px; flex: 1; min-width: 140px;
+  }
+  .card .label { font-size: 12px; color: #8b949e; margin-bottom: 6px; }
+  .card .value { font-size: 24px; font-weight: 700; }
+  .card .value.up { color: #f85149; }
+  .card .value.down { color: #3fb950; }
+  .card .value.entry { color: #f85149; background: rgba(248,81,73,0.08); padding: 2px 8px; border-radius: 4px; display: inline-block; }
+  .card .value.exit { color: #3fb950; background: rgba(63,185,80,0.08); padding: 2px 8px; border-radius: 4px; display: inline-block; }
+  .card .sub { font-size: 12px; color: #6e7681; margin-top: 4px; }
+  .chart-container {
+    background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .chart-container h3 { font-size: 14px; color: #f0f6fc; margin-bottom: 8px; font-weight: 500; }
+  .chart-box { width: 100%; height: 340px; }
+  #chart-bias { height: 204px; }
+  .zone-legend { display: flex; gap: 20px; margin-top: 12px; flex-wrap: wrap; font-size: 12px; }
+  .zone-legend span { display: flex; align-items: center; gap: 6px; }
+  .zone-legend .dot { width: 10px; height: 10px; border-radius: 2px; }
+  .footer { margin-top: 20px; font-size: 11px; color: #484f58; text-align: center; }
+</style>
+</head>
+<body>
+<div class="nav"><a href="index.html">← 返回看板首页</a></div>
+<div class="header">
+  <h1>电子(申万) · 乖离率趋势</h1>
+  <span class="code">801080.SI</span>
+  <span class="update" id="last-update"></span>
+</div>
+<div class="cards">
+  <div class="card">
+    <div class="label">最新收盘 (ln)</div>
+    <div class="value" id="card-close">--</div>
+    <div class="sub" id="card-pct">--</div>
+  </div>
+  <div class="card">
+    <div class="label">乖离率</div>
+    <div class="value" id="card-bias">--</div>
+    <div class="sub" id="card-bias-zone">--</div>
+  </div>
+  <div class="card">
+    <div class="label">EMA20 (ln)</div>
+    <div class="value" id="card-ema">--</div>
+    <div class="sub" id="card-ema-date">--</div>
+  </div>
+  <div class="card">
+    <div class="label">当前状态</div>
+    <div class="value" id="card-signals"><span class='value entry' style='font-size:16px;'>强势区</span></div>
+    <div class="sub">入场日期 2026-04-13</div>
+  </div>
+</div>
+<div class="chart-container">
+  <h3>对数价格 & EMA20</h3>
+  <div class="chart-box" id="chart-price"></div>
+</div>
+<div class="chart-container">
+  <h3>乖离率</h3>
+  <div class="chart-box" id="chart-bias"></div>
+  <div class="zone-legend">
+    <span><span class="dot" style="background:#f85149"></span> 过热 &gt;15%（不追）</span>
+    <span><span class="dot" style="background:#ffa657"></span> 强势 5%~15%（持有）</span>
+    <span><span class="dot" style="background:#8b949e"></span> 偏弱 0%~5%（观望）</span>
+    <span><span class="dot" style="background:#d2a8ff"></span> 警戒 -5%~0%（观察）</span>
+    <span><span class="dot" style="background:#3fb950"></span> 止损 &lt;-5%（离场）</span>
+    <span style="margin-left:auto;">▲ 入场信号 &nbsp; ▼ 离场信号</span>
+  </div>
+</div>
+<div class="footer">
+  数据来源：Tushare Pro · 指标模型：刘晨明《如何区分主线是调整还是终结？》· 乖离率 = [ln(收盘) - ln(EMA20)] × 100
+</div>
+<script>
+var CHART = {"dates": ["2025-05-06", "2025-05-07", "2025-05-08", "2025-05-09", "2025-05-12", "2025-05-13", "2025-05-14", "2025-05-15", "2025-05-16", "2025-05-19", "2025-05-20", "2025-05-21", "2025-05-22", "2025-05-23", "2025-05-26", "2025-05-27", "2025-05-28", "2025-05-29", "2025-05-30", "2025-06-03", "2025-06-04", "2025-06-05", "2025-06-06", "2025-06-09", "2025-06-10", "2025-06-11", "2025-06-12", "2025-06-13", "2025-06-16", "2025-06-17", "2025-06-18", "2025-06-19", "2025-06-20", "2025-06-23", "2025-06-24", "2025-06-25", "2025-06-26", "2025-06-27", "2025-06-30", "2025-07-01", "2025-07-02", "2025-07-03", "2025-07-04", "2025-07-07", "2025-07-08", "2025-07-09", "2025-07-10", "2025-07-11", "2025-07-14", "2025-07-15", "2025-07-16", "2025-07-17", "2025-07-18", "2025-07-21", "2025-07-22", "2025-07-23", "2025-07-24", "2025-07-25", "2025-07-28", "2025-07-29", "2025-07-30", "2025-07-31", "2025-08-01", "2025-08-04", "2025-08-05", "2025-08-06", "2025-08-07", "2025-08-08", "2025-08-11", "2025-08-12", "2025-08-13", "2025-08-14", "2025-08-15", "2025-08-18", "2025-08-19", "2025-08-20", "2025-08-21", "2025-08-22", "2025-08-25", "2025-08-26", "2025-08-27", "2025-08-28", "2025-08-29", "2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19", "2025-09-22", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-29", "2025-09-30", "2025-10-09", "2025-10-10", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-20", "2025-10-21", "2025-10-22", "2025-10-23", "2025-10-24", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-29", "2025-12-30", "2025-12-31", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-19", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-26", "2026-01-27", "2026-01-28", "2026-01-29", "2026-01-30", "2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27", "2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12", "2026-03-13", "2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-30", "2026-03-31", "2026-04-01", "2026-04-02", "2026-04-03", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-25", "2026-05-26", "2026-05-27", "2026-05-28"], "log_close": [8.406, 8.4023, 8.4073, 8.3863, 8.4037, 8.3972, 8.3993, 8.3779, 8.3789, 8.3803, 8.3874, 8.378, 8.3721, 8.3569, 8.3656, 8.3527, 8.3489, 8.3697, 8.351, 8.3538, 8.3655, 8.3883, 8.3864, 8.3921, 8.3756, 8.3791, 8.3764, 8.367, 8.3753, 8.3747, 8.3896, 8.3837, 8.3765, 8.3866, 8.404, 8.4195, 8.4125, 8.4216, 8.436, 8.437, 8.4167, 8.4335, 8.429, 8.4223, 8.4448, 8.4365, 8.4334, 8.4382, 8.4382, 8.446, 8.4428, 8.4644, 8.4595, 8.4642, 8.4618, 8.4614, 8.474, 8.4876, 8.4986, 8.5126, 8.5063, 8.4998, 8.4904, 8.4991, 8.5048, 8.5139, 8.5184, 8.5068, 8.5242, 8.5428, 8.5627, 8.5543, 8.5746, 8.5991, 8.5971, 8.62, 8.6132, 8.6603, 8.6808, 8.6789, 8.6748, 8.7286, 8.7212, 8.7353, 8.6961, 8.684, 8.6319, 8.6745, 8.6745, 8.6472, 8.6648, 8.7227, 8.7342, 8.7338, 8.7469, 8.7587, 8.768, 8.7633, 8.7997, 8.7991, 8.8264, 8.8257, 8.7979, 8.8136, 8.8253, 8.8468, 8.7986, 8.798, 8.7505, 8.7732, 8.7672, 8.7245, 8.7382, 8.7726, 8.7666, 8.7599, 8.806, 8.8352, 8.8314, 8.843, 8.8204, 8.7894, 8.7886, 8.7743, 8.7724, 8.8019, 8.7884, 8.7832, 8.7657, 8.7613, 8.771, 8.7396, 8.7412, 8.7424, 8.7334, 8.7258, 8.6789, 8.6852, 8.7064, 8.7221, 8.7247, 8.7376, 8.7533, 8.7458, 8.7365, 8.7442, 8.7484, 8.7741, 8.7819, 8.7779, 8.7599, 8.7744, 8.7499, 8.7347, 8.7592, 8.744, 8.7411, 8.7669, 8.7727, 8.7937, 8.7966, 8.7895, 8.793, 8.7981, 8.7879, 8.8241, 8.8405, 8.8529, 8.8533, 8.8624, 8.8769, 8.8433, 8.8568, 8.8734, 8.8994, 8.8945, 8.8822, 8.908, 8.9101, 8.9132, 8.8906, 8.913, 8.9172, 8.881, 8.8878, 8.8465, 8.8676, 8.852, 8.8396, 8.8341, 8.8634, 8.8653, 8.8544, 8.8715, 8.8686, 8.8819, 8.896, 8.9157, 8.9085, 8.8938, 8.8394, 8.8369, 8.8569, 8.8564, 8.8373, 8.8708, 8.863, 8.8523, 8.8441, 8.8616, 8.8315, 8.8553, 8.83, 8.8152, 8.7593, 8.7833, 8.8094, 8.7871, 8.7941, 8.7908, 8.7633, 8.7922, 8.7632, 8.7645, 8.7769, 8.8408, 8.8457, 8.8656, 8.8737, 8.9, 8.8917, 8.9082, 8.9234, 8.9389, 8.9365, 8.9687, 8.9532, 8.954, 8.9883, 8.9758, 8.9789, 9.0007, 9.0392, 9.0662, 9.0593, 9.1055, 9.1069, 9.1408, 9.1165, 9.1052, 9.1207, 9.1428, 9.1643, 9.1267, 9.1687, 9.2155, 9.2077, 9.1934, 9.2106], "log_ema": [8.3797, 8.3819, 8.3843, 8.3845, 8.3864, 8.3874, 8.3886, 8.3875, 8.3867, 8.3861, 8.3862, 8.3855, 8.3842, 8.3816, 8.3801, 8.3775, 8.3748, 8.3743, 8.3722, 8.3704, 8.37, 8.3717, 8.3731, 8.375, 8.375, 8.3754, 8.3755, 8.3747, 8.3747, 8.3747, 8.3762, 8.3769, 8.3769, 8.3778, 8.3803, 8.3841, 8.3868, 8.3902, 8.3947, 8.3988, 8.4005, 8.4037, 8.4061, 8.4077, 8.4113, 8.4137, 8.4156, 8.4178, 8.4197, 8.4223, 8.4242, 8.4281, 8.4312, 8.4344, 8.437, 8.4394, 8.4427, 8.4471, 8.4521, 8.458, 8.4627, 8.4663, 8.4686, 8.4716, 8.4748, 8.4786, 8.4824, 8.4848, 8.4886, 8.4939, 8.5007, 8.5059, 8.5126, 8.5212, 8.5287, 8.5378, 8.5452, 8.5567, 8.5693, 8.5802, 8.5896, 8.6037, 8.6155, 8.6276, 8.6343, 8.6392, 8.6385, 8.6419, 8.6451, 8.6453, 8.6472, 8.6546, 8.6625, 8.6695, 8.6771, 8.6852, 8.6934, 8.7003, 8.7102, 8.719, 8.7297, 8.7393, 8.745, 8.7517, 8.759, 8.7677, 8.7707, 8.7733, 8.7712, 8.7714, 8.771, 8.7666, 8.764, 8.7648, 8.765, 8.7645, 8.7685, 8.7751, 8.7806, 8.7867, 8.7899, 8.7899, 8.7898, 8.7883, 8.7868, 8.7882, 8.7883, 8.7878, 8.7857, 8.7834, 8.7822, 8.7782, 8.7748, 8.7717, 8.7682, 8.7642, 8.7564, 8.7498, 8.7458, 8.7435, 8.7417, 8.7414, 8.7425, 8.7428, 8.7422, 8.7424, 8.743, 8.746, 8.7495, 8.7522, 8.7529, 8.755, 8.7545, 8.7526, 8.7533, 8.7524, 8.7513, 8.7528, 8.7547, 8.7585, 8.7622, 8.7648, 8.7675, 8.7705, 8.7722, 8.7772, 8.7834, 8.7903, 8.7964, 8.8029, 8.8102, 8.8134, 8.8176, 8.8231, 8.8306, 8.8369, 8.8413, 8.8478, 8.8539, 8.8597, 8.8627, 8.8676, 8.8724, 8.8733, 8.8746, 8.872, 8.8716, 8.8697, 8.8669, 8.8638, 8.8638, 8.8639, 8.863, 8.8638, 8.8643, 8.866, 8.8689, 8.8734, 8.8768, 8.8785, 8.8748, 8.8713, 8.8699, 8.8686, 8.8657, 8.8662, 8.8659, 8.8646, 8.8627, 8.8626, 8.8596, 8.8592, 8.8565, 8.8526, 8.8441, 8.8385, 8.8357, 8.8312, 8.8277, 8.8243, 8.8186, 8.8161, 8.8112, 8.8069, 8.804, 8.8076, 8.8113, 8.8166, 8.8222, 8.8299, 8.8359, 8.843, 8.851, 8.8597, 8.8673, 8.8774, 8.8849, 8.8916, 8.9013, 8.9086, 8.9155, 8.924, 8.9355, 8.9487, 8.9598, 8.9746, 8.988, 9.0036, 9.0149, 9.0239, 9.0335, 9.0445, 9.0565, 9.0634, 9.0739, 9.0883, 9.1003, 9.1096, 9.1196], "bias": [2.6295, 2.0395, 2.2962, 0.1804, 1.7287, 0.9832, 1.0748, -0.9642, -0.7858, -0.5781, 0.1157, -0.745, -1.2119, -2.4707, -1.4511, -2.4847, -2.5941, -0.4636, -2.1109, -1.6604, -0.4469, 1.661, 1.3297, 1.7193, 0.0542, 0.3687, 0.0893, -0.7671, 0.0571, 0.0001, 1.3429, 0.6795, -0.0344, 0.8788, 2.3734, 3.5359, 2.5656, 3.1406, 4.1299, 3.8259, 1.6222, 2.9806, 2.2855, 1.4627, 3.3497, 2.2835, 1.7836, 2.0455, 1.8442, 2.3746, 1.8594, 3.6278, 2.8328, 2.9791, 2.4756, 2.208, 3.1295, 4.0566, 4.648, 5.4619, 4.3608, 3.3472, 2.1774, 2.749, 3.0029, 3.5354, 3.5952, 2.1997, 3.5609, 4.8919, 6.2022, 4.8403, 6.1956, 7.7917, 6.8404, 8.2265, 6.8046, 10.3551, 11.1574, 9.8629, 8.5177, 12.4907, 10.5699, 10.7749, 6.1744, 4.487, -0.6592, 3.2547, 2.9412, 0.1859, 1.7644, 6.8054, 7.1711, 6.432, 6.9746, 7.3564, 7.4643, 6.3077, 8.9582, 8.0158, 9.6671, 8.6444, 5.2862, 6.1835, 6.6276, 7.9148, 2.7904, 2.4725, -2.0636, 0.1816, -0.3791, -4.2095, -2.5724, 0.7809, 0.1649, -0.4564, 3.7522, 6.0138, 5.0875, 5.6294, 3.0472, -0.0536, -0.1191, -1.4016, -1.4437, 1.3681, 0.0146, -0.4535, -1.9991, -2.2074, -1.1273, -3.8683, -3.355, -2.9291, -3.4716, -3.8426, -7.7506, -6.4573, -3.937, -2.1464, -1.7056, -0.3749, 1.0821, 0.2975, -0.5735, 0.1807, 0.5431, 2.8095, 3.2415, 2.5717, 0.6988, 1.9396, -0.4642, -1.7932, 0.5938, -0.8411, -1.0255, 1.4069, 1.7967, 3.5188, 3.4407, 2.4676, 2.5503, 2.7608, 1.5697, 4.6842, 5.7091, 6.2644, 5.6894, 5.9464, 6.6716, 2.9921, 3.9185, 5.0344, 6.8828, 5.7638, 4.0905, 6.0178, 5.62, 5.3521, 2.7867, 4.543, 4.4795, 0.7702, 1.3131, -2.5493, -0.396, -1.7729, -2.7269, -2.9764, -0.0413, 0.1392, -0.8665, 0.7668, 0.4329, 1.593, 2.7161, 4.223, 3.1664, 1.5356, -3.5407, -3.4333, -1.2986, -1.2195, -2.835, 0.4661, -0.2834, -1.2298, -1.8569, -0.0957, -2.8169, -0.3906, -2.6466, -3.7399, -8.4822, -5.5162, -2.63, -4.4108, -3.3614, -3.3505, -5.5315, -2.3936, -4.8027, -4.2334, -2.7187, 3.3175, 3.4418, 4.9029, 5.1546, 7.0188, 5.5772, 6.5212, 7.2444, 7.9177, 6.9214, 9.1306, 6.8398, 6.2355, 8.7075, 6.722, 6.3351, 7.6738, 10.3695, 11.7495, 9.9471, 13.0902, 11.8922, 13.7142, 10.1574, 8.1339, 8.7222, 9.8346, 10.777, 6.3266, 9.4786, 12.7192, 10.7353, 8.388, 9.0999], "count": 259};
+var SIG = {"signals": [{"type": "entry", "date": "2025-07-29", "date_idx": 59, "bias": 5.4619}, {"type": "exit", "date": "2025-11-21", "date_idx": 136, "bias": -7.7506}, {"type": "entry", "date": "2026-01-06", "date_idx": 166, "bias": 5.7091}, {"type": "exit", "date": "2026-03-23", "date_idx": 214, "bias": -8.4822}, {"type": "entry", "date": "2026-04-13", "date_idx": 228, "bias": 5.1546}], "last_entry": {"type": "entry", "date": "2026-04-13", "date_idx": 228, "bias": 5.1546}, "last_exit": {"type": "exit", "date": "2026-03-23", "date_idx": 214, "bias": -8.4822}, "count": 5};
+var dates = CHART.dates, logClose = CHART.log_close, logEma = CHART.log_ema, bias = CHART.bias;
+var signals = SIG.signals, lastEntry = SIG.last_entry, lastExit = SIG.last_exit;
+(function() {
+  var l = dates.length-1;
+  document.getElementById('last-update').textContent = '数据至 '+dates[l];
+  document.getElementById('card-close').textContent = logClose[l].toFixed(2);
+  document.getElementById('card-pct').textContent = '对数收盘价';
+  document.getElementById('card-ema').textContent = logEma[l].toFixed(2);
+  document.getElementById('card-ema-date').textContent = '复权后 20 日均线';
+  var bv=bias[l], be=document.getElementById('card-bias');
+  be.textContent=bv.toFixed(2)+'%'; be.className='value '+(bv>=0?'up':'down');
+  document.getElementById('card-bias-zone').textContent = bv>15?'🔥 过热区':bv>=5?'✅ 强势区':bv>=0?'⚠️ 偏弱区':bv>=-5?'🔶 警戒区':'🔴 止损区';
+})();
+(function() {
+  var c=echarts.init(document.getElementById('chart-price'));
+  c.setOption({
+    backgroundColor:'transparent', grid:{ left:60,right:30,top:16,bottom:48 },
+    tooltip:{ trigger:'axis',backgroundColor:'rgba(22,27,34,0.95)',borderColor:'#30363d',textStyle:{ color:'#c9d1d9',fontSize:12 },
+      formatter:function(p){ var h='<b>'+p[0].axisValue+'</b><br/>'; p.forEach(function(x){ h+=x.marker+x.seriesName+': <b>'+x.value.toFixed(4)+'</b><br/>' }); return h; }
+    },
+    xAxis:{ type:'category',data:dates,boundaryGap:false,axisLine:{ lineStyle:{ color:'#30363d' } },
+      axisLabel:{ color:'#8b949e',fontSize:11,formatter:function(v){return v.slice(5)},interval:Math.floor(dates.length/12)||1 },
+      axisTick:{ show:false },splitLine:{ show:false }
+    },
+    yAxis:{ type:'value',scale:true,axisLine:{ show:false },axisLabel:{ color:'#8b949e',fontSize:11,formatter:function(v){return v.toFixed(2)} },splitLine:{ lineStyle:{ color:'#21262d' } } },
+    dataZoom:[{ type:'inside',start:0,end:100 },{ type:'slider',start:0,end:100,height:20,bottom:10,
+      borderColor:'#30363d',backgroundColor:'#0d1117',dataBackground:{ lineStyle:{ color:'#484f58' },areaStyle:{ color:'#21262d' } },
+      selectedDataBackground:{ lineStyle:{ color:'#58a6ff' },areaStyle:{ color:'#1f6feb33' } },
+      handleStyle:{ color:'#58a6ff' },textStyle:{ color:'#8b949e' }
+    }],
+    series:[
+      { name:'ln(收盘价)',type:'line',data:logClose,symbol:'none',lineStyle:{ color:'#58a6ff',width:1.5 },
+        markPoint:{ data:[
+    {
+      name: 'entry',
+      coord: ['2025-07-29', 8.5126],
+      value: '▲',
+      symbol: 'pin', symbolRotate: 0, symbolSize: 18,
+      symbolOffset: [0, 6],
+      itemStyle: { color: '#f85149' }, label: { show: false }
+    },
+    {
+      name: 'exit',
+      coord: ['2025-11-21', 8.6789],
+      value: '▼',
+      symbol: 'pin', symbolRotate: 180, symbolSize: 18,
+      symbolOffset: [0, -6],
+      itemStyle: { color: '#3fb950' }, label: { show: false }
+    },
+    {
+      name: 'entry',
+      coord: ['2026-01-06', 8.8405],
+      value: '▲',
+      symbol: 'pin', symbolRotate: 0, symbolSize: 18,
+      symbolOffset: [0, 6],
+      itemStyle: { color: '#f85149' }, label: { show: false }
+    },
+    {
+      name: 'exit',
+      coord: ['2026-03-23', 8.7593],
+      value: '▼',
+      symbol: 'pin', symbolRotate: 180, symbolSize: 18,
+      symbolOffset: [0, -6],
+      itemStyle: { color: '#3fb950' }, label: { show: false }
+    },
+    {
+      name: 'entry',
+      coord: ['2026-04-13', 8.8737],
+      value: '▲',
+      symbol: 'pin', symbolRotate: 0, symbolSize: 18,
+      symbolOffset: [0, 6],
+      itemStyle: { color: '#f85149' }, label: { show: false }
+    },
+  ],symbolKeepAspect:true },
+        areaStyle:{ color:new echarts.graphic.LinearGradient(0,0,0,1,[{ offset:0,color:'rgba(88,166,255,0.12)' },{ offset:1,color:'rgba(88,166,255,0.01)' }]) }
+      },
+      { name:'ln(EMA20)',type:'line',data:logEma,symbol:'none',lineStyle:{ color:'#f0883e',width:2,type:'dashed' } }
+    ]
+  }); window.addEventListener('resize',function(){c.resize()});
+})();
+(function() {
+  var c=echarts.init(document.getElementById('chart-bias'));
+  var zl=dates.map(function(){return 0}),l5=dates.map(function(){return 5}),l15=dates.map(function(){return 15}),ln5=dates.map(function(){return -5});
+  var biasColor=bias.map(function(v){ return { value:v,itemStyle:{ color:v>15?'#f85149':v>=5?'#ffa657':v>=0?'#8b949e':v>=-5?'#d2a8ff':'#3fb950' } } });
+  c.setOption({
+    backgroundColor:'transparent', grid:{ left:60,right:30,top:12,bottom:48 },
+    tooltip:{ trigger:'axis',backgroundColor:'rgba(22,27,34,0.95)',borderColor:'#30363d',textStyle:{ color:'#c9d1d9',fontSize:12 },
+      formatter:function(p){ var d=p[0],h='<b>'+d.axisValue+'</b><br/>乖离率: <b>'+d.value.toFixed(2)+'%</b><br/>',v=d.value;
+        if(v>15)h+='<span style="color:#f85149">🔥 过热区</span>'; else if(v>=5)h+='<span style="color:#ffa657">✅ 强势区</span>';
+        else if(v>=0)h+='<span style="color:#8b949e">⚠️ 偏弱区</span>'; else if(v>=-5)h+='<span style="color:#d2a8ff">🔶 警戒区</span>';
+        else h+='<span style="color:#3fb950">🔴 止损区</span>'; return h; }
+    },
+    xAxis:{ type:'category',data:dates,boundaryGap:false,axisLine:{ lineStyle:{ color:'#30363d' } },
+      axisLabel:{ color:'#8b949e',fontSize:11,formatter:function(v){return v.slice(5)},interval:Math.floor(dates.length/12)||1 },
+      axisTick:{ show:false },splitLine:{ show:false }
+    },
+    yAxis:{ type:'value',axisLine:{ show:false },axisLabel:{ color:'#8b949e',fontSize:11,formatter:function(v){return v+'%'} },splitLine:{ lineStyle:{ color:'#21262d' } } },
+    dataZoom:[{ type:'inside',start:0,end:100 },{ type:'slider',start:0,end:100,height:20,bottom:10,
+      borderColor:'#30363d',backgroundColor:'#0d1117',dataBackground:{ lineStyle:{ color:'#484f58' },areaStyle:{ color:'#21262d' } },
+      selectedDataBackground:{ lineStyle:{ color:'#58a6ff' },areaStyle:{ color:'#1f6feb33' } },
+      handleStyle:{ color:'#58a6ff' },textStyle:{ color:'#8b949e' }
+    }],
+    series:[
+      { name:'乖离率',type:'line',data:biasColor,symbol:'none',lineStyle:{ width:2 },
+        markPoint:{ data:[
+    {
+      name: 'entry',
+      coord: ['2025-07-29', 5.4619],
+      value: '▲',
+      symbol: 'pin',
+      symbolRotate: 0,
+      symbolSize: 24,
+      symbolOffset: [0, 8],
+      itemStyle: { color: '#f85149' },
+      label: {
+        show: true, position: 'top', distance: 2,
+        formatter: '▲ 入场', color: '#f85149', fontSize: 10, fontWeight: 600
+      }
+    },
+    {
+      name: 'exit',
+      coord: ['2025-11-21', -7.7506],
+      value: '▼',
+      symbol: 'pin',
+      symbolRotate: 180,
+      symbolSize: 24,
+      symbolOffset: [0, -8],
+      itemStyle: { color: '#3fb950' },
+      label: {
+        show: true, position: 'bottom', distance: 2,
+        formatter: '▼ 离场', color: '#3fb950', fontSize: 10, fontWeight: 600
+      }
+    },
+    {
+      name: 'entry',
+      coord: ['2026-01-06', 5.7091],
+      value: '▲',
+      symbol: 'pin',
+      symbolRotate: 0,
+      symbolSize: 24,
+      symbolOffset: [0, 8],
+      itemStyle: { color: '#f85149' },
+      label: {
+        show: true, position: 'top', distance: 2,
+        formatter: '▲ 入场', color: '#f85149', fontSize: 10, fontWeight: 600
+      }
+    },
+    {
+      name: 'exit',
+      coord: ['2026-03-23', -8.4822],
+      value: '▼',
+      symbol: 'pin',
+      symbolRotate: 180,
+      symbolSize: 24,
+      symbolOffset: [0, -8],
+      itemStyle: { color: '#3fb950' },
+      label: {
+        show: true, position: 'bottom', distance: 2,
+        formatter: '▼ 离场', color: '#3fb950', fontSize: 10, fontWeight: 600
+      }
+    },
+    {
+      name: 'entry',
+      coord: ['2026-04-13', 5.1546],
+      value: '▲',
+      symbol: 'pin',
+      symbolRotate: 0,
+      symbolSize: 24,
+      symbolOffset: [0, 8],
+      itemStyle: { color: '#f85149' },
+      label: {
+        show: true, position: 'top', distance: 2,
+        formatter: '▲ 入场', color: '#f85149', fontSize: 10, fontWeight: 600
+      }
+    },
+  ],symbolKeepAspect:true },
+        areaStyle:{ color:new echarts.graphic.LinearGradient(0,0,0,1,[{ offset:0,color:'rgba(88,166,255,0.12)' },{ offset:0.5,color:'rgba(88,166,255,0.02)' },{ offset:1,color:'rgba(63,185,80,0.06)' }]) }
+      },
+      { name:'+15%',type:'line',data:l15,symbol:'none',silent:true,lineStyle:{ color:'#f85149',width:1,type:'dashed' } },
+      { name:'+5%',type:'line',data:l5,symbol:'none',silent:true,lineStyle:{ color:'#ffa657',width:1,type:'dashed' } },
+      { name:'0轴',type:'line',data:zl,symbol:'none',silent:true,lineStyle:{ color:'#484f58',width:1 } },
+      { name:'-5%',type:'line',data:ln5,symbol:'none',silent:true,lineStyle:{ color:'#3fb950',width:1,type:'dashed' } }
+    ]
+  }); window.addEventListener('resize',function(){c.resize()});
+  c.group='bias-group'; var pc=echarts.getInstanceByDom(document.getElementById('chart-price'));
+  if(pc){ pc.group='bias-group'; echarts.connect('bias-group'); }
+})();
+</script>
+</body>
+</html>

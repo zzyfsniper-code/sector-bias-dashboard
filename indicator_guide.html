@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>乖离率指标详解 | 申万行业乖离率看板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #0d1117; color: #c9d1d9; padding: 24px; line-height: 1.8;
+  }
+  .container { max-width: 800px; margin: 0 auto; }
+  .back-link { display: inline-block; margin-bottom: 20px; color: #58a6ff; text-decoration: none; font-size: 13px; }
+  .back-link:hover { text-decoration: underline; }
+  h1 { font-size: 24px; color: #f0f6fc; margin-bottom: 8px; }
+  .source { font-size: 12px; color: #6e7681; margin-bottom: 24px; }
+  .source a { color: #58a6ff; }
+  
+  h2 { font-size: 18px; color: #f0f6fc; margin: 28px 0 12px 0; border-bottom: 1px solid #21262d; padding-bottom: 8px; }
+  h3 { font-size: 15px; color: #e6edf3; margin: 20px 0 10px 0; }
+  p { margin-bottom: 12px; color: #c9d1d9; }
+  
+  .highlight-box {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 16px; margin: 16px 0;
+  }
+  .formula {
+    font-family: "SF Mono", Monaco, monospace;
+    background: #0d1117; padding: 12px 16px; border-radius: 6px;
+    color: #7ee787; font-size: 14px; margin: 12px 0;
+  }
+  
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { padding: 10px 12px; text-align: left; background: #161b22; color: #8b949e; font-weight: 500; border-bottom: 1px solid #30363d; }
+  td { padding: 10px 12px; border-bottom: 1px solid #21262d; }
+  tr:hover { background: rgba(88,166,255,0.03); }
+  
+  .tip {
+    border-left: 3px solid #58a6ff; padding-left: 12px; margin: 16px 0;
+    color: #8b949e; font-size: 13px;
+  }
+  .warning {
+    border-left: 3px solid #f85149; padding-left: 12px; margin: 16px 0;
+    color: #f85149; font-size: 13px;
+  }
+  
+  ul, ol { margin: 12px 0 12px 24px; }
+  li { margin: 6px 0; }
+  
+  .section-num {
+    display: inline-block; width: 24px; height: 24px; line-height: 24px;
+    text-align: center; background: #21262d; border-radius: 50%;
+    font-size: 12px; margin-right: 8px; color: #58a6ff;
+  }
+  
+  .footer { margin-top: 40px; font-size: 11px; color: #484f58; text-align: center; padding-top: 20px; border-top: 1px solid #21262d; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="index.html" class="back-link">← 返回看板首页</a>
+  
+  <h1>乖离率指标详解</h1>
+  <div class="source">
+    指标来源：<a href="https://mp.weixin.qq.com/s/yoDNm2TSrWCvvedu_Xozgw" target="_blank">EarlETF《价值百万的 A股乖离率技巧》(点击阅读原文)</a>
+  </div>
+  
+  <h2>一、指标定义</h2>
+  <p>该指标出自广发策略首席<strong>刘晨明</strong>发布的报告《如何区分主线是调整还是终结？》，其核心用途是：</p>
+  <div class="highlight-box">
+    <strong>追踪主线行业，并判断其当前的走势是属于"调整"还是"终结"</strong>
+  </div>
+  
+  <h3>计算公式（减法版）</h3>
+  <div class="formula">乖离率 = [ln(收盘价) - ln(EMA20)] × 100</div>
+  <p>使用的是<strong>自然对数（Ln）</strong>，比传统（价格-均线）/均线更稳定，适用于ETF等各类标的。</p>
+  
+  <h2>二、判断标准与阈值</h2>
+  <table>
+    <thead>
+      <tr><th>乖离率区间</th><th>含义</th><th>操作建议</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="color:#f85149;font-weight:600;">> 15%</td><td>过热</td><td>不追</td></tr>
+      <tr><td style="color:#ffa657;font-weight:600;">5% ~ 15%</td><td>强势主线</td><td>适合持有/入场</td></tr>
+      <tr><td style="color:#8b949e;font-weight:600;">0% ~ 5%</td><td>偏弱，不够强</td><td>观望</td></tr>
+      <tr><td style="color:#d2a8ff;font-weight:600;">-5% ~ 0%</td><td>刚跌破均线</td><td>坚守观察</td></tr>
+      <tr><td style="color:#3fb950;font-weight:600;">< -5%</td><td>趋势终结</td><td>止损离场</td></tr>
+    </tbody>
+  </table>
+  
+  <h2>三、核心使用心得</h2>
+  
+  <h3><span class="section-num">1</span>不上5%不够强</h3>
+  <p>乖离率的核心是<strong>追踪主线行业</strong>。如果连<strong>5%的乖离率都无法达到</strong>，说明该品种缺乏"龙头气质"，难以成为主线。真正的主线品种会持续站稳5%以上，甚至出现20%+的极端乖离值。</p>
+  
+  <h3><span class="section-num">2</span>关注"回抽两步走"形态</h3>
+  <p>经典走强三部曲：</p>
+  <ol>
+    <li><strong>先触及5%乖离率</strong> — 首次突破确认强度</li>
+    <li><strong>回调到0值区间获得支撑</strong> — 回抽均线不破</li>
+    <li><strong>继续向上突破</strong> — 确认趋势延续</li>
+  </ol>
+  <p>这与传统技术分析中"突破20日均线→回抽均线→继续向上"的逻辑一致，但乖离率提供了更定量的判断工具。</p>
+  
+  <h3><span class="section-num">3</span>品种之间择强辅助</h3>
+  <p>可用于<strong>横向比较不同品种的强弱</strong>。让客观数据纠正主观"臆想"。</p>
+  
+  <h3><span class="section-num">4</span>止损后不轻易入场</h3>
+  <p>当乖离率<strong>跌破-5%止损后</strong>，在没有重新站上5%之前，不应轻易入场。历史回测表明，按此规则操作大多数时间能置身事外。</p>
+  <div class="warning">
+    注意：乖离率不是万能指标，对趋势性强的品种效果好（如科技成长股），对白酒等反弹中屡屡站上5%的品种容易被骗线。
+  </div>
+  
+  <h3><span class="section-num">5</span>"逆练真经"也有效</h3>
+  <p>乖离率本质是追踪<strong>强势板块</strong>的工具，阈值对价值流行业（如银行、红利）不太适用。但对银行、红利等稳健品种，可以<strong>反过来用</strong>：</p>
+  <ul>
+    <li><strong>-5%</strong> 视为阶段性低点</li>
+    <li><strong>5%</strong> 视为阶段性高点</li>
+    <li>将-5%到5%区间当作<strong>震荡区间</strong>使用</li>
+  </ul>
+  
+  <h2>四、信号触发机制</h2>
+  <div class="highlight-box">
+    <p><strong>入场信号：</strong>乖离率从 <5% 突破到 ≥5%</p>
+    <p><strong>离场信号：</strong>乖离率从 >-5% 跌破到 ≤-5%</p>
+    <p style="margin-top:12px;color:#8b949e;font-size:12px;">
+      为避免重复信号，本看板采用交替触发：入场信号后忽略所有入场，直到出现离场信号，反之亦然。
+    </p>
+  </div>
+  
+  <h2>五、局限性</h2>
+  <ul>
+    <li><strong>最佳适用：</strong>科技成长等趋势性强的品种</li>
+    <li><strong>局限性：</strong>不适合趋势不决绝的品种（如白酒反弹），对价值稳健行业需要反向使用</li>
+    <li><strong>底层逻辑：</strong>数据归纳而非纯理论推导，阈值可能随市场变化而需调整</li>
+  </ul>
+  
+  <div class="tip">
+    以上仅为近期摸索心得，乖离率本身并非高深概念，刘晨明的研究价值在于通过数据归纳发现了A股行业的"甜点区"和"止损临界值"，这些参数未来可能需要调整，仅供参考。
+  </div>
+  
+  <div class="footer">
+    数据来源：Tushare Pro · 指标模型：刘晨明《如何区分主线是调整还是终结？》
+  </div>
+</div>
+</body>
+</html>

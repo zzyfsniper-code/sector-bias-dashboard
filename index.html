@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申万行业乖离率看板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #0d1117; color: #c9d1d9; padding: 24px;
+  }
+  .header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .header h1 { font-size: 22px; color: #f0f6fc; font-weight: 600; }
+  .header .subtitle { font-size: 13px; color: #8b949e; }
+  .section-title { font-size: 16px; color: #f0f6fc; font-weight: 600; margin: 24px 0 4px 0; }
+  .section-sub { font-size: 12px; color: #6e7681; margin-bottom: 12px; }
+  .table-wrap { overflow-x: auto; background: #161b22; border: 1px solid #21262d; border-radius: 8px; padding: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { border-bottom: 1px solid #21262d; }
+  th { padding: 10px 12px; text-align: left; color: #8b949e; font-weight: 500; font-size: 12px; white-space: nowrap; }
+  td { padding: 10px 12px; white-space: nowrap; border-bottom: 1px solid #0d1117; }
+  tbody tr:hover { background: rgba(88,166,255,0.05); }
+  tbody tr:last-child td { border-bottom: none; }
+  a { color: #58a6ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .footer { margin-top: 24px; font-size: 11px; color: #484f58; text-align: center; }
+  .guide-box {
+    background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+    padding: 20px; margin-bottom: 24px;
+  }
+  .guide-title { font-size: 15px; color: #f0f6fc; font-weight: 600; margin-bottom: 12px; }
+  .guide-content { font-size: 13px; color: #c9d1d9; line-height: 1.8; }
+  .guide-content p { margin-bottom: 8px; }
+  .guide-content ul { margin: 8px 0 8px 20px; }
+  .guide-content li { margin: 4px 0; }
+  .guide-link {
+    display: inline-block; margin-top: 12px; color: #58a6ff; text-decoration: none;
+    font-size: 13px; font-weight: 500;
+  }
+  .guide-link:hover { text-decoration: underline; }
+  .trend-badge {
+    display: inline-flex; align-items: center; gap: 8px; margin-left: 12px;
+    background: #161b22; border: 1px solid #21262d; border-radius: 6px;
+    padding: 4px 12px; font-size: 13px; font-weight: 600;
+  }
+  .trend-badge .up { color: #f85149; }
+  .trend-badge .down { color: #3fb950; }
+  .trend-badge .sep { color: #484f58; }
+  .refresh-btn {
+    background: #238636; color: #fff; border: 1px solid #2ea043; border-radius: 6px;
+    padding: 6px 14px; font-size: 13px; cursor: pointer; margin-left: 12px;
+    transition: background 0.2s;
+  }
+  .refresh-btn:hover { background: #2ea043; }
+  .refresh-btn:active { background: #196c2e; }
+  .refresh-btn:disabled { background: #21262d; color: #484f58; border-color: #30363d; cursor: not-allowed; }
+  .date-badge {
+    font-size: 12px; color: #6e7681; margin-left: auto; display: flex; align-items: center; gap: 8px;
+  }
+  .toast {
+    position: fixed; top: 24px; right: 24px; padding: 12px 20px; border-radius: 8px;
+    font-size: 13px; z-index: 9999; animation: fadeIn 0.3s;
+  }
+  .toast.success { background: #1a3a1a; color: #3fb950; border: 1px solid #2ea043; }
+  .toast.error { background: #3a1a1a; color: #f85149; border: 1px solid #f85149; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>申万行业乖离率看板</h1>
+  <span class="subtitle">乖离率 = [ln(收盘) - ln(EMA20)] x 100  |  入场：突破5%  |  离场：跌破-5%</span>
+  <span class="date-badge">数据截至 <span id="data-date">2026-05-28</span><button class="refresh-btn" id="refresh-btn" onclick="doRefresh()">🔄 刷新数据</button></span>
+</div>
+
+<div class="guide-box">
+  <div class="guide-title">📖 使用说明</div>
+  <div class="guide-content">
+    <p>本看板基于<strong>广发策略刘晨明团队</strong>提出的乖离率指标，追踪申万行业指数的趋势强弱。</p>
+    <p><strong>核心逻辑：</strong></p>
+    <ul>
+      <li>乖离率 <span style="color:#ffa657;">≥ 5%</span> 视为<strong>强势主线</strong>，适合持有；<span style="color:#f85149;">> 15%</span> 过热不追</li>
+      <li>乖离率在 <span style="color:#8b949e;">0%~5%</span> 偏弱观望；<span style="color:#d2a8ff;">-5%~0%</span> 刚跌破均线，坚守观察</li>
+      <li>乖离率 <span style="color:#3fb950;">< -5%</span> 为<strong>止损离场</strong>信号，在没有重新站上 5% 前不轻易入场</li>
+    </ul>
+    <p>点击行业名称可查看详细走势图。乖离率指标<strong>最适合趋势性强的科技成长品种</strong>，对价值稳健行业可反向使用（-5% 买、5% 卖）。</p>
+  </div>
+  <a href="indicator_guide.html" class="guide-link">📋 指标详细说明 →</a>
+</div>
+
+
+    <div class="section-title">重点二级行业</div>
+    <div class="section-sub">按乖离率降序排列，点击行业名查看详情</div>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>行业</th>
+          <th>级别</th>
+          <th>最新涨跌</th>
+          <th>5日涨跌</th>
+          <th>10日涨跌</th>
+          <th>乖离率</th>
+          <th>趋势区间</th>
+          <th>最近信号</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+          <td><a href="801102_通信设备_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">通信设备</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+5.18%</td>
+          <td style="color:#f85149">+14.27%</td>
+          <td style="color:#f85149">+5.61%</td>
+          <td style="color:#ffa657;font-weight:600;">+10.47%</td>
+          <td><span style="color:#ffa657;">●</span> 强势</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2025-12-01</span></td>
+        </tr><tr>
+          <td><a href="801081_半导体_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">半导体</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+1.45%</td>
+          <td style="color:#f85149">+6.88%</td>
+          <td style="color:#f85149">+10.18%</td>
+          <td style="color:#ffa657;font-weight:600;">+9.19%</td>
+          <td><span style="color:#ffa657;">●</span> 强势</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-04-14</span></td>
+        </tr><tr>
+          <td><a href="801085_消费电子_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">消费电子</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+2.34%</td>
+          <td style="color:#f85149">+7.42%</td>
+          <td style="color:#f85149">+3.53%</td>
+          <td style="color:#ffa657;font-weight:600;">+5.61%</td>
+          <td><span style="color:#ffa657;">●</span> 强势</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-04-10</span></td>
+        </tr><tr>
+          <td><a href="801735_光伏设备_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">光伏设备</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+1.19%</td>
+          <td style="color:#f85149">+3.64%</td>
+          <td style="color:#f85149">+4.01%</td>
+          <td style="color:#8b949e;font-weight:600;">+3.52%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-05-20</span></td>
+        </tr><tr>
+          <td><a href="801161_电力_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">电力</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+1.22%</td>
+          <td style="color:#f85149">+5.35%</td>
+          <td style="color:#f85149">+1.66%</td>
+          <td style="color:#8b949e;font-weight:600;">+3.11%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-04-03</span></td>
+        </tr><tr>
+          <td><a href="801738_电网设备_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">电网设备</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+0.85%</td>
+          <td style="color:#f85149">+1.27%</td>
+          <td style="color:#3fb950">-2.25%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-0.03%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-05-13</span></td>
+        </tr><tr>
+          <td><a href="801737_电池_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">电池</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+0.48%</td>
+          <td style="color:#f85149">+0.52%</td>
+          <td style="color:#3fb950">-1.87%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-0.92%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-11</span></td>
+        </tr><tr>
+          <td><a href="801991_航空机场_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">航空机场</a></td>
+          <td>L2</td>
+          <td style="color:#3fb950">-1.02%</td>
+          <td style="color:#3fb950">-0.34%</td>
+          <td style="color:#3fb950">-2.45%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-1.86%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-02</span></td>
+        </tr><tr>
+          <td><a href="801193_证券Ⅱ_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">证券Ⅱ</a></td>
+          <td>L2</td>
+          <td style="color:#3fb950">-2.02%</td>
+          <td style="color:#3fb950">-2.99%</td>
+          <td style="color:#3fb950">-4.79%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-3.49%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-04</span></td>
+        </tr><tr>
+          <td><a href="801736_风电设备_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">风电设备</a></td>
+          <td>L2</td>
+          <td style="color:#f85149">+0.42%</td>
+          <td style="color:#3fb950">-0.57%</td>
+          <td style="color:#3fb950">-5.57%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-3.49%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-31</span></td>
+        </tr><tr>
+          <td><a href="801194_保险Ⅱ_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">保险Ⅱ</a></td>
+          <td>L2</td>
+          <td style="color:#3fb950">-1.42%</td>
+          <td style="color:#3fb950">-2.41%</td>
+          <td style="color:#3fb950">-7.78%</td>
+          <td style="color:#3fb950;font-weight:600;">-5.96%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-02</span></td>
+        </tr><tr>
+          <td><a href="801764_游戏Ⅱ_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">游戏Ⅱ</a></td>
+          <td>L2</td>
+          <td style="color:#3fb950">-0.69%</td>
+          <td style="color:#3fb950">-3.43%</td>
+          <td style="color:#3fb950">-7.44%</td>
+          <td style="color:#3fb950;font-weight:600;">-6.65%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-02</span></td>
+        </tr><tr>
+          <td><a href="801017_养殖业_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">养殖业</a></td>
+          <td>L2</td>
+          <td style="color:#3fb950">-1.62%</td>
+          <td style="color:#3fb950">-5.45%</td>
+          <td style="color:#3fb950">-11.71%</td>
+          <td style="color:#3fb950;font-weight:600;">-8.34%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-24</span></td>
+        </tr></tbody></table></div>
+
+
+    <div class="section-title">全部一级行业</div>
+    <div class="section-sub">按指数代码排序, <span class="trend-badge">上行 <span class="up">9</span><span class="sep"> / </span>下行 <span class="down">20</span></span></div>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>行业</th>
+          <th>级别</th>
+          <th>最新涨跌</th>
+          <th>5日涨跌</th>
+          <th>10日涨跌</th>
+          <th>乖离率</th>
+          <th>趋势区间</th>
+          <th>最近信号</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+          <td><a href="801010_农林牧渔_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">农林牧渔</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-1.08%</td>
+          <td style="color:#3fb950">-4.48%</td>
+          <td style="color:#3fb950">-10.84%</td>
+          <td style="color:#3fb950;font-weight:600;">-7.61%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-23</span></td>
+        </tr><tr>
+          <td><a href="801030_基础化工_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">基础化工</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.30%</td>
+          <td style="color:#3fb950">-0.46%</td>
+          <td style="color:#3fb950">-4.51%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-3.15%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-19</span></td>
+        </tr><tr>
+          <td><a href="801040_钢铁_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">钢铁</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.05%</td>
+          <td style="color:#3fb950">-1.93%</td>
+          <td style="color:#3fb950">-8.19%</td>
+          <td style="color:#3fb950;font-weight:600;">-6.18%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-19</span></td>
+        </tr><tr>
+          <td><a href="801050_有色金属_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">有色金属</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.47%</td>
+          <td style="color:#f85149">+2.67%</td>
+          <td style="color:#3fb950">-5.85%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-2.90%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-16</span></td>
+        </tr><tr>
+          <td><a href="801080_电子_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">电子</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+1.73%</td>
+          <td style="color:#f85149">+8.76%</td>
+          <td style="color:#f85149">+9.87%</td>
+          <td style="color:#ffa657;font-weight:600;">+9.10%</td>
+          <td><span style="color:#ffa657;">●</span> 强势</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-04-13</span></td>
+        </tr><tr>
+          <td><a href="801110_家用电器_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">家用电器</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-1.53%</td>
+          <td style="color:#3fb950">-3.78%</td>
+          <td style="color:#3fb950">-4.28%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-2.79%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-23</span></td>
+        </tr><tr>
+          <td><a href="801120_食品饮料_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">食品饮料</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-2.00%</td>
+          <td style="color:#3fb950">-2.65%</td>
+          <td style="color:#3fb950">-5.52%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-4.20%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td>-</td>
+        </tr><tr>
+          <td><a href="801130_纺织服饰_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">纺织服饰</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.26%</td>
+          <td style="color:#3fb950">-3.73%</td>
+          <td style="color:#3fb950">-7.68%</td>
+          <td style="color:#3fb950;font-weight:600;">-5.05%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-20</span></td>
+        </tr><tr>
+          <td><a href="801140_轻工制造_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">轻工制造</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.03%</td>
+          <td style="color:#3fb950">-2.53%</td>
+          <td style="color:#3fb950">-6.78%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-4.08%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-23</span></td>
+        </tr><tr>
+          <td><a href="801150_医药生物_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">医药生物</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-1.38%</td>
+          <td style="color:#3fb950">-3.79%</td>
+          <td style="color:#3fb950">-6.41%</td>
+          <td style="color:#3fb950;font-weight:600;">-5.03%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-04</span></td>
+        </tr><tr>
+          <td><a href="801160_公用事业_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">公用事业</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+1.00%</td>
+          <td style="color:#f85149">+4.47%</td>
+          <td style="color:#f85149">+0.97%</td>
+          <td style="color:#8b949e;font-weight:600;">+2.42%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-04-03</span></td>
+        </tr><tr>
+          <td><a href="801170_交通运输_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">交通运输</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.70%</td>
+          <td style="color:#3fb950">-2.51%</td>
+          <td style="color:#3fb950">-4.18%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-3.01%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-23</span></td>
+        </tr><tr>
+          <td><a href="801180_房地产_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">房地产</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+1.04%</td>
+          <td style="color:#3fb950">-1.27%</td>
+          <td style="color:#3fb950">-7.01%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-3.44%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-05-08</span></td>
+        </tr><tr>
+          <td><a href="801200_商贸零售_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">商贸零售</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-1.80%</td>
+          <td style="color:#3fb950">-2.44%</td>
+          <td style="color:#3fb950">-7.68%</td>
+          <td style="color:#3fb950;font-weight:600;">-5.31%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-03</span></td>
+        </tr><tr>
+          <td><a href="801210_社会服务_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">社会服务</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.38%</td>
+          <td style="color:#3fb950">-0.13%</td>
+          <td style="color:#3fb950">-4.26%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-3.20%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-23</span></td>
+        </tr><tr>
+          <td><a href="801230_综合_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">综合</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.25%</td>
+          <td style="color:#f85149">+3.07%</td>
+          <td style="color:#3fb950">-3.56%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-0.45%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-04-30</span></td>
+        </tr><tr>
+          <td><a href="801710_建筑材料_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">建筑材料</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+3.78%</td>
+          <td style="color:#f85149">+7.95%</td>
+          <td style="color:#f85149">+2.95%</td>
+          <td style="color:#8b949e;font-weight:600;">+4.71%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-05-06</span></td>
+        </tr><tr>
+          <td><a href="801720_建筑装饰_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">建筑装饰</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.20%</td>
+          <td style="color:#3fb950">-2.54%</td>
+          <td style="color:#3fb950">-7.47%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-4.48%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-23</span></td>
+        </tr><tr>
+          <td><a href="801730_电力设备_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">电力设备</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.69%</td>
+          <td style="color:#f85149">+1.53%</td>
+          <td style="color:#3fb950">-0.73%</td>
+          <td style="color:#8b949e;font-weight:600;">+0.29%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-05-06</span></td>
+        </tr><tr>
+          <td><a href="801740_国防军工_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">国防军工</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+1.59%</td>
+          <td style="color:#3fb950">-0.25%</td>
+          <td style="color:#3fb950">-5.73%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-2.80%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-04-20</span></td>
+        </tr><tr>
+          <td><a href="801750_计算机_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">计算机</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.13%</td>
+          <td style="color:#3fb950">-2.82%</td>
+          <td style="color:#3fb950">-6.05%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-4.41%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-03</span></td>
+        </tr><tr>
+          <td><a href="801760_传媒_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">传媒</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.57%</td>
+          <td style="color:#3fb950">-3.55%</td>
+          <td style="color:#3fb950">-6.61%</td>
+          <td style="color:#3fb950;font-weight:600;">-5.70%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-02</span></td>
+        </tr><tr>
+          <td><a href="801770_通信_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">通信</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+4.59%</td>
+          <td style="color:#f85149">+11.69%</td>
+          <td style="color:#f85149">+3.75%</td>
+          <td style="color:#ffa657;font-weight:600;">+8.54%</td>
+          <td><span style="color:#ffa657;">●</span> 强势</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2025-12-01</span></td>
+        </tr><tr>
+          <td><a href="801780_银行_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">银行</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.64%</td>
+          <td style="color:#3fb950">-0.97%</td>
+          <td style="color:#3fb950">-2.54%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-1.94%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td>-</td>
+        </tr><tr>
+          <td><a href="801790_非银金融_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">非银金融</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-1.74%</td>
+          <td style="color:#3fb950">-2.80%</td>
+          <td style="color:#3fb950">-5.93%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-4.35%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-04</span></td>
+        </tr><tr>
+          <td><a href="801880_汽车_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">汽车</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.50%</td>
+          <td style="color:#3fb950">-2.66%</td>
+          <td style="color:#3fb950">-3.83%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-2.82%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2025-11-21</span></td>
+        </tr><tr>
+          <td><a href="801890_机械设备_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">机械设备</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+1.70%</td>
+          <td style="color:#f85149">+1.68%</td>
+          <td style="color:#f85149">+1.59%</td>
+          <td style="color:#8b949e;font-weight:600;">+2.12%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2026-05-07</span></td>
+        </tr><tr>
+          <td><a href="801950_煤炭_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">煤炭</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.94%</td>
+          <td style="color:#f85149">+3.78%</td>
+          <td style="color:#f85149">+2.02%</td>
+          <td style="color:#8b949e;font-weight:600;">+0.63%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#8b949e;">2025-07-22</span></td>
+        </tr><tr>
+          <td><a href="801960_石油石化_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">石油石化</a></td>
+          <td>L1</td>
+          <td style="color:#f85149">+0.26%</td>
+          <td style="color:#3fb950">-4.36%</td>
+          <td style="color:#3fb950">-8.23%</td>
+          <td style="color:#3fb950;font-weight:600;">-6.45%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-05-21</span></td>
+        </tr><tr>
+          <td><a href="801970_环保_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">环保</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-0.07%</td>
+          <td style="color:#3fb950">-0.80%</td>
+          <td style="color:#3fb950">-5.28%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-2.47%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-23</span></td>
+        </tr><tr>
+          <td><a href="801980_美容护理_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">美容护理</a></td>
+          <td>L1</td>
+          <td style="color:#3fb950">-1.46%</td>
+          <td style="color:#3fb950">-2.73%</td>
+          <td style="color:#3fb950">-8.53%</td>
+          <td style="color:#3fb950;font-weight:600;">-6.22%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#8b949e;">2026-03-20</span></td>
+        </tr></tbody></table></div>
+
+<div class="footer">
+  数据来源：Tushare Pro · 申万行业指数 (SW2021) · 指标模型：刘晨明《如何区分主线是调整还是终结？》
+</div>
+<script>
+var INDEX_DATA = {"focus": [{"code": "801102", "name": "通信设备", "level": "L2", "focus": true, "latest_pct": 5.18, "pct_5d": 14.27, "pct_10d": 5.61, "bias": 10.47, "zone": "强势", "zone_color": "#ffa657", "last_signal_type": "entry", "last_signal_date": "2025-12-01"}, {"code": "801081", "name": "半导体", "level": "L2", "focus": true, "latest_pct": 1.45, "pct_5d": 6.88, "pct_10d": 10.18, "bias": 9.19, "zone": "强势", "zone_color": "#ffa657", "last_signal_type": "entry", "last_signal_date": "2026-04-14"}, {"code": "801085", "name": "消费电子", "level": "L2", "focus": true, "latest_pct": 2.34, "pct_5d": 7.42, "pct_10d": 3.53, "bias": 5.61, "zone": "强势", "zone_color": "#ffa657", "last_signal_type": "entry", "last_signal_date": "2026-04-10"}, {"code": "801735", "name": "光伏设备", "level": "L2", "focus": true, "latest_pct": 1.19, "pct_5d": 3.64, "pct_10d": 4.01, "bias": 3.52, "zone": "偏弱", "zone_color": "#8b949e", "last_signal_type": "entry", "last_signal_date": "2026-05-20"}, {"code": "801161", "name": "电力", "level": "L2", "focus": true, "latest_pct": 1.22, "pct_5d": 5.35, "pct_10d": 1.66, "bias": 3.11, "zone": "偏弱", "zone_color": "#8b949e", "last_signal_type": "exit", "last_signal_date": "2026-04-03"}, {"code": "801738", "name": "电网设备", "level": "L2", "focus": true, "latest_pct": 0.85, "pct_5d": 1.27, "pct_10d": -2.25, "bias": -0.03, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "entry", "last_signal_date": "2026-05-13"}, {"code": "801737", "name": "电池", "level": "L2", "focus": true, "latest_pct": 0.48, "pct_5d": 0.52, "pct_10d": -1.87, "bias": -0.92, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "entry", "last_signal_date": "2026-03-11"}, {"code": "801991", "name": "航空机场", "level": "L2", "focus": true, "latest_pct": -1.02, "pct_5d": -0.34, "pct_10d": -2.45, "bias": -1.86, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-02"}, {"code": "801193", "name": "证券Ⅱ", "level": "L2", "focus": true, "latest_pct": -2.02, "pct_5d": -2.99, "pct_10d": -4.79, "bias": -3.49, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-04"}, {"code": "801736", "name": "风电设备", "level": "L2", "focus": true, "latest_pct": 0.42, "pct_5d": -0.57, "pct_10d": -5.57, "bias": -3.49, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-31"}, {"code": "801194", "name": "保险Ⅱ", "level": "L2", "focus": true, "latest_pct": -1.42, "pct_5d": -2.41, "pct_10d": -7.78, "bias": -5.96, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-02"}, {"code": "801764", "name": "游戏Ⅱ", "level": "L2", "focus": true, "latest_pct": -0.69, "pct_5d": -3.43, "pct_10d": -7.44, "bias": -6.65, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-02"}, {"code": "801017", "name": "养殖业", "level": "L2", "focus": true, "latest_pct": -1.62, "pct_5d": -5.45, "pct_10d": -11.71, "bias": -8.34, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-24"}], "other": [{"code": "801010", "name": "农林牧渔", "level": "L1", "focus": false, "latest_pct": -1.08, "pct_5d": -4.48, "pct_10d": -10.84, "bias": -7.61, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-23"}, {"code": "801030", "name": "基础化工", "level": "L1", "focus": false, "latest_pct": 0.3, "pct_5d": -0.46, "pct_10d": -4.51, "bias": -3.15, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-19"}, {"code": "801040", "name": "钢铁", "level": "L1", "focus": false, "latest_pct": -0.05, "pct_5d": -1.93, "pct_10d": -8.19, "bias": -6.18, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-19"}, {"code": "801050", "name": "有色金属", "level": "L1", "focus": false, "latest_pct": -0.47, "pct_5d": 2.67, "pct_10d": -5.85, "bias": -2.9, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-16"}, {"code": "801080", "name": "电子", "level": "L1", "focus": false, "latest_pct": 1.73, "pct_5d": 8.76, "pct_10d": 9.87, "bias": 9.1, "zone": "强势", "zone_color": "#ffa657", "last_signal_type": "entry", "last_signal_date": "2026-04-13"}, {"code": "801110", "name": "家用电器", "level": "L1", "focus": false, "latest_pct": -1.53, "pct_5d": -3.78, "pct_10d": -4.28, "bias": -2.79, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-23"}, {"code": "801120", "name": "食品饮料", "level": "L1", "focus": false, "latest_pct": -2.0, "pct_5d": -2.65, "pct_10d": -5.52, "bias": -4.2, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "", "last_signal_date": ""}, {"code": "801130", "name": "纺织服饰", "level": "L1", "focus": false, "latest_pct": -0.26, "pct_5d": -3.73, "pct_10d": -7.68, "bias": -5.05, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-20"}, {"code": "801140", "name": "轻工制造", "level": "L1", "focus": false, "latest_pct": -0.03, "pct_5d": -2.53, "pct_10d": -6.78, "bias": -4.08, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-23"}, {"code": "801150", "name": "医药生物", "level": "L1", "focus": false, "latest_pct": -1.38, "pct_5d": -3.79, "pct_10d": -6.41, "bias": -5.03, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-04"}, {"code": "801160", "name": "公用事业", "level": "L1", "focus": false, "latest_pct": 1.0, "pct_5d": 4.47, "pct_10d": 0.97, "bias": 2.42, "zone": "偏弱", "zone_color": "#8b949e", "last_signal_type": "exit", "last_signal_date": "2026-04-03"}, {"code": "801170", "name": "交通运输", "level": "L1", "focus": false, "latest_pct": -0.7, "pct_5d": -2.51, "pct_10d": -4.18, "bias": -3.01, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-23"}, {"code": "801180", "name": "房地产", "level": "L1", "focus": false, "latest_pct": 1.04, "pct_5d": -1.27, "pct_10d": -7.01, "bias": -3.44, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "entry", "last_signal_date": "2026-05-08"}, {"code": "801200", "name": "商贸零售", "level": "L1", "focus": false, "latest_pct": -1.8, "pct_5d": -2.44, "pct_10d": -7.68, "bias": -5.31, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-03"}, {"code": "801210", "name": "社会服务", "level": "L1", "focus": false, "latest_pct": 0.38, "pct_5d": -0.13, "pct_10d": -4.26, "bias": -3.2, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-23"}, {"code": "801230", "name": "综合", "level": "L1", "focus": false, "latest_pct": 0.25, "pct_5d": 3.07, "pct_10d": -3.56, "bias": -0.45, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "entry", "last_signal_date": "2026-04-30"}, {"code": "801710", "name": "建筑材料", "level": "L1", "focus": false, "latest_pct": 3.78, "pct_5d": 7.95, "pct_10d": 2.95, "bias": 4.71, "zone": "偏弱", "zone_color": "#8b949e", "last_signal_type": "entry", "last_signal_date": "2026-05-06"}, {"code": "801720", "name": "建筑装饰", "level": "L1", "focus": false, "latest_pct": 0.2, "pct_5d": -2.54, "pct_10d": -7.47, "bias": -4.48, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-23"}, {"code": "801730", "name": "电力设备", "level": "L1", "focus": false, "latest_pct": 0.69, "pct_5d": 1.53, "pct_10d": -0.73, "bias": 0.29, "zone": "偏弱", "zone_color": "#8b949e", "last_signal_type": "entry", "last_signal_date": "2026-05-06"}, {"code": "801740", "name": "国防军工", "level": "L1", "focus": false, "latest_pct": 1.59, "pct_5d": -0.25, "pct_10d": -5.73, "bias": -2.8, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "entry", "last_signal_date": "2026-04-20"}, {"code": "801750", "name": "计算机", "level": "L1", "focus": false, "latest_pct": 0.13, "pct_5d": -2.82, "pct_10d": -6.05, "bias": -4.41, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-03"}, {"code": "801760", "name": "传媒", "level": "L1", "focus": false, "latest_pct": -0.57, "pct_5d": -3.55, "pct_10d": -6.61, "bias": -5.7, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-02"}, {"code": "801770", "name": "通信", "level": "L1", "focus": false, "latest_pct": 4.59, "pct_5d": 11.69, "pct_10d": 3.75, "bias": 8.54, "zone": "强势", "zone_color": "#ffa657", "last_signal_type": "entry", "last_signal_date": "2025-12-01"}, {"code": "801780", "name": "银行", "level": "L1", "focus": false, "latest_pct": -0.64, "pct_5d": -0.97, "pct_10d": -2.54, "bias": -1.94, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "", "last_signal_date": ""}, {"code": "801790", "name": "非银金融", "level": "L1", "focus": false, "latest_pct": -1.74, "pct_5d": -2.8, "pct_10d": -5.93, "bias": -4.35, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-04"}, {"code": "801880", "name": "汽车", "level": "L1", "focus": false, "latest_pct": -0.5, "pct_5d": -2.66, "pct_10d": -3.83, "bias": -2.82, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2025-11-21"}, {"code": "801890", "name": "机械设备", "level": "L1", "focus": false, "latest_pct": 1.7, "pct_5d": 1.68, "pct_10d": 1.59, "bias": 2.12, "zone": "偏弱", "zone_color": "#8b949e", "last_signal_type": "entry", "last_signal_date": "2026-05-07"}, {"code": "801950", "name": "煤炭", "level": "L1", "focus": false, "latest_pct": 0.94, "pct_5d": 3.78, "pct_10d": 2.02, "bias": 0.63, "zone": "偏弱", "zone_color": "#8b949e", "last_signal_type": "entry", "last_signal_date": "2025-07-22"}, {"code": "801960", "name": "石油石化", "level": "L1", "focus": false, "latest_pct": 0.26, "pct_5d": -4.36, "pct_10d": -8.23, "bias": -6.45, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-05-21"}, {"code": "801970", "name": "环保", "level": "L1", "focus": false, "latest_pct": -0.07, "pct_5d": -0.8, "pct_10d": -5.28, "bias": -2.47, "zone": "警戒", "zone_color": "#d2a8ff", "last_signal_type": "exit", "last_signal_date": "2026-03-23"}, {"code": "801980", "name": "美容护理", "level": "L1", "focus": false, "latest_pct": -1.46, "pct_5d": -2.73, "pct_10d": -8.53, "bias": -6.22, "zone": "止损", "zone_color": "#3fb950", "last_signal_type": "exit", "last_signal_date": "2026-03-20"}]};
+
+function showToast(msg, type) {
+  var t = document.getElementById('toast') || document.createElement('div');
+  t.id = 'toast';
+  t.className = 'toast ' + (type || 'success');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.remove(); }, 3000);
+}
+
+function doRefresh() {
+  var btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 启动中...';
+  fetch('/refresh', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'started') {
+        showToast('⏳ 正在刷新数据，请稍候...', 'success');
+        btn.textContent = '⏳ 刷新中...';
+        pollStatus();
+      } else {
+        showToast('⚠️ ' + (data.message || '无法启动刷新'), 'error');
+        btn.disabled = false;
+        btn.textContent = '🔄 刷新数据';
+      }
+    })
+    .catch(function(err) {
+      showToast('⚠️ 无法连接服务器', 'error');
+      btn.disabled = false;
+      btn.textContent = '🔄 刷新数据';
+    });
+}
+
+function pollStatus() {
+  var btn = document.getElementById('refresh-btn');
+  var check = function() {
+    fetch('/api/refresh-status')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.running) {
+          if (data.result && data.result.success) {
+            showToast('✅ 数据已刷新，页面重载中...', 'success');
+            setTimeout(function() { location.reload(); }, 1000);
+          } else {
+            showToast('❌ 刷新失败，请重试', 'error');
+            btn.disabled = false;
+            btn.textContent = '🔄 刷新数据';
+          }
+        } else {
+          setTimeout(check, 2000);
+        }
+      });
+  };
+  setTimeout(check, 2000);
+}
+</script>
+</body>
+</html>
