@@ -1,6 +1,13 @@
 name: Deploy to GitHub Pages
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'growth-value-five-dim/**'
+      - 'index_dashboard.html'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       message:
@@ -8,8 +15,20 @@ on:
         required: false
         default: '手动触发更新'
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,4 +43,5 @@ jobs:
           path: '.'
       
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4

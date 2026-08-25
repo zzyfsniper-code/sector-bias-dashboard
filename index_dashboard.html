@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>趋势追踪看板</title>
+<link rel="stylesheet" href="common.css?v=20260809-2">
+<style>
+.refresh-msg { font-size:12px; color:#52c41a; margin-left:12px; display:none; }
+/* 策略汇总卡片 */
+.strat-section { background:#fafbfc; border:1px solid #e8e8e8; border-radius:6px; padding:16px; margin-bottom:12px; }
+.strat-header { display:flex; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
+.strat-badge { display:inline-block; padding:2px 10px; border-radius:4px; font-weight:600; font-size:12px; background:#e6f7ff; color:#1890ff; border:1px solid #91d5ff; }
+.signal-badge { display:inline-block; padding:2px 10px; border-radius:4px; font-weight:600; font-size:12px; background:#fffbe6; color:#d4a017; border:1px solid #ffe58f; }
+.inner-table { width:100%; border-collapse:collapse; font-size:12px; }
+.inner-table th { background:#f6f8fa; padding:7px 12px; font-size:11px; color:#57606a; text-align:left; font-weight:600; border-bottom:1px solid #e8e8e8; }
+.inner-table td { padding:7px 12px; border-bottom:1px solid #f0f0f0; color:#555; }
+/* 修复选中行样式——浅色高亮而非黑底 */
+.inner-table td[row-highlight] { background:#e6f7ff; }
+/* 短线情绪卡片 */
+.sentiment-cards { display:flex; gap:16px; margin-bottom:20px; }
+.stat-card { flex:1; background:#fff; border:1px solid #e8e8e8; border-radius:6px; padding:16px; text-align:center; }
+.stat-label { font-size:12px; color:#999; margin-bottom:4px; }
+.stat-value { font-size:28px; font-weight:700; }
+.stat-sub { font-size:11px; color:#999; margin-top:4px; }
+/* 信号表格 */
+.table-wrap { overflow-x:auto; }
+.table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+.table-wrap th { background:#f6f8fa; padding:10px 12px; text-align:left; font-weight:600; border-bottom:2px solid #e8e8e8; color:#57606a; font-size:12px; }
+.table-wrap td { padding:10px 12px; border-bottom:1px solid #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div>
+      <h1>趋势追踪看板</h1>
+      <div class="topbar-meta">数据截至 2026-08-24 · 刷新于 2026-08-25 08:28:32</div>
+    </div>
+  </div>
+<div class="topbar-nav" style="max-width:1500px;margin:0 auto;">
+    <a href="index_dashboard.html" class="active">首页</a>
+    <a href="rrg.html">行业RRG</a>
+    <a href="style_rrg.html">风格RRG</a>
+    <a href="asset_rrg.html">大类资产RRG</a>
+    <a href="index.html">乖离率看板</a>
+    <a href="rotation.html">资产轮动策略</a>
+    <a href="growth-value-five-dim/">五维轮动</a>
+    <a href="sentiment.html">短线情绪</a>
+    <a href="valuation.html">估值和资金</a>
+    <a href="earnings_gap.html">净利润断层</a>
+    <a href="csi500_timing.html">主力500择时</a>
+    <a href="institutional_flow.html">龙虎榜与ETF</a>
+    <a href="zaozhidao.html">早知道</a>
+    <a href="zaocan.html">早餐</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="section-title">短线情绪</div>
+  <div class="section-sub">全A / 创业板 / 科创板 · 情绪指标范围0-100</div>
+  <div class="sentiment-cards">
+      <div class="stat-card">
+        <div class="stat-label">全A情绪</div>
+        <div class="stat-value" style="color:#cf1322;">72<span style="color:#3f8600;font-size:14px;font-weight:600;margin-left:4px;">-10</span></div>
+        <div class="stat-sub">偏热 · 上涨38 · 新低差87 · 均线92</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">创业板情绪</div>
+        <div class="stat-value" style="color:#cf1322;">72<span style="color:#3f8600;font-size:14px;font-weight:600;margin-left:4px;">-11</span></div>
+        <div class="stat-sub">偏热 · 上涨43 · 新低差80 · 均线94</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">科创板情绪</div>
+        <div class="stat-value" style="color:#1890ff;">70<span style="color:#3f8600;font-size:14px;font-weight:600;margin-left:4px;">-8</span></div>
+        <div class="stat-sub">中性 · 上涨37 · 新低差78 · 均线96</div>
+      </div>
+    </div>
+  
+  <div class="card">
+    <div class="card-body">
+      <div class="section-title">资产轮动策略</div>
+      <div class="section-sub">基于20日动量因子 · 每周五调仓</div>
+      <div class="strat-section">
+              <div class="strat-header">
+                <span class="strat-badge" style="background:#58a6ff20;color:#58a6ff;border:1px solid #58a6ff40;">
+                  四资产轮动
+                </span>
+                <span style="margin-left:16px;font-size:13px;">
+                  当前持有：<span class="signal-badge" style="background:#d2991d20;color:#d2991d;border:1px solid #d2991d40;">黄金ETF</span>
+                  &nbsp;→&nbsp;
+                  下周持有：<span class="signal-badge" style="background:#d2991d20;color:#d2991d;border:1px solid #d2991d40;">黄金ETF</span>
+                </span>
+                <span style="margin-left:auto;font-size:13px;color:#999;">
+                  累计收益 <span style="color:#f85149;font-weight:600;">+533.80%</span>
+                  &nbsp;超额 <span style="color:#f85149;font-weight:600;">+379.26%</span>
+                  &nbsp;基准 <span style="color:#999;">+154.54%</span>
+                </span>
+              </div>
+              <table class="inner-table">
+                <thead>
+                  <tr><th>ETF</th><th>代码</th><th>20日涨跌</th><th>最新价</th></tr>
+                </thead>
+                <tbody>
+                <tr style="">
+                  <td style="padding-left:40px;">沪深300ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">510300.SH</td>
+                  <td style="color:#3fb950;font-weight:600;">-2.65%</td>
+                  <td style="color:#999;">4.627</td>
+                </tr>
+                <tr style="">
+                  <td style="padding-left:40px;">5年国债ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">511010.SH</td>
+                  <td style="color:#f85149;font-weight:600;">+0.32%</td>
+                  <td style="color:#999;">141.29</td>
+                </tr>
+                <tr style="">
+                  <td style="padding-left:40px;">纳指ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">513100.SH</td>
+                  <td style="color:#f85149;font-weight:600;">+2.27%</td>
+                  <td style="color:#999;">2.166</td>
+                </tr>
+                <tr style="background:#e6f7ff;">
+                  <td style="padding-left:40px;">黄金ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">518880.SH</td>
+                  <td style="color:#f85149;font-weight:600;">+12.49%</td>
+                  <td style="color:#999;">9.564</td>
+                </tr></tbody>
+              </table>
+            </div>
+<div class="strat-section">
+              <div class="strat-header">
+                <span class="strat-badge" style="background:#58a6ff20;color:#58a6ff;border:1px solid #58a6ff40;">
+                  二八轮动
+                </span>
+                <span style="margin-left:16px;font-size:13px;">
+                  当前持有：<span class="signal-badge" style="background:#d2991d20;color:#d2991d;border:1px solid #d2991d40;">中证2000ETF</span>
+                  &nbsp;→&nbsp;
+                  下周持有：<span class="signal-badge" style="background:#d2991d20;color:#d2991d;border:1px solid #d2991d40;">中证2000ETF</span>
+                </span>
+                <span style="margin-left:auto;font-size:13px;color:#999;">
+                  累计收益 <span style="color:#f85149;font-weight:600;">+50.23%</span>
+                  &nbsp;超额 <span style="color:#f85149;font-weight:600;">+16.76%</span>
+                  &nbsp;基准 <span style="color:#999;">+33.47%</span>
+                </span>
+              </div>
+              <table class="inner-table">
+                <thead>
+                  <tr><th>ETF</th><th>代码</th><th>20日涨跌</th><th>最新价</th></tr>
+                </thead>
+                <tbody>
+                <tr style="">
+                  <td style="padding-left:40px;">沪深300ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">510300.SH</td>
+                  <td style="color:#3fb950;font-weight:600;">-2.65%</td>
+                  <td style="color:#999;">4.627</td>
+                </tr>
+                <tr style="background:#e6f7ff;">
+                  <td style="padding-left:40px;">中证2000ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">563300.SH</td>
+                  <td style="color:#f85149;font-weight:600;">+6.41%</td>
+                  <td style="color:#999;">1.394</td>
+                </tr></tbody>
+              </table>
+            </div>
+<div class="strat-section">
+              <div class="strat-header">
+                <span class="strat-badge" style="background:#58a6ff20;color:#58a6ff;border:1px solid #58a6ff40;">
+                  双创红利
+                </span>
+                <span style="margin-left:16px;font-size:13px;">
+                  当前持有：<span class="signal-badge" style="background:#d2991d20;color:#d2991d;border:1px solid #d2991d40;">中证红利ETF</span>
+                  &nbsp;→&nbsp;
+                  下周持有：<span class="signal-badge" style="background:#d2991d20;color:#d2991d;border:1px solid #d2991d40;">中证红利ETF</span>
+                </span>
+                <span style="margin-left:auto;font-size:13px;color:#999;">
+                  累计收益 <span style="color:#f85149;font-weight:600;">+49.54%</span>
+                  &nbsp;超额 <span style="color:#f85149;font-weight:600;">+29.96%</span>
+                  &nbsp;基准 <span style="color:#999;">+19.58%</span>
+                </span>
+              </div>
+              <table class="inner-table">
+                <thead>
+                  <tr><th>ETF</th><th>代码</th><th>20日涨跌</th><th>最新价</th></tr>
+                </thead>
+                <tbody>
+                <tr style="">
+                  <td style="padding-left:40px;">科创创业ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">159781.SZ</td>
+                  <td style="color:#3fb950;font-weight:600;">-10.34%</td>
+                  <td style="color:#999;">1.067</td>
+                </tr>
+                <tr style="background:#e6f7ff;">
+                  <td style="padding-left:40px;">中证红利ETF</td>
+                  <td style="color:#999;font-family:monospace;font-size:11px;">515080.SH</td>
+                  <td style="color:#f85149;font-weight:600;">+4.16%</td>
+                  <td style="color:#999;">1.602</td>
+                </tr></tbody>
+              </table>
+            </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="card-body">
+      <div class="section-title">最近信号</div>
+<div class="section-sub">近10个交易日发出信号的板块</div>
+<div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>行业</th>
+          <th>指数代码</th>
+          <th>最新涨跌</th>
+          <th>5日涨跌</th>
+          <th>10日涨跌</th>
+          <th>乖离率</th>
+          <th>趋势区间</th>
+          <th>最近信号</th>
+          <th>对应ETF</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+          <td><a href="软件_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">软件</a></td>
+          <td style="color:#999;font-size:11px;font-family:monospace;">930601.CSI</td>
+          <td style="color:#3fb950">-2.29%</td>
+          <td style="color:#3fb950">-7.52%</td>
+          <td style="color:#3fb950">-9.36%</td>
+          <td style="color:#3fb950;font-weight:600;">-5.51%</td>
+          <td><span style="color:#3fb950;">●</span> 止损</td>
+          <td><span style="color:#3fb950;">▼ 离场</span><br><span style="font-size:11px;color:#999;">2026-08-24</span></td>
+          <td style="font-size:11px;color:#999;">嘉实中证软件服务ETF<br><span style="color:#bbb;font-family:monospace;">159852.SZ</span></td>
+        </tr><tr>
+          <td><a href="粮食_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">粮食</a></td>
+          <td style="color:#999;font-size:11px;font-family:monospace;">399365.SZ</td>
+          <td style="color:#f85149">+1.23%</td>
+          <td style="color:#f85149">+2.29%</td>
+          <td style="color:#f85149">+1.05%</td>
+          <td style="color:#8b949e;font-weight:600;">+1.93%</td>
+          <td><span style="color:#8b949e;">●</span> 偏弱</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#999;">2026-08-18</span></td>
+          <td style="font-size:11px;color:#999;">鹏华国证粮食产业ETF<br><span style="color:#bbb;font-family:monospace;">159698.SZ</span></td>
+        </tr><tr>
+          <td><a href="通信_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">通信</a></td>
+          <td style="color:#999;font-size:11px;font-family:monospace;">931160.CSI</td>
+          <td style="color:#3fb950">-4.42%</td>
+          <td style="color:#3fb950">-9.92%</td>
+          <td style="color:#f85149">+0.49%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-3.26%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#999;">2026-08-17</span></td>
+          <td style="font-size:11px;color:#999;">国泰中证全指通信设备ETF<br><span style="color:#bbb;font-family:monospace;">515880.SH</span></td>
+        </tr><tr>
+          <td><a href="半导体_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">半导体</a></td>
+          <td style="color:#999;font-size:11px;font-family:monospace;">931743.CSI</td>
+          <td style="color:#3fb950">-0.80%</td>
+          <td style="color:#3fb950">-7.24%</td>
+          <td style="color:#3fb950">-4.96%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-2.11%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#999;">2026-08-17</span></td>
+          <td style="font-size:11px;color:#999;">国泰中证半导体材料设备主题ETF<br><span style="color:#bbb;font-family:monospace;">159516.SZ</span></td>
+        </tr><tr>
+          <td><a href="房地产_bias.html" style="color:#58a6ff;text-decoration:none;font-weight:500;">房地产</a></td>
+          <td style="color:#999;font-size:11px;font-family:monospace;">931775.CSI</td>
+          <td style="color:#3fb950">-1.38%</td>
+          <td style="color:#3fb950">-3.51%</td>
+          <td style="color:#3fb950">-2.81%</td>
+          <td style="color:#d2a8ff;font-weight:600;">-1.64%</td>
+          <td><span style="color:#d2a8ff;">●</span> 警戒</td>
+          <td><span style="color:#f85149;">▲ 入场</span><br><span style="font-size:11px;color:#999;">2026-08-12</span></td>
+          <td style="font-size:11px;color:#999;">南方中证全指房地产ETF<br><span style="color:#bbb;font-family:monospace;">512200.SH</span></td>
+        </tr></tbody>
+    </table>
+    </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">数据来源：Tushare · 回测仅供参考</div>
+
+<script>
+async function refreshAll() {
+  const btn = document.querySelector('.btn-refresh');
+  const msg = document.getElementById('refresh-msg');
+  btn.disabled = true;
+  btn.textContent = '刷新中...';
+  msg.style.display = 'inline';
+  msg.textContent = '正在刷新全部数据...';
+  try {
+    const resp = await fetch('/refresh-all', {method:'POST'});
+    const data = await resp.json();
+    if (data.ok) {
+      msg.textContent = '刷新完成，3秒后刷新页面';
+      setTimeout(() => location.reload(), 3000);
+    } else {
+      msg.textContent = '失败：' + (data.message || '未知');
+      btn.disabled = false;
+      btn.textContent = '刷新数据';
+    }
+  } catch(e) {
+    msg.textContent = '服务未连接';
+    btn.disabled = false;
+    btn.textContent = '刷新数据';
+  }
+}
+</script>
+</body>
+</html>

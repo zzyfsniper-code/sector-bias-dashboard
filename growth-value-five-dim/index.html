@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="五维成长价值轮动每日交易信号页" />
+    <title>五维成长价值轮动｜每日信号</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="top-line"></div>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="返回页面顶部">
+        <span class="brand-mark">策</span>
+        <span>
+          <strong>策略研究室</strong>
+          <small>STRATEGY LAB</small>
+        </span>
+      </a>
+      <nav class="header-nav" aria-label="页内导航">
+        <a href="#trade">交易指令</a>
+        <a href="#overview">概览</a>
+        <a href="#signals">五维信号</a>
+        <a href="#algorithms">指标算法</a>
+        <a href="#validation">回测验证</a>
+      </nav>
+      <div class="header-status">
+        <span class="status-dot"></span>
+        <span id="header-status-text">读取数据中</span>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero shell" id="overview">
+        <div class="hero-copy">
+          <div class="eyebrow"><span>策略 01</span> 成长 / 价值风格择时</div>
+          <h1>五维成长价值轮动</h1>
+          <p class="hero-lead">
+            用动态宏观、估值、短期动量、市场广度和风格拥挤度共同决定成长与价值的配置方向，
+            再用五日平滑把二元判断转为可执行仓位。
+          </p>
+          <div class="hero-tags">
+            <span class="tag tag-warn">实盘跟踪</span>
+            <span class="tag">日 / 月频混合</span>
+            <span class="tag">下一交易日收盘执行</span>
+            <span class="tag" id="validation-tag">校验中</span>
+          </div>
+        </div>
+        <aside class="hero-meta" aria-label="运行信息">
+          <div class="meta-label">最近运行批次</div>
+          <div class="meta-run" id="run-time">—</div>
+          <dl>
+            <div><dt>信号数据</dt><dd id="signal-range">—</dd></div>
+            <div><dt>绩效区间</dt><dd id="performance-range">—</dd></div>
+            <div><dt>执行口径</dt><dd>T-1 数据 / T 收盘</dd></div>
+            <div><dt>默认成本</dt><dd>单边 10bp</dd></div>
+          </dl>
+        </aside>
+      </section>
+
+      <section class="shell decision-grid" id="trade" aria-label="最新调仓信号">
+        <article class="decision-card card-dark">
+          <div class="trade-card-header">
+            <div class="card-kicker">交易执行指令</div>
+            <span class="trade-status" id="trade-status">待生成</span>
+          </div>
+          <div class="decision-main">
+            <div class="allocation-donut" id="allocation-donut" style="--growth-share: 0%">
+              <div>
+                <strong id="growth-weight">—</strong>
+                <span>成长</span>
+              </div>
+            </div>
+            <div class="decision-copy">
+              <div class="decision-title" id="action-text">等待信号</div>
+              <p id="decision-summary">正在读取五个维度的最新判断。</p>
+              <div class="score-row">
+                <span>五维总分</span>
+                <strong id="composite-score">—</strong>
+                <span class="score-divider"></span>
+                <span>价值仓位</span>
+                <strong id="value-weight">—</strong>
+              </div>
+            </div>
+          </div>
+          <div class="execution-strip">
+            <div><span>数据更新 / 信号日期</span><strong id="signal-date">—</strong></div>
+            <div><span>模型当前仓位</span><strong id="effective-weight">—</strong></div>
+            <div><span>目标仓位</span><strong id="target-weight">—</strong></div>
+            <div><span>执行时点</span><strong id="execution-time">下一交易日收盘</strong></div>
+          </div>
+        </article>
+
+        <article class="vote-card card">
+          <div class="section-heading compact">
+            <div>
+              <div class="card-kicker">五维投票</div>
+              <h2>当前共识</h2>
+            </div>
+            <span class="as-of" id="vote-as-of">—</span>
+          </div>
+          <div class="vote-stack" id="vote-stack" aria-live="polite"></div>
+          <div class="vote-legend">
+            <span><i class="legend-dot growth"></i>成长 +1</span>
+            <span><i class="legend-dot value"></i>价值 -1</span>
+            <span><i class="legend-dot neutral"></i>沿用前值</span>
+          </div>
+          <div class="freshness-list" id="freshness-list"></div>
+        </article>
+      </section>
+
+      <section class="shell holdings-section" aria-label="ETF与基金持仓计划">
+        <article class="holdings-card card">
+          <div class="holdings-header">
+            <div>
+              <div class="card-kicker">可执行持仓清单</div>
+              <h2>ETF / 基金持仓比例</h2>
+              <p id="weight-rule">风格仓位在当日可用标的中等权分配。</p>
+            </div>
+            <div class="allocation-summary">
+              <div>
+                <span>成长篮子</span>
+                <strong><i id="growth-current">—</i><b>→</b><i id="growth-target">—</i></strong>
+              </div>
+              <div>
+                <span>价值篮子</span>
+                <strong><i id="value-current">—</i><b>→</b><i id="value-target">—</i></strong>
+              </div>
+            </div>
+          </div>
+          <div class="holdings-table-wrap">
+            <table class="holdings-table">
+              <thead>
+                <tr>
+                  <th>风格</th>
+                  <th>交易标的</th>
+                  <th>品种</th>
+                  <th>模型当前比例</th>
+                  <th>目标比例</th>
+                  <th>调仓变化</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="holdings-table"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3">组合合计</td>
+                  <td id="current-total">—</td>
+                  <td id="target-total">—</td>
+                  <td id="change-total">—</td>
+                  <td id="order-status">—</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="trade-note">
+            <span>信号形成后滞后一个收盘执行</span>
+            <span>表内比例为策略目标，不代表成交已完成</span>
+            <span>模型当前比例不等于券商账户实仓</span>
+            <span>100032.OF 为指数增强基金，并非 ETF</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="shell performance-section">
+        <div class="section-heading split-heading">
+          <div>
+            <div class="eyebrow">历史表现</div>
+            <h2>收益与风险</h2>
+            <p>绩效统一使用报告对齐截止日；默认展示单边 10bp，0bp 用于复刻对照。</p>
+          </div>
+          <div class="control-cluster" aria-label="回测视图选项">
+            <div class="segmented" id="layer-control">
+              <button class="active" data-layer="fund" type="button">ETF / 基金</button>
+              <button data-layer="style" type="button">纯风格指数</button>
+            </div>
+            <div class="segmented compact-control" id="cost-control">
+              <button data-cost="0" type="button">0bp</button>
+              <button class="active" data-cost="10" type="button">10bp</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid">
+          <article class="kpi-card"><span>年化收益</span><strong id="kpi-cagr">—</strong><small id="kpi-cagr-note">—</small></article>
+          <article class="kpi-card"><span>年化超额</span><strong id="kpi-excess">—</strong><small>相对成长 / 价值等权基准</small></article>
+          <article class="kpi-card"><span>最大回撤</span><strong id="kpi-mdd">—</strong><small id="kpi-mdd-note">—</small></article>
+          <article class="kpi-card"><span>月度超额胜率</span><strong id="kpi-win">—</strong><small id="kpi-win-note">—</small></article>
+          <article class="kpi-card"><span>夏普比率</span><strong id="kpi-sharpe">—</strong><small>无风险利率按 0 处理</small></article>
+        </div>
+
+        <article class="chart-card card">
+          <div class="chart-header">
+            <div>
+              <h3>累计净值曲线</h3>
+              <p id="curve-subtitle">—</p>
+            </div>
+            <div class="chart-actions">
+              <div class="chart-legend">
+                <span><i class="line-swatch strategy"></i>当前策略</span>
+                <span><i class="line-swatch benchmark"></i>等权基准</span>
+                <span><i class="line-swatch report"></i>报告策略</span>
+              </div>
+              <div class="segmented mini" id="range-control">
+                <button data-years="3" type="button">3年</button>
+                <button data-years="5" type="button">5年</button>
+                <button class="active" data-years="all" type="button">全部</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <svg id="nav-chart" class="line-chart" viewBox="0 0 1000 360" role="img" aria-label="策略累计净值曲线"></svg>
+            <div class="chart-tooltip" id="nav-tooltip" hidden></div>
+          </div>
+        </article>
+
+        <article class="chart-card card drawdown-card">
+          <div class="chart-header">
+            <div>
+              <h3>最大回撤曲线</h3>
+              <p>以各自历史净值峰值为基准，展示回撤深度与修复过程。</p>
+            </div>
+            <div class="chart-legend">
+              <span><i class="line-swatch strategy"></i>策略回撤</span>
+              <span><i class="line-swatch benchmark"></i>基准回撤</span>
+            </div>
+          </div>
+          <div class="chart-wrap short">
+            <svg id="drawdown-chart" class="line-chart" viewBox="0 0 1000 260" role="img" aria-label="策略最大回撤曲线"></svg>
+            <div class="chart-tooltip" id="drawdown-tooltip" hidden></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="signal-section" id="signals">
+        <div class="shell">
+          <div class="section-heading split-heading light-heading">
+            <div>
+              <div class="eyebrow">五维信号</div>
+              <h2>每一票从哪里来</h2>
+              <p>红色偏成长、蓝色偏价值。横向时间轴与上方收益曲线采用相同范围。</p>
+            </div>
+            <div class="signal-summary" id="signal-summary">—</div>
+          </div>
+
+          <article class="signal-matrix-card">
+            <div class="signal-matrix" id="signal-matrix"></div>
+          </article>
+
+          <div class="dimension-grid" id="dimension-grid"></div>
+        </div>
+      </section>
+
+      <section class="shell algorithms-section" id="algorithms">
+        <div class="section-heading">
+          <div class="eyebrow">完整口径</div>
+          <h2>每个指标如何计算</h2>
+          <p>以下内容直接对应当前候选版代码口径，包括数据源、公式、阈值、延续规则和已知限制。</p>
+        </div>
+
+        <article class="combination-card card" id="combination-card"></article>
+        <div class="algorithm-list" id="algorithm-list"></div>
+      </section>
+
+      <section class="validation-section" id="validation">
+        <div class="shell">
+          <div class="section-heading split-heading">
+            <div>
+              <div class="eyebrow">回测验证</div>
+              <h2>报告对照与年度表现</h2>
+              <p>报告对照使用 0 成本主口径；日常观察默认切换到单边 10bp。</p>
+            </div>
+            <span class="validation-seal" id="validation-seal">等待校验</span>
+          </div>
+
+          <div class="validation-grid">
+            <article class="card table-card">
+              <div class="table-title">
+                <h3>与报告核心指标对照</h3>
+                <span id="comparison-layer-label">ETF / 基金代理</span>
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>指标</th><th>报告</th><th>当前</th><th>差值</th></tr></thead>
+                  <tbody id="comparison-table"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="card table-card">
+              <div class="table-title">
+                <h3>近年收益拆解</h3>
+                <span>0bp · 含 2026 年截至 1 月 22 日</span>
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>年份</th><th>策略</th><th>基准</th><th>超额</th></tr></thead>
+                  <tbody id="yearly-table"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          <article class="boundary-card">
+            <div>
+              <div class="card-kicker">解释边界</div>
+              <h3>这个 Demo 能说明什么</h3>
+            </div>
+            <ul id="boundary-list"></ul>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-inner">
+        <div>
+          <strong>策略研究室</strong>
+          <span>独立研究页面 · 不修改趋势看板正式路由</span>
+        </div>
+        <span id="footer-run">—</span>
+      </div>
+    </footer>
+
+    <script src="data/strategy-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
