@@ -143,15 +143,6 @@ h3 { margin-bottom: 7px; font-size: 18px; }
 .trade-status { padding: 6px 9px; color: #d7dfdf; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.11); border-radius: 999px; font-size: 10px; font-weight: 800; }
 .trade-status.hold { color: #d8f0e2; background: rgba(67, 143, 101, 0.15); border-color: rgba(112, 190, 147, 0.23); }
 .trade-status.rebalance { color: #ffe8b3; background: rgba(185, 144, 67, 0.16); border-color: rgba(216, 189, 132, 0.27); }
-.trade-flow { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr) 22px minmax(0, 1.15fr); align-items: stretch; gap: 8px; margin-top: 18px; }
-.trade-flow-step { min-width: 0; padding: 13px 14px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.045); border-radius: 10px; }
-.trade-flow-step > span, .trade-flow-step > strong, .trade-flow-step > small { display: block; }
-.trade-flow-step > span { color: #97a5a8; font-size: 9px; }
-.trade-flow-step > strong { overflow: hidden; margin-top: 6px; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.trade-flow-step > small { margin-top: 5px; color: #aab5b8; font-size: 8px; line-height: 1.45; }
-.trade-flow-step.signal { border-color: rgba(216,189,132,0.23); background: rgba(185,144,67,0.1); }
-.trade-flow-step.target { border-color: rgba(112,190,147,0.23); background: rgba(67,143,101,0.11); }
-.trade-flow-arrow { display: grid; place-items: center; color: #839194; font-size: 18px; }
 .decision-main { display: grid; grid-template-columns: 156px minmax(0, 1fr); align-items: center; gap: 29px; padding: 19px 0 27px; }
 .allocation-donut {
   display: grid;
@@ -435,8 +426,6 @@ td.negative { color: var(--value-dark); font-weight: 700; }
   .hero-lead { margin-bottom: 17px; font-size: 13px; line-height: 1.7; }
   h2 { font-size: 29px; }
   .decision-main { grid-template-columns: 1fr; justify-items: start; }
-  .trade-flow { grid-template-columns: 1fr; }
-  .trade-flow-arrow { transform: rotate(90deg); }
   .execution-strip { grid-template-columns: 1fr; }
   .execution-strip > div + div { padding: 10px 0 0; border-top: 1px solid rgba(255,255,255,0.08); border-left: 0; }
   .split-heading, .chart-header, .chart-actions { align-items: flex-start; flex-direction: column; }

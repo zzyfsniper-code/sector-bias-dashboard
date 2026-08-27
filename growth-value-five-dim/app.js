@@ -105,41 +105,26 @@
   function renderCurrent() {
     const current = data.current;
     const plan = data.tradingPlan;
-    const signalGrowth = Number(current.desiredGrowthWeight || 0);
-    const signalValue = 1 - signalGrowth;
-    const targetGrowth = Number(plan.targetGrowthWeight || 0);
-    const targetValue = Number(plan.targetValueWeight || 0);
+    const growth = Number(current.desiredGrowthWeight || 0);
+    const value = 1 - growth;
     const votes = Object.values(current.dimensions);
     const growthVotes = votes.filter((item) => item.signal > 0).length;
     const valueVotes = votes.filter((item) => item.signal < 0).length;
-    const signalDirection = Number(current.binaryDirection) > 0 ? "成长" : Number(current.binaryDirection) < 0 ? "价值" : "中性";
-    const positionText = (growth, value) => `成长 ${pct(growth, 0)} / 价值 ${pct(value, 0)}`;
-    const changedHoldings = plan.holdings.filter((holding) => Math.abs(Number(holding.changeWeight || 0)) > 0.00005);
-    const orderSummary = changedHoldings.length === 0
-      ? `无需下单，维持${positionText(targetGrowth, targetValue)}`
-      : changedHoldings.map((holding) => `${holding.action}${holding.code} ${signedPct(Number(holding.changeWeight), 2)}`).join("；");
-
-    $("#allocation-donut").style.setProperty("--growth-share", `${targetGrowth * 100}%`);
-    $("#growth-weight").textContent = pct(targetGrowth, 0);
-    $("#value-weight").textContent = pct(targetValue, 0);
-    $("#current-position").textContent = positionText(plan.currentGrowthWeight, plan.currentValueWeight);
-    $("#current-position-date").textContent = `已执行 · 截至 ${plan.portfolioAsOf}`;
-    $("#latest-signal").textContent = `${signalDirection} ${Number(current.binaryDirection) > 0 ? "+1" : Number(current.binaryDirection) < 0 ? "-1" : "0"}`;
-    $("#latest-signal-detail").textContent = `${current.signalDate} · 五维总分 ${current.compositeScore > 0 ? "+" : ""}${current.compositeScore} · 平滑后${positionText(signalGrowth, signalValue)}`;
-    $("#next-target").textContent = positionText(targetGrowth, targetValue);
-    $("#next-target-date").textContent = `${plan.execution} · ${orderSummary}`;
+    $("#allocation-donut").style.setProperty("--growth-share", `${growth * 100}%`);
+    $("#growth-weight").textContent = pct(growth, 0);
+    $("#value-weight").textContent = pct(value, 0);
     $("#effective-weight").textContent = `成长 ${pct(plan.currentGrowthWeight, 0)} / 价值 ${pct(plan.currentValueWeight, 0)}`;
     $("#target-weight").textContent = `成长 ${pct(plan.targetGrowthWeight, 0)} / 价值 ${pct(plan.targetValueWeight, 0)}`;
     $("#execution-time").textContent = plan.execution;
     $("#composite-score").textContent = `${current.compositeScore > 0 ? "+" : ""}${current.compositeScore}`;
     $("#signal-date").textContent = current.signalDate;
     $("#action-text").textContent = plan.status === "NO_TRADE"
-      ? "下一交易日无需下单"
-      : "下一交易日收盘执行调仓";
+      ? `模型无需调仓 · 维持成长 ${pct(growth, 0)}`
+      : `发出调仓 · 成长目标 ${pct(growth, 0)}`;
     $("#trade-status").textContent = plan.instruction;
     $("#trade-status").classList.toggle("hold", plan.status === "NO_TRADE");
     $("#trade-status").classList.toggle("rebalance", plan.status === "REBALANCE");
-    $("#decision-summary").textContent = `${orderSummary}。当前 ${growthVotes} 个维度偏成长、${valueVotes} 个维度偏价值。`;
+    $("#decision-summary").textContent = `${growthVotes} 个维度偏成长、${valueVotes} 个维度偏价值。五日平滑后的目标仓位为成长 ${pct(growth, 0)}、价值 ${pct(value, 0)}。`;
     $("#vote-as-of").textContent = `截至 ${current.signalDate}`;
     $("#signal-summary").textContent = `当前 ${growthVotes} : ${valueVotes}，总分 ${current.compositeScore > 0 ? "+" : ""}${current.compositeScore}`;
 
