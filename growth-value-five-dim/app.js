@@ -431,6 +431,136 @@
     container.appendChild(svg);
   }
 
+  function resultKpi(label, value, note = "") {
+    return `<div class="result-kpi"><span>${label}</span><strong>${value}</strong>${note ? `<small>${note}</small>` : ""}</div>`;
+  }
+
+  function voteLabel(value) {
+    if (value === null || value === undefined) return '<span class="result-vote neutral">—</span>';
+    if (Number(value) > 0) return '<span class="result-vote growth">成长 +1</span>';
+    if (Number(value) < 0) return '<span class="result-vote value">价值 -1</span>';
+    return '<span class="result-vote neutral">0 / 沿用</span>';
+  }
+
+  function renderMiniChart(container, dates, series, options = {}) {
+    const width = 640;
+    const height = 190;
+    const pad = { left: 46, right: 14, top: 18, bottom: 31 };
+    const referenceLines = options.referenceLines || [];
+    const values = series.flatMap((item) => item.values)
+      .concat(referenceLines.map((item) => item.value))
+      .filter((value) => value !== null && value !== undefined && Number.isFinite(Number(value)))
+      .map(Number);
+    const rawMin = Math.min(...values);
+    const rawMax = Math.max(...values);
+    const span = rawMax - rawMin || Math.max(Math.abs(rawMax), 1);
+    const minimum = options.minimum ?? rawMin - span * 0.08;
+    const maximum = options.maximum ?? rawMax + span * 0.08;
+    const xScale = (index) => pad.left + index / Math.max(dates.length - 1, 1) * (width - pad.left - pad.right);
+    const yScale = (value) => height - pad.bottom - (Number(value) - minimum) / Math.max(maximum - minimum, 1e-9) * (height - pad.top - pad.bottom);
+    const svg = svgElement("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": options.ariaLabel || "指标历史曲线" });
+    [0, 0.5, 1].forEach((ratio) => {
+      const value = minimum + ratio * (maximum - minimum);
+      const y = yScale(value);
+      svg.appendChild(svgElement("line", { x1: pad.left, x2: width - pad.right, y1: y, y2: y, class: "result-grid" }));
+      const label = svgElement("text", { x: pad.left - 8, y: y + 3, "text-anchor": "end", class: "result-axis" });
+      label.textContent = options.percent ? `${Math.round(value * 100)}%` : value.toFixed(Math.abs(value) < 0.1 ? 3 : 2);
+      svg.appendChild(label);
+    });
+    referenceLines.forEach((item) => {
+      const y = yScale(item.value);
+      svg.appendChild(svgElement("line", { x1: pad.left, x2: width - pad.right, y1: y, y2: y, class: "result-threshold" }));
+    });
+    series.forEach((item) => {
+      svg.appendChild(svgElement("path", { d: linePath(item.values, xScale, yScale), class: `result-series ${item.className}` }));
+    });
+    [0, dates.length - 1].forEach((index) => {
+      const label = svgElement("text", { x: xScale(index), y: height - 8, "text-anchor": index === 0 ? "start" : "end", class: "result-axis" });
+      label.textContent = dates[index];
+      svg.appendChild(label);
+    });
+    container.innerHTML = "";
+    container.appendChild(svg);
+  }
+
+  function miniChartCard(title, subtitle, chartId, legends) {
+    return `<article class="mini-chart-card">
+      <div class="mini-chart-head"><div><h5>${title}</h5><p>${subtitle}</p></div>
+      <div class="mini-legend">${legends.map((item) => `<span><i class="${item.className}"></i>${item.label}</span>`).join("")}</div></div>
+      <div class="mini-chart" id="${chartId}"></div>
+    </article>`;
+  }
+
+  function renderMacroResult(result) {
+    const container = $("#algorithm-result-macro");
+    const cellStyle = (value) => {
+      if (value === null || value === undefined) return "";
+      const distance = Math.min(Math.abs(Number(value) - 0.5) / 0.12, 1);
+      if (Number(value) > result.threshold) return `background:rgba(187,57,46,${(0.14 + distance * 0.42).toFixed(2)});color:${distance > 0.55 ? "#fff" : "#6e251f"}`;
+      if (Number(value) < 0.45) return `background:rgba(52,104,126,${(0.10 + distance * 0.30).toFixed(2)});color:${distance > 0.7 ? "#fff" : "#315868"}`;
+      return "background:#f6f1e7;color:#5f686a";
+    };
+    container.innerHTML = `<div class="result-head">
+      <div><h4>算法结果 · 144 个月滚动胜率热力图</h4><p>每格只使用该月当时已兑现的历史预测。红色表示胜率严格高于 55%，蓝色表示低于 45%。截至 ${result.asOf}。</p></div>
+      <div class="result-kpis compact">${resultKpi("窗口", `${result.windowMonths} 月`)}${resultKpi("预热", `N ≥ ${result.minimumObservations}`)}${resultKpi("启用", `> ${pct(result.threshold, 0)}`)}</div>
+    </div>
+    <div class="heatmap-scroll"><table class="macro-heatmap"><thead><tr><th>宏观因子</th>${result.months.map((month) => `<th>${month}</th>`).join("")}<th>当前方向</th><th>N</th><th>状态</th></tr></thead><tbody>
+    ${result.rows.map((row) => `<tr><td>${row.name}</td>${row.values.map((value) => `<td style="${cellStyle(value)}">${value === null ? "—" : pct(value, 2)}</td>`).join("")}<td>${voteLabel(row.view)}</td><td>${row.observations ?? "—"}</td><td><span class="active-pill ${row.active ? "on" : "off"}">${row.active ? "启用" : "未启用"}</span></td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="result-footnote">N 是最近 144 个自然月中方向不为零且次月风格相对收益可判定的有效样本数；历史成熟期通常为 144。</p>`;
+  }
+
+  function renderValuationResult(result) {
+    const current = result.current;
+    const container = $("#algorithm-result-valuation");
+    container.innerHTML = `<div class="result-head"><div><h4>算法结果 · 相对估值分位</h4><p>最近 60 个月 PB、PE 相对估值分位及 10% / 50% / 90% 触发线。截至 ${result.asOf}。</p></div></div>
+      <div class="result-kpis">${resultKpi("PB 比值", number(current.pbRatio, 3), `分位 ${pct(current.pbPercentile, 1)}`)}${resultKpi("PB 状态", voteLabel(current.pbState))}${resultKpi("PE 比值", number(current.peRatio, 3), `分位 ${pct(current.pePercentile, 1)}`)}${resultKpi("PE 状态", voteLabel(current.peState))}</div>
+      <div class="mini-chart-grid single">${miniChartCard("PB / PE 滚动分位", "低于 10% 支持成长，高于 90% 支持价值，回到 50% 退出", "valuation-percentile-chart", [{ label: "PB", className: "growth" }, { label: "PE", className: "value" }])}</div>`;
+    renderMiniChart($("#valuation-percentile-chart"), result.dates, [
+      { values: result.pbPercentile, className: "growth" },
+      { values: result.pePercentile, className: "value" },
+    ], { minimum: 0, maximum: 1, percent: true, referenceLines: [{ value: 0.1 }, { value: 0.5 }, { value: 0.9 }] });
+  }
+
+  function renderMomentumResult(result) {
+    const current = result.current;
+    const container = $("#algorithm-result-momentum");
+    container.innerHTML = `<div class="result-head"><div><h4>算法结果 · 成长与价值强弱对比</h4><p>最近 60 个交易日；每张图中红线高于蓝线时，该分支投成长。截至 ${result.asOf}。</p></div>
+      <div class="result-kpis compact">${resultKpi("成交额票", voteLabel(current.amountVote))}${resultKpi("收益票", voteLabel(current.returnVote))}${resultKpi("合计", `${current.rawScore > 0 ? "+" : ""}${current.rawScore}`)}</div></div>
+      <div class="mini-chart-grid">${miniChartCard("成交额强度", "MA5(z-score 20日)", "momentum-amount-chart", [{ label: "成长", className: "growth" }, { label: "价值", className: "value" }])}${miniChartCard("加权收益", "20日窗口，半衰期5日", "momentum-return-chart", [{ label: "成长", className: "growth" }, { label: "价值", className: "value" }])}</div>`;
+    renderMiniChart($("#momentum-amount-chart"), result.dates, [{ values: result.growthAmountZ, className: "growth" }, { values: result.valueAmountZ, className: "value" }]);
+    renderMiniChart($("#momentum-return-chart"), result.dates, [{ values: result.growthReturn, className: "growth" }, { values: result.valueReturn, className: "value" }], { percent: true });
+  }
+
+  function renderBreadthResult(result) {
+    const current = result.current;
+    const container = $("#algorithm-result-breadth");
+    container.innerHTML = `<div class="result-head"><div><h4>算法结果 · 横截面广度变化</h4><p>最近 120 个交易日；实线为 20 日均值，方向由均值的单日变化决定。截至 ${result.asOf}。</p></div>
+      <div class="result-kpis compact">${resultKpi("QRD 票", voteLabel(current.qrdVote), `Δ ${number(current.qrdChange, 5)}`)}${resultKpi("MAD 票", voteLabel(current.madVote), `Δ ${number(current.madChange, 5)}`)}${resultKpi("PB覆盖", pct(current.coverage, 1))}</div></div>
+      <div class="mini-chart-grid">${miniChartCard("倒数 QRD", `当前 ${number(current.qrd, 3)} · MA20 ${number(current.qrdMa, 3)}`, "breadth-qrd-chart", [{ label: "原值", className: "muted" }, { label: "MA20", className: "growth" }])}${miniChartCard("相对 MAD", `当前 ${number(current.mad, 3)} · MA20 ${number(current.madMa, 3)}`, "breadth-mad-chart", [{ label: "原值", className: "muted" }, { label: "MA20", className: "growth" }])}</div>`;
+    renderMiniChart($("#breadth-qrd-chart"), result.dates, [{ values: result.qrd, className: "muted" }, { values: result.qrdMa, className: "growth" }]);
+    renderMiniChart($("#breadth-mad-chart"), result.dates, [{ values: result.mad, className: "muted" }, { values: result.madMa, className: "growth" }]);
+  }
+
+  function renderCrowdingResult(result) {
+    const current = result.current;
+    const container = $("#algorithm-result-crowding");
+    container.innerHTML = `<div class="result-head"><div><h4>算法结果 · 风格拥挤分位</h4><p>最近 120 个交易日；虚线为 95% 反向阈值，只有单边越线才产生新票。截至 ${result.asOf}。</p></div>
+      <div class="result-kpis compact">${resultKpi("成交额票", voteLabel(current.amountVote))}${resultKpi("换手率票", voteLabel(current.turnoverVote))}${resultKpi("合计", `${current.rawScore > 0 ? "+" : ""}${current.rawScore}`)}</div></div>
+      <div class="mini-chart-grid">${miniChartCard("成交额占比分位", "相对万得全 A", "crowding-amount-chart", [{ label: "成长", className: "growth" }, { label: "价值", className: "value" }])}${miniChartCard("换手率占比分位", "相对万得全 A", "crowding-turnover-chart", [{ label: "成长", className: "growth" }, { label: "价值", className: "value" }])}</div>`;
+    const options = { minimum: 0, maximum: 1, percent: true, referenceLines: [{ value: 0.95 }] };
+    renderMiniChart($("#crowding-amount-chart"), result.dates, [{ values: result.growthAmountPercentile, className: "growth" }, { values: result.valueAmountPercentile, className: "value" }], options);
+    renderMiniChart($("#crowding-turnover-chart"), result.dates, [{ values: result.growthTurnoverPercentile, className: "growth" }, { values: result.valueTurnoverPercentile, className: "value" }], options);
+  }
+
+  function renderDimensionResults() {
+    renderMacroResult(data.dimensionResults.macro);
+    renderValuationResult(data.dimensionResults.valuation);
+    renderMomentumResult(data.dimensionResults.momentum);
+    renderBreadthResult(data.dimensionResults.breadth);
+    renderCrowdingResult(data.dimensionResults.crowding);
+  }
+
   function renderAlgorithms() {
     const combination = data.combination;
     $("#combination-card").innerHTML = `
@@ -448,7 +578,7 @@
         <div class="table-scroll"><table class="factor-table"><thead><tr><th>因子</th><th>指标</th><th>上行支持</th></tr></thead><tbody>
         ${algorithm.factors.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("")}
         </tbody></table></div>` : "";
-      return `<details class="algorithm-card" ${algorithm.id === "breadth" ? "open" : ""}>
+      return `<details class="algorithm-card" ${algorithm.id === "macro" ? "open" : ""}>
         <summary>
           <span class="algorithm-index">${String(index + 1).padStart(2, "0")}</span>
           <span class="algorithm-title"><strong>${algorithm.title}</strong><span>${algorithm.frequency} · ${algorithm.source}</span></span>
@@ -468,8 +598,10 @@
             ${factors}
           </div>
         </div>
+        <div class="algorithm-result" id="algorithm-result-${algorithm.id}"></div>
       </details>`;
     }).join("");
+    renderDimensionResults();
   }
 
   function renderValidation() {
