@@ -65,11 +65,30 @@
             <div class="card-kicker">交易执行指令</div>
             <span class="trade-status" id="trade-status">待生成</span>
           </div>
+          <div class="trade-flow" aria-label="当前仓位到下一交易日目标">
+            <div class="trade-flow-step current">
+              <span>当前已执行仓位</span>
+              <strong id="current-position">—</strong>
+              <small id="current-position-date">—</small>
+            </div>
+            <div class="trade-flow-arrow" aria-hidden="true">→</div>
+            <div class="trade-flow-step signal">
+              <span>最新信号</span>
+              <strong id="latest-signal">—</strong>
+              <small id="latest-signal-detail">—</small>
+            </div>
+            <div class="trade-flow-arrow" aria-hidden="true">→</div>
+            <div class="trade-flow-step target">
+              <span>下一交易日目标仓位</span>
+              <strong id="next-target">—</strong>
+              <small id="next-target-date">—</small>
+            </div>
+          </div>
           <div class="decision-main">
             <div class="allocation-donut" id="allocation-donut" style="--growth-share: 0%">
               <div>
                 <strong id="growth-weight">—</strong>
-                <span>成长</span>
+                <span>次日目标 · 成长</span>
               </div>
             </div>
             <div class="decision-copy">
