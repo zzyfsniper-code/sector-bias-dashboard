@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="中证500资金流向择时与底部杠杆每日交易页" />
+    <title>中证500资金流向与底部杠杆｜每日信号</title>
+    <link rel="icon" href="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="top-line"></div>
+    <header class="site-header">
+      <a class="brand" href="../strategies/" aria-label="返回策略中心">
+        <span class="brand-mark">策</span>
+        <span><strong>策略研究室</strong><small>STRATEGY LAB</small></span>
+      </a>
+      <nav class="strategy-nav" aria-label="策略导航">
+        <a href="../strategies/">策略总览</a>
+        <a href="../growth-value-five-dim/">01 五维轮动</a>
+        <a class="active" href="./">02 中证500</a>
+      </nav>
+      <div class="header-status"><span class="status-dot"></span><span id="header-status">读取数据中</span></div>
+    </header>
+
+    <main>
+      <section class="hero shell">
+        <div>
+          <div class="eyebrow"><span>策略 02</span> 多头 / 空仓 + 极端回撤杠杆</div>
+          <h1>中证500资金流向与底部杠杆</h1>
+          <p class="hero-lead">资金流回归残差决定是否持有中证500ETF，指数进入极端回撤区间后，把下一次多头仓位提升至 200%，并用连续上涨信号退出杠杆状态。</p>
+          <div class="tags">
+            <span class="tag tag-live">用户启用 · 实盘跟踪</span>
+            <span class="tag">510500.SH</span>
+            <span class="tag">T+1 开盘执行</span>
+            <span class="tag" id="validation-tag">校验中</span>
+          </div>
+        </div>
+        <aside class="run-meta">
+          <span>最新运行</span><strong id="run-time">—</strong>
+          <dl>
+            <div><dt>数据日期</dt><dd id="data-date">—</dd></div>
+            <div><dt>执行日期</dt><dd id="execution-date">—</dd></div>
+            <div><dt>数据源</dt><dd>Tushare Pro</dd></div>
+            <div><dt>交易成本</dt><dd>单边 10bp</dd></div>
+          </dl>
+        </aside>
+      </section>
+
+      <section class="shell trade-layout" id="trade">
+        <article class="trade-card dark-card">
+          <div class="card-top"><span class="kicker">下一交易日指令</span><b id="action-badge">待生成</b></div>
+          <div class="trade-main">
+            <div class="target-block"><span>目标仓位</span><strong id="next-target">—</strong><small>中证500ETF</small></div>
+            <div class="trade-copy"><h2 id="action-text">等待信号</h2><p id="trade-summary">正在读取最新资金流与杠杆状态。</p></div>
+          </div>
+          <div class="position-flow">
+            <div><span>模型当前仓位</span><strong id="current-target">—</strong></div>
+            <i>→</i>
+            <div><span>次日目标仓位</span><strong id="flow-target">—</strong></div>
+            <div class="execute-at"><span>执行时点</span><strong id="execute-at">—</strong></div>
+          </div>
+          <div class="holding-strip">
+            <div><span>510500.SH</span><strong id="etf-weight">—</strong></div>
+            <div><span>现金 / 融资</span><strong id="cash-weight">—</strong></div>
+            <div><span>当日新信号</span><strong id="raw-signal">—</strong></div>
+          </div>
+        </article>
+
+        <article class="leverage-card card">
+          <div class="section-title"><div><span class="kicker">底部区间状态机</span><h2>200% 杠杆开关</h2></div><span class="state-pill" id="leverage-state">—</span></div>
+          <div class="drawdown-readout"><span>250日高点回撤</span><strong id="drawdown-value">—</strong></div>
+          <div class="gauge"><div class="gauge-fill" id="drawdown-gauge"></div><i class="trigger-mark"></i></div>
+          <div class="gauge-labels"><span>0%</span><span>触发线 -15%</span><span>-30%</span></div>
+          <div class="state-grid">
+            <div><span>是否允许触发</span><strong id="armed-state">—</strong></div>
+            <div><span>连续上涨</span><strong id="up-streak">—</strong></div>
+            <div><span>退出条件</span><strong>连续上涨 5 日</strong></div>
+            <div><span>再次解锁</span><strong>回撤修复至 -5%</strong></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="shell performance" id="performance">
+        <div class="section-heading"><div><span class="eyebrow">历史表现</span><h2>收益曲线与杠杆区间</h2><p>红色背景表示底部状态已激活；只有基础策略同时做多时，实际目标仓位才为 200%。</p></div><div class="period" id="performance-period">—</div></div>
+        <div class="metric-grid" id="metric-grid"></div>
+        <article class="chart-card card">
+          <div class="chart-legend"><span><i class="candidate"></i>200% 底部杠杆策略</span><span><i class="base"></i>原始 100% 策略</span><span><i class="benchmark"></i>中证500</span><span><i class="regime"></i>杠杆状态区间</span></div>
+          <canvas id="nav-chart" height="420" aria-label="策略收益曲线"></canvas>
+        </article>
+        <article class="chart-card card">
+          <div class="chart-header"><div><span class="kicker">风险路径</span><h3>最大回撤曲线</h3></div></div>
+          <canvas id="drawdown-chart" height="250" aria-label="策略最大回撤曲线"></canvas>
+        </article>
+      </section>
+
+      <section class="shell two-column" id="signals">
+        <article class="card indicator-card">
+          <div class="section-title"><div><span class="kicker">最新模型输入</span><h2>资金流回归信号</h2></div><span class="date-chip" id="indicator-date">—</span></div>
+          <div class="indicator-grid">
+            <div><span>主力净流入率</span><strong id="mf-ratio">—</strong><small>主力净流入 ÷ 买入成交额</small></div>
+            <div><span>滚动回归 α</span><strong id="alpha">—</strong><small>40 日资金流回归残差</small></div>
+            <div><span>前 40 日 α 下沿</span><strong id="alpha-min">—</strong><small>跌破则触发做多</small></div>
+            <div><span>前 40 日 α 上沿</span><strong id="alpha-max">—</strong><small>突破且未被过滤则退出</small></div>
+            <div><span>成份覆盖率</span><strong id="coverage">—</strong><small id="member-count">—</small></div>
+            <div><span>中证500当日涨跌</span><strong id="index-change">—</strong><small id="index-close">—</small></div>
+          </div>
+        </article>
+
+        <article class="card rules-card">
+          <div class="section-title"><div><span class="kicker">冻结算法</span><h2>每日决策顺序</h2></div><span class="state-pill pass">v1</span></div>
+          <ol class="rule-list">
+            <li><b>资金流口径</b><p>主力净额 = 大单净额 + 超大单净额；总成交额 = 小单、中单、大单、超大单买入额之和。</p></li>
+            <li><b>基础做多</b><p>用最近 40 日指数收益率回归主力净流入率；α 跌破此前 40 日最低值时做多。</p></li>
+            <li><b>基础退出</b><p>α 突破此前 40 日最高值时退出；若指数 20 日涨幅高于 5%，忽略该退出信号；无新信号最长持有 20 日。</p></li>
+            <li><b>杠杆触发</b><p>中证500相对滚动 250 日高点回撤达到 15%，底部状态开启；基础策略做多时目标从 100% 提至 200%。</p></li>
+            <li><b>杠杆退出</b><p>触发后中证500连续 5 个交易日上涨则退出杠杆；回撤修复到 -5% 以内后才重新允许触发。</p></li>
+            <li><b>交易时点</b><p>T 日收盘用当日数据形成信号，T+1 开盘交易。回测含单边 10bp 和额外融资年化 5%。</p></li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="shell events-section" id="validation">
+        <div class="section-heading"><div><span class="eyebrow">事件验证</span><h2>历史杠杆事件</h2><p id="sample-note">—</p></div><div class="event-score"><span>真实加杠杆盈利</span><strong id="event-score">—</strong></div></div>
+        <div class="table-wrap card"><table><thead><tr><th>触发日</th><th>退出日</th><th>触发回撤</th><th>T+1实现收益</th><th>实际杠杆日</th><th>结果</th></tr></thead><tbody id="events-body"></tbody></table></div>
+      </section>
+    </main>
+
+    <footer><a href="../strategies/">返回策略中心</a><span>策略结果用于研究与执行辅助，不构成收益承诺。</span></footer>
+    <script src="data/strategy-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
