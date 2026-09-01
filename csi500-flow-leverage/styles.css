@@ -42,3 +42,43 @@
 .negative{color:var(--red);font-weight:700}
 .floating-tag{margin-left:5px;padding:2px 4px;color:#7a5419;background:#f4dfba;border-radius:2px;font-size:9px;font-weight:700}
 @media(max-width:580px){.alpha-chart-card{padding:14px}.trade-score{text-align:left}.trade-history-heading{margin-top:42px}}
+
+/* A-share convention: red = rise/profit/buy, green = fall/loss/sell. */
+:root{--rise:#b8322a;--rise-deep:#7b211b;--fall:#17805a;--fall-deep:#0f6143}
+.card-top .action-buy{color:#fff;background:var(--rise)}
+.card-top .action-sell{color:#fff;background:var(--fall)}
+.card-top .action-hold{color:#d5dfe3;background:rgba(255,255,255,.1)}
+.leverage-card .state-pill.market-long{color:var(--rise);background:#f7e4e1}
+.drawdown-readout strong{color:var(--fall-deep)}
+.gauge-fill{background:linear-gradient(90deg,#55a984,var(--fall-deep))}
+.trigger-mark{background:var(--fall-deep)}
+.chart-legend .regime{background:rgba(23,128,90,.15)}
+.chart-legend .trigger-series{background:var(--fall)}
+.chart-legend .trigger-threshold{border-top-color:var(--fall)}
+.chart-legend .rearm-threshold{border-top-color:var(--rise)}
+.chart-legend .trigger-dot{background:var(--fall)}
+.chart-legend .exit-dot{background:var(--rise)}
+.chart-legend .alpha-lower{border-top-color:var(--fall)}
+.chart-legend .alpha-upper{border-top-color:var(--rise)}
+.chart-legend .long-signal{background:var(--rise)}
+.chart-legend .short-signal{background:var(--fall)}
+.event-score strong,.positive{color:var(--rise)}
+.negative{color:var(--fall)}
+.trade-score strong{color:var(--rise)}
+
+.chart-range{margin-top:14px;padding:12px 6px 2px;border-top:1px solid var(--line)}
+.range-dates{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.range-dates b{color:#9a958d;font-weight:400}
+.range-control{--range-start:0%;--range-end:100%;position:relative;height:28px;margin-top:4px}
+.range-control::before,.range-selection{content:"";position:absolute;top:12px;height:4px;border-radius:5px}
+.range-control::before{left:0;right:0;background:#ddd7ce}
+.range-selection{left:var(--range-start);right:calc(100% - var(--range-end));background:#315d76}
+.range-input{position:absolute;inset:0;width:100%;height:28px;margin:0;background:transparent;appearance:none;-webkit-appearance:none;pointer-events:none}
+.range-input:focus{outline:none}
+.range-from{z-index:2}.range-to{z-index:3}
+.range-input::-webkit-slider-runnable-track{height:4px;background:transparent}
+.range-input::-webkit-slider-thumb{width:16px;height:16px;margin-top:-6px;background:#fffdf8;border:2px solid #315d76;border-radius:50%;box-shadow:0 2px 6px rgba(23,35,43,.18);appearance:none;-webkit-appearance:none;pointer-events:auto;cursor:ew-resize}
+.range-input:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(49,93,118,.16),0 2px 6px rgba(23,35,43,.18)}
+.range-input::-moz-range-track{height:4px;background:transparent}
+.range-input::-moz-range-thumb{width:14px;height:14px;background:#fffdf8;border:2px solid #315d76;border-radius:50%;box-shadow:0 2px 6px rgba(23,35,43,.18);pointer-events:auto;cursor:ew-resize}
+@media(max-width:580px){.chart-range{padding-left:2px;padding-right:2px}.range-dates{font-size:9px}}

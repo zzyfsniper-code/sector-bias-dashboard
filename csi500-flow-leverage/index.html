@@ -89,23 +89,27 @@
           <div class="chart-legend"><span><i class="candidate"></i>200% 底部杠杆策略</span><span><i class="base"></i>原始 100% 策略</span><span><i class="benchmark"></i>中证500</span><span><i class="regime"></i>杠杆状态区间</span></div>
           <canvas id="nav-chart" height="420" aria-label="策略收益曲线"></canvas>
           <div class="chart-tooltip" id="nav-tooltip" hidden></div>
+          <div class="chart-range" data-chart-range="nav"><div class="range-dates"><span id="nav-range-start">—</span><b>至</b><span id="nav-range-end">—</span></div><div class="range-control" id="nav-range-control"><div class="range-selection"></div><input class="range-input range-from" id="nav-range-from" type="range" aria-label="收益曲线开始日期" /><input class="range-input range-to" id="nav-range-to" type="range" aria-label="收益曲线结束日期" /></div></div>
         </article>
         <article class="chart-card card interactive-chart">
           <div class="chart-header"><div><span class="kicker">风险路径</span><h3>最大回撤曲线</h3></div></div>
           <canvas id="drawdown-chart" height="250" aria-label="策略最大回撤曲线"></canvas>
           <div class="chart-tooltip" id="drawdown-tooltip" hidden></div>
+          <div class="chart-range" data-chart-range="drawdown"><div class="range-dates"><span id="drawdown-range-start">—</span><b>至</b><span id="drawdown-range-end">—</span></div><div class="range-control" id="drawdown-range-control"><div class="range-selection"></div><input class="range-input range-from" id="drawdown-range-from" type="range" aria-label="回撤曲线开始日期" /><input class="range-input range-to" id="drawdown-range-to" type="range" aria-label="回撤曲线结束日期" /></div></div>
         </article>
         <article class="chart-card card interactive-chart trigger-chart-card">
           <div class="chart-header"><div><span class="kicker">杠杆状态信号</span><h3>250日回撤触发与退出</h3><p>跌至 -15% 触发底部状态，连续上涨 5 日退出；回撤修复至 -5% 后重新允许触发。</p></div></div>
           <div class="chart-legend trigger-legend"><span><i class="trigger-series"></i>中证500相对250日高点回撤</span><span><i class="trigger-threshold"></i>-15% 触发线</span><span><i class="rearm-threshold"></i>-5% 解锁线</span><span><i class="trigger-dot"></i>触发</span><span><i class="exit-dot"></i>退出</span></div>
           <canvas id="trigger-chart" height="310" aria-label="杠杆触发与退出信号图"></canvas>
           <div class="chart-tooltip" id="trigger-tooltip" hidden></div>
+          <div class="chart-range" data-chart-range="trigger"><div class="range-dates"><span id="trigger-range-start">—</span><b>至</b><span id="trigger-range-end">—</span></div><div class="range-control" id="trigger-range-control"><div class="range-selection"></div><input class="range-input range-from" id="trigger-range-from" type="range" aria-label="杠杆信号图开始日期" /><input class="range-input range-to" id="trigger-range-to" type="range" aria-label="杠杆信号图结束日期" /></div></div>
         </article>
         <article class="chart-card card interactive-chart alpha-chart-card">
           <div class="chart-header"><div><span class="kicker">基础择时信号</span><h3>回归 α 与择时触发</h3><p>α 跌破此前 40 日下沿时触发做多；突破上沿且未被20日涨幅过滤时退出；连续持有达到上限时执行到期退出。</p></div></div>
           <div class="chart-legend alpha-legend"><span><i class="alpha-series"></i>回归 α</span><span><i class="alpha-lower"></i>前40日下沿</span><span><i class="alpha-upper"></i>前40日上沿</span><span><i class="long-signal"></i>做多触发</span><span><i class="short-signal"></i>退出触发</span><span><i class="expiry-signal"></i>到期退出</span></div>
           <canvas id="alpha-chart" height="360" aria-label="回归α择时信号图"></canvas>
           <div class="chart-tooltip" id="alpha-tooltip" hidden></div>
+          <div class="chart-range" data-chart-range="alpha"><div class="range-dates"><span id="alpha-range-start">—</span><b>至</b><span id="alpha-range-end">—</span></div><div class="range-control" id="alpha-range-control"><div class="range-selection"></div><input class="range-input range-from" id="alpha-range-from" type="range" aria-label="回归α图开始日期" /><input class="range-input range-to" id="alpha-range-to" type="range" aria-label="回归α图结束日期" /></div></div>
         </article>
       </section>
 

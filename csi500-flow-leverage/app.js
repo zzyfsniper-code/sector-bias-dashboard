@@ -4,7 +4,7 @@
   const pct = (value, digits = 1) => value == null ? "—" : `${(Number(value) * 100).toFixed(digits)}%`;
   const num = (value, digits = 4) => value == null ? "—" : Number(value).toFixed(digits);
   const dateTime = (value) => value ? new Date(value).toLocaleString("zh-CN", {hour12:false}) : "—";
-  const color = {candidate:"#6f211a", base:"#315d76", benchmark:"#d18c25", grid:"#ddd7ce", text:"#758087", band:"rgba(168,59,45,.12)"};
+  const color = {candidate:"#7b211b", base:"#315d76", benchmark:"#d18c25", rise:"#b8322a", fall:"#17805a", grid:"#ddd7ce", text:"#758087", band:"rgba(23,128,90,.11)"};
 
   if (!data) { $("header-status").textContent = "数据文件未加载"; return; }
   document.querySelector(".status-dot").classList.add(data.status === "PASS" ? "pass" : "");
@@ -14,6 +14,7 @@
   $("data-date").textContent = data.data_as_of;
   $("execution-date").textContent = data.next_trade_date;
   $("action-badge").textContent = data.trade.action;
+  $("action-badge").classList.add(data.trade.action === "BUY" ? "action-buy" : data.trade.action === "SELL" ? "action-sell" : "action-hold");
   $("next-target").textContent = pct(data.trade.next_target, 0);
   $("action-text").textContent = data.trade.action_text;
   $("trade-summary").textContent = `${data.trade.signal}；基础仓位 ${pct(data.trade.base_target,0)}，杠杆状态${data.leverage.active ? "已开启" : "未开启"}。`;
@@ -23,9 +24,11 @@
   $("etf-weight").textContent = pct(data.trade.etf_target, 0);
   $("cash-weight").textContent = pct(data.trade.cash_target, 0);
   $("raw-signal").textContent = data.trade.signal;
+  const rawSignalTone = data.trade.signal.includes("做多") ? "positive" : data.trade.signal.includes("退出") ? "negative" : null;
+  if (rawSignalTone) $("raw-signal").classList.add(rawSignalTone);
 
   $("leverage-state").textContent = data.leverage.active ? "杠杆开启" : "常规状态";
-  $("leverage-state").classList.toggle("pass", data.leverage.active);
+  $("leverage-state").classList.toggle("market-long", data.leverage.active);
   $("drawdown-value").textContent = pct(data.leverage.drawdown_250, 2);
   $("drawdown-gauge").style.width = `${Math.min(100, Math.max(0, Math.abs(data.leverage.drawdown_250) / .30 * 100))}%`;
   $("armed-state").textContent = data.leverage.armed ? "已解锁" : "未解锁";
@@ -34,13 +37,13 @@
   const c = data.performance.candidate, b = data.performance.base, bm = data.performance.benchmark;
   $("performance-period").textContent = `${data.performance.period.start} — ${data.performance.period.end}`;
   const metrics = [
-    ["策略累计收益", pct(c.final_nav - 1), `原始策略 ${pct(b.final_nav - 1)}`],
-    ["策略年化收益", pct(c.annual_return), `中证500 ${pct(bm.annual_return)}`],
-    ["最大回撤", pct(c.max_drawdown), `原始策略 ${pct(b.max_drawdown)}`],
-    ["夏普比率", num(c.sharpe, 2), `原始策略 ${num(b.sharpe,2)}`],
-    ["历史杠杆事件", `${data.validation.completed_regime_events} 次`, `实际加杠杆 ${data.validation.actual_leverage_events} 次`],
+    ["策略累计收益", pct(c.final_nav - 1), `原始策略 ${pct(b.final_nav - 1)}`, c.final_nav >= 1 ? "positive" : "negative"],
+    ["策略年化收益", pct(c.annual_return), `中证500 ${pct(bm.annual_return)}`, c.annual_return >= 0 ? "positive" : "negative"],
+    ["最大回撤", pct(c.max_drawdown), `原始策略 ${pct(b.max_drawdown)}`, "negative"],
+    ["夏普比率", num(c.sharpe, 2), `原始策略 ${num(b.sharpe,2)}`, c.sharpe >= 0 ? "positive" : "negative"],
+    ["历史杠杆事件", `${data.validation.completed_regime_events} 次`, `实际加杠杆 ${data.validation.actual_leverage_events} 次`, ""],
   ];
-  $("metric-grid").innerHTML = metrics.map(([label,value,note]) => `<div class="metric"><span>${label}</span><strong>${value}</strong><small>${note}</small></div>`).join("");
+  $("metric-grid").innerHTML = metrics.map(([label,value,note,tone]) => `<div class="metric"><span>${label}</span><strong class="${tone}">${value}</strong><small>${note}</small></div>`).join("");
 
   $("indicator-date").textContent = data.data_as_of;
   $("mf-ratio").textContent = pct(data.indicators.mf_ratio, 3);
@@ -50,6 +53,7 @@
   $("coverage").textContent = pct(data.indicators.member_coverage, 1);
   $("member-count").textContent = `${data.indicators.active_members} / ${data.indicators.expected_members} 只；权重快照 ${data.indicators.weight_snapshot_date}`;
   $("index-change").textContent = `${data.indicators.index_pct_chg >= 0 ? "+" : ""}${data.indicators.index_pct_chg.toFixed(2)}%`;
+  $("index-change").classList.add(data.indicators.index_pct_chg >= 0 ? "positive" : "negative");
   $("index-close").textContent = `收盘 ${data.indicators.index_close.toFixed(2)}`;
 
   $("sample-note").textContent = data.validation.sample_note;
@@ -57,7 +61,8 @@
   $("events-body").innerHTML = data.events.map((event) => {
     const active = event.exit_date == null;
     const result = event.overlay_return == null ? "进行中" : (Math.abs(event.overlay_return) < 1e-10 ? "基础空仓" : event.overlay_return > 0 ? "盈利" : "亏损");
-    return `<tr><td>${event.trigger_date}</td><td>${event.exit_date || "—"}</td><td>${pct(event.trigger_drawdown,1)}</td><td class="${event.overlay_return > 0 ? "positive" : "neutral"}">${event.overlay_return == null ? "—" : pct(event.overlay_return,2)}</td><td>${event.leveraged_days ?? "—"}</td><td>${active ? "进行中" : result}</td></tr>`;
+    const returnTone = event.overlay_return > 0 ? "positive" : event.overlay_return < 0 ? "negative" : "neutral";
+    return `<tr><td>${event.trigger_date}</td><td>${event.exit_date || "—"}</td><td>${pct(event.trigger_drawdown,1)}</td><td class="${returnTone}">${event.overlay_return == null ? "—" : pct(event.overlay_return,2)}</td><td>${event.leveraged_days ?? "—"}</td><td>${active ? "进行中" : result}</td></tr>`;
   }).join("");
 
   const reasonLabels = {
@@ -82,6 +87,9 @@
   }).join("");
 
   const chartHover = {nav:null, drawdown:null, trigger:null, alpha:null};
+  const chartKeys = ["nav", "drawdown", "trigger", "alpha"];
+  const lastSeriesIndex = data.series.dates.length - 1;
+  const chartRanges = Object.fromEntries(chartKeys.map(key => [key, {start:0, end:lastSeriesIndex}]));
   const chartPadding = {l:54, r:18, t:18, b:34};
   const triggerEvents = [];
   const eventLabels = new Map();
@@ -101,7 +109,7 @@
     return value / rollingPeak - 1;
   });
 
-  function chartGeometry(canvas) {
+  function chartGeometry(canvas, range) {
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     const height = Number(canvas.dataset.chartHeight || canvas.getAttribute("height"));
@@ -115,24 +123,25 @@
     const cw = width - chartPadding.l - chartPadding.r;
     const ch = height - chartPadding.t - chartPadding.b;
     const geometry = {
-      ctx, width, height, cw, ch,
-      x:index => chartPadding.l + index / Math.max(1, data.series.dates.length - 1) * cw,
+      ctx, width, height, cw, ch, start:range.start, end:range.end,
+      x:index => chartPadding.l + (index - range.start) / Math.max(1, range.end - range.start) * cw,
     };
     canvas._geometry = geometry;
     return geometry;
   }
 
-  function drawBands(ctx, geometry) {
+  function drawBands(ctx, geometry, range) {
     let start = null;
-    data.series.regime_active.forEach((active, index) => {
+    for (let index = range.start; index <= range.end; index += 1) {
+      const active = data.series.regime_active[index];
       if (active && start === null) start = index;
-      if ((!active || index === data.series.regime_active.length - 1) && start !== null) {
+      if ((!active || index === range.end) && start !== null) {
         const end = active ? index : index - 1;
         ctx.fillStyle = color.band;
         ctx.fillRect(geometry.x(start), chartPadding.t, Math.max(2, geometry.x(end) - geometry.x(start)), geometry.ch);
         start = null;
       }
-    });
+    }
   }
 
   function drawAxes(ctx, geometry, min, max, percent, formatter = null) {
@@ -150,16 +159,17 @@
       const label = formatter ? formatter(value) : percent ? `${(value * 100).toFixed(0)}%` : value.toFixed(1);
       ctx.fillText(label, 4, yy + 3);
     }
-    const years = [];
-    data.series.dates.forEach((date, index) => {
-      const year = date.slice(0, 4);
-      if (!years.length || years.at(-1).year !== year) years.push({year, index});
-    });
-    const step = Math.max(1, Math.ceil(years.length / 8));
-    years.filter((_, index) => index % step === 0).forEach((tick) => {
+    const span = geometry.end - geometry.start;
+    const tickCount = Math.min(7, span + 1);
+    for (let tick = 0; tick < tickCount; tick += 1) {
+      const index = geometry.start + Math.round(tick * span / Math.max(1, tickCount - 1));
+      const date = data.series.dates[index];
+      const label = span <= 756 ? date.slice(0, 7) : date.slice(0, 4);
       ctx.fillStyle = color.text;
-      ctx.fillText(tick.year, geometry.x(tick.index) - 10, geometry.height - 10);
-    });
+      ctx.textAlign = tick === 0 ? "left" : tick === tickCount - 1 ? "right" : "center";
+      ctx.fillText(label, geometry.x(index), geometry.height - 10);
+    }
+    ctx.textAlign = "left";
   }
 
   function drawHover(ctx, geometry, series, index, y) {
@@ -188,14 +198,20 @@
   }
 
   function drawChart(canvas, series, options = {}, hoverIndex = null) {
-    const geometry = chartGeometry(canvas);
+    const range = options.range || {start:0, end:lastSeriesIndex};
+    const geometry = chartGeometry(canvas, range);
     const {ctx} = geometry;
-    const values = series.flatMap(item => item.values).filter(Number.isFinite);
+    const values = series.flatMap(item => item.values.slice(range.start, range.end + 1)).filter(Number.isFinite);
     let min = options.min ?? Math.min(...values);
     let max = options.max ?? Math.max(...values);
     if (max === min) max += 1;
+    if (options.yPadding) {
+      const padding = (max - min) * options.yPadding;
+      min -= padding;
+      max += padding;
+    }
     const y = value => chartPadding.t + (max - value) / (max - min) * geometry.ch;
-    if (options.bands) drawBands(ctx, geometry);
+    if (options.bands) drawBands(ctx, geometry, range);
     drawAxes(ctx, geometry, min, max, options.percent, options.axisFormatter);
     series.forEach((item) => {
       ctx.strokeStyle = item.color;
@@ -203,12 +219,13 @@
       ctx.setLineDash(item.dash || []);
       ctx.beginPath();
       let started = false;
-      item.values.forEach((value, index) => {
-        if (!Number.isFinite(value)) { started = false; return; }
+      for (let index = range.start; index <= range.end; index += 1) {
+        const value = item.values[index];
+        if (!Number.isFinite(value)) { started = false; continue; }
         const xx = geometry.x(index), yy = y(value);
         if (!started) { ctx.moveTo(xx, yy); started = true; }
         else ctx.lineTo(xx, yy);
-      });
+      }
       ctx.stroke();
       ctx.setLineDash([]);
     });
@@ -218,15 +235,16 @@
 
   function drawTriggerChart(hoverIndex = null) {
     const canvas = $("trigger-chart");
-    const geometry = chartGeometry(canvas);
+    const range = chartRanges.trigger;
+    const geometry = chartGeometry(canvas, range);
     const {ctx} = geometry;
-    const finite = triggerDrawdown.filter(Number.isFinite);
-    const min = Math.min(-0.30, ...finite);
+    const finite = triggerDrawdown.slice(range.start, range.end + 1).filter(Number.isFinite);
+    const min = Math.min(-0.18, ...finite);
     const max = 0;
     const y = value => chartPadding.t + (max - value) / (max - min) * geometry.ch;
-    drawBands(ctx, geometry);
+    drawBands(ctx, geometry, range);
     drawAxes(ctx, geometry, min, max, true);
-    [[-0.15, color.candidate], [-0.05, "#1f6b54"]].forEach(([value, lineColor]) => {
+    [[-0.15, color.fall], [-0.05, color.rise]].forEach(([value, lineColor]) => {
       ctx.save();
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = 1.3;
@@ -237,23 +255,24 @@
       ctx.stroke();
       ctx.restore();
     });
-    const series = [{values:triggerDrawdown, color:color.base, width:2}];
-    ctx.strokeStyle = color.base;
+    const series = [{values:triggerDrawdown, color:color.fall, width:2}];
+    ctx.strokeStyle = color.fall;
     ctx.lineWidth = 2;
     ctx.beginPath();
     let started = false;
-    triggerDrawdown.forEach((value, index) => {
-      if (!Number.isFinite(value)) { started = false; return; }
+    for (let index = range.start; index <= range.end; index += 1) {
+      const value = triggerDrawdown[index];
+      if (!Number.isFinite(value)) { started = false; continue; }
       const xx = geometry.x(index), yy = y(value);
       if (!started) { ctx.moveTo(xx, yy); started = true; }
       else ctx.lineTo(xx, yy);
-    });
+    }
     ctx.stroke();
     triggerEvents.forEach((event) => {
       const index = data.series.dates.indexOf(event.date);
       const value = Number.isFinite(triggerDrawdown[index]) ? triggerDrawdown[index] : event.drawdown;
-      if (index < 0 || !Number.isFinite(value)) return;
-      ctx.fillStyle = event.type === "trigger" ? color.candidate : "#1f6b54";
+      if (index < range.start || index > range.end || !Number.isFinite(value)) return;
+      ctx.fillStyle = event.type === "trigger" ? color.fall : color.rise;
       ctx.strokeStyle = "#fffdf8";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -275,7 +294,7 @@
     ctx.save();
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = "#fffdf8";
-    ctx.fillStyle = type === "long" ? "#1f6b54" : type === "exit" ? color.candidate : color.benchmark;
+    ctx.fillStyle = type === "long" ? color.rise : type === "exit" ? color.fall : color.benchmark;
     ctx.beginPath();
     if (type === "long") {
       ctx.moveTo(x, y - 6); ctx.lineTo(x - 5, y + 4); ctx.lineTo(x + 5, y + 4); ctx.closePath();
@@ -290,18 +309,19 @@
   }
 
   function drawAlphaChart(hoverIndex = null) {
+    const range = chartRanges.alpha;
     const alphaSeries = [
       {values:data.series.alpha, color:color.candidate, width:2.2},
-      {values:data.series.prior_alpha_min, color:"#1f6b54", width:1.2, dash:[5, 4]},
-      {values:data.series.prior_alpha_max, color:color.benchmark, width:1.2, dash:[5, 4]},
+      {values:data.series.prior_alpha_min, color:color.fall, width:1.2, dash:[5, 4]},
+      {values:data.series.prior_alpha_max, color:color.rise, width:1.2, dash:[5, 4]},
     ];
-    const finite = alphaSeries.flatMap(item => item.values).filter(Number.isFinite);
+    const finite = alphaSeries.flatMap(item => item.values.slice(range.start, range.end + 1)).filter(Number.isFinite);
     const rawMin = Math.min(...finite), rawMax = Math.max(...finite);
     const padding = Math.max(0.002, (rawMax - rawMin) * 0.08);
     const chart = drawChart(
       $("alpha-chart"),
       alphaSeries,
-      {min:rawMin - padding, max:rawMax + padding, axisFormatter:value => value.toFixed(3)},
+      {min:rawMin - padding, max:rawMax + padding, axisFormatter:value => value.toFixed(3), range},
       hoverIndex,
     );
     const {geometry, y} = chart;
@@ -316,19 +336,21 @@
       ctx.stroke();
       ctx.restore();
     }
-    data.series.alpha.forEach((value, index) => {
-      if (!Number.isFinite(value)) return;
+    for (let index = range.start; index <= range.end; index += 1) {
+      const value = data.series.alpha[index];
+      if (!Number.isFinite(value)) continue;
       if (data.series.raw_signal[index] === 1) drawAlphaMarker(ctx, geometry.x(index), y(value), "long");
       else if (data.series.raw_signal[index] === -1) drawAlphaMarker(ctx, geometry.x(index), y(value), "exit");
       else if (data.series.signal_reason[index] === "max_hold_exit") drawAlphaMarker(ctx, geometry.x(index), y(value), "expiry");
-    });
+    }
   }
 
   function pointerIndex(canvas, event) {
     const rect = canvas.getBoundingClientRect();
     const geometry = canvas._geometry;
     const logicalX = (event.clientX - rect.left) / rect.width * geometry.width;
-    return Math.max(0, Math.min(data.series.dates.length - 1, Math.round((logicalX - chartPadding.l) / geometry.cw * (data.series.dates.length - 1))));
+    const index = geometry.start + Math.round((logicalX - chartPadding.l) / geometry.cw * (geometry.end - geometry.start));
+    return Math.max(geometry.start, Math.min(geometry.end, index));
   }
 
   function showTooltip(canvas, tooltip, event, html) {
@@ -346,7 +368,7 @@
     canvas.addEventListener("pointermove", (event) => {
       const index = pointerIndex(canvas, event);
       chartHover[key] = index;
-      renderCharts();
+      renderChart(key);
       const rows = rowsForIndex(index);
       const eventLabel = annotationForIndex
         ? annotationForIndex(index)
@@ -356,24 +378,64 @@
     canvas.addEventListener("pointerleave", () => {
       chartHover[key] = null;
       tooltip.hidden = true;
-      renderCharts();
+      renderChart(key);
     });
   }
 
-  function renderCharts() {
-    drawChart($("nav-chart"), [
-      {values:data.series.candidate_nav, color:color.candidate, width:2.5},
-      {values:data.series.base_nav, color:color.base, width:1.6},
-      {values:data.series.benchmark_nav, color:color.benchmark, width:1.4},
-    ], {bands:true, min:0}, chartHover.nav);
-    drawChart($("drawdown-chart"), [
-      {values:data.series.candidate_drawdown, color:color.candidate, width:2.2},
-      {values:data.series.base_drawdown, color:color.base, width:1.5},
-    ], {bands:true, percent:true, max:0}, chartHover.drawdown);
-    drawTriggerChart(chartHover.trigger);
-    drawAlphaChart(chartHover.alpha);
+  function renderChart(key) {
+    if (key === "nav") {
+      drawChart($("nav-chart"), [
+        {values:data.series.candidate_nav, color:color.candidate, width:2.5},
+        {values:data.series.base_nav, color:color.base, width:1.6},
+        {values:data.series.benchmark_nav, color:color.benchmark, width:1.4},
+      ], {bands:true, yPadding:0.06, range:chartRanges.nav}, chartHover.nav);
+    } else if (key === "drawdown") {
+      drawChart($("drawdown-chart"), [
+        {values:data.series.candidate_drawdown, color:color.fall, width:2.2},
+        {values:data.series.base_drawdown, color:color.base, width:1.5},
+      ], {bands:true, percent:true, max:0, range:chartRanges.drawdown}, chartHover.drawdown);
+    } else if (key === "trigger") {
+      drawTriggerChart(chartHover.trigger);
+    } else if (key === "alpha") {
+      drawAlphaChart(chartHover.alpha);
+    }
   }
 
+  function renderCharts() { chartKeys.forEach(renderChart); }
+
+  function setupRangeControl(key) {
+    const from = $(`${key}-range-from`);
+    const to = $(`${key}-range-to`);
+    const control = $(`${key}-range-control`);
+    const startLabel = $(`${key}-range-start`);
+    const endLabel = $(`${key}-range-end`);
+    [from, to].forEach(input => { input.min = "0"; input.max = String(lastSeriesIndex); input.step = "1"; });
+    from.value = "0";
+    to.value = String(lastSeriesIndex);
+    const update = (changed) => {
+      let start = Number(from.value), end = Number(to.value);
+      const minimumSpan = Math.min(5, lastSeriesIndex);
+      if (end - start < minimumSpan) {
+        if (changed === "from") start = Math.max(0, end - minimumSpan);
+        else end = Math.min(lastSeriesIndex, start + minimumSpan);
+      }
+      from.value = String(start);
+      to.value = String(end);
+      chartRanges[key] = {start, end};
+      startLabel.textContent = data.series.dates[start];
+      endLabel.textContent = data.series.dates[end];
+      control.style.setProperty("--range-start", `${start / Math.max(1, lastSeriesIndex) * 100}%`);
+      control.style.setProperty("--range-end", `${end / Math.max(1, lastSeriesIndex) * 100}%`);
+      chartHover[key] = null;
+      $(`${key}-tooltip`).hidden = true;
+      renderChart(key);
+    };
+    from.addEventListener("input", () => update("from"));
+    to.addEventListener("input", () => update("to"));
+    update("to");
+  }
+
+  chartKeys.forEach(setupRangeControl);
   renderCharts();
   bindHover($("nav-chart"), $("nav-tooltip"), "nav", index => [
     ["200%策略净值", num(data.series.candidate_nav[index], 2)],
