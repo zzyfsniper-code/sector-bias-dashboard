@@ -60,7 +60,28 @@
     return `<tr><td>${event.trigger_date}</td><td>${event.exit_date || "—"}</td><td>${pct(event.trigger_drawdown,1)}</td><td class="${event.overlay_return > 0 ? "positive" : "neutral"}">${event.overlay_return == null ? "—" : pct(event.overlay_return,2)}</td><td>${event.leveraged_days ?? "—"}</td><td>${active ? "进行中" : result}</td></tr>`;
   }).join("");
 
-  const chartHover = {nav:null, drawdown:null, trigger:null};
+  const reasonLabels = {
+    exit_signal:"α 上沿退出",
+    max_hold_exit:"最长持有期退出",
+    OPEN:"持有中",
+  };
+  const baseTrades = data.base_trades || [];
+  const completedBaseTrades = baseTrades.filter(trade => trade.status === "COMPLETED");
+  const positiveBaseTrades = completedBaseTrades.filter(trade => trade.round_trip_return > 0).length;
+  const averageBaseReturn = completedBaseTrades.length
+    ? completedBaseTrades.reduce((sum, trade) => sum + trade.round_trip_return, 0) / completedBaseTrades.length
+    : null;
+  $("trade-score").innerHTML = completedBaseTrades.length
+    ? `<strong>${positiveBaseTrades} / ${completedBaseTrades.length}</strong><br>胜率 ${pct(positiveBaseTrades / completedBaseTrades.length, 1)} · 平均单笔 ${pct(averageBaseReturn, 2)}`
+    : "暂无已完成交易";
+  $("base-trades-body").innerHTML = [...baseTrades].reverse().map((trade) => {
+    const open = trade.status === "OPEN";
+    const returnClass = trade.round_trip_return > 0 ? "positive" : "negative";
+    const returnText = `${pct(trade.round_trip_return, 2)}${open ? '<small class="floating-tag">浮动</small>' : ""}`;
+    return `<tr class="${open ? "open-trade" : ""}"><td>${trade.entry_signal_date}</td><td>${trade.entry_trade_date}</td><td>${trade.exit_signal_date || "—"}</td><td>${trade.exit_trade_date || "—"}</td><td>${trade.holding_days}</td><td class="${returnClass}">${returnText}</td><td class="${open ? "status-open" : ""}">${reasonLabels[trade.exit_reason] || trade.exit_reason}</td></tr>`;
+  }).join("");
+
+  const chartHover = {nav:null, drawdown:null, trigger:null, alpha:null};
   const chartPadding = {l:54, r:18, t:18, b:34};
   const triggerEvents = [];
   const eventLabels = new Map();
@@ -114,7 +135,7 @@
     });
   }
 
-  function drawAxes(ctx, geometry, min, max, percent) {
+  function drawAxes(ctx, geometry, min, max, percent, formatter = null) {
     ctx.font = "10px Microsoft YaHei";
     ctx.lineWidth = 1;
     for (let index = 0; index <= 4; index += 1) {
@@ -126,7 +147,8 @@
       ctx.lineTo(geometry.width - chartPadding.r, yy);
       ctx.stroke();
       ctx.fillStyle = color.text;
-      ctx.fillText(percent ? `${(value * 100).toFixed(0)}%` : value.toFixed(1), 4, yy + 3);
+      const label = formatter ? formatter(value) : percent ? `${(value * 100).toFixed(0)}%` : value.toFixed(1);
+      ctx.fillText(label, 4, yy + 3);
     }
     const years = [];
     data.series.dates.forEach((date, index) => {
@@ -174,10 +196,11 @@
     if (max === min) max += 1;
     const y = value => chartPadding.t + (max - value) / (max - min) * geometry.ch;
     if (options.bands) drawBands(ctx, geometry);
-    drawAxes(ctx, geometry, min, max, options.percent);
+    drawAxes(ctx, geometry, min, max, options.percent, options.axisFormatter);
     series.forEach((item) => {
       ctx.strokeStyle = item.color;
       ctx.lineWidth = item.width || 2;
+      ctx.setLineDash(item.dash || []);
       ctx.beginPath();
       let started = false;
       item.values.forEach((value, index) => {
@@ -187,8 +210,10 @@
         else ctx.lineTo(xx, yy);
       });
       ctx.stroke();
+      ctx.setLineDash([]);
     });
     drawHover(ctx, geometry, series, hoverIndex, y);
+    return {geometry, y, series};
   }
 
   function drawTriggerChart(hoverIndex = null) {
@@ -239,6 +264,66 @@
     drawHover(ctx, geometry, series, hoverIndex, y);
   }
 
+  function alphaSignalLabel(index) {
+    if (data.series.raw_signal[index] === 1) return "做多触发";
+    if (data.series.raw_signal[index] === -1) return "退出触发";
+    if (data.series.signal_reason[index] === "max_hold_exit") return "到期退出";
+    return data.series.base_target[index] ? "持有中" : "空仓";
+  }
+
+  function drawAlphaMarker(ctx, x, y, type) {
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#fffdf8";
+    ctx.fillStyle = type === "long" ? "#1f6b54" : type === "exit" ? color.candidate : color.benchmark;
+    ctx.beginPath();
+    if (type === "long") {
+      ctx.moveTo(x, y - 6); ctx.lineTo(x - 5, y + 4); ctx.lineTo(x + 5, y + 4); ctx.closePath();
+    } else if (type === "exit") {
+      ctx.moveTo(x, y + 6); ctx.lineTo(x - 5, y - 4); ctx.lineTo(x + 5, y - 4); ctx.closePath();
+    } else {
+      ctx.rect(x - 4, y - 4, 8, 8);
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawAlphaChart(hoverIndex = null) {
+    const alphaSeries = [
+      {values:data.series.alpha, color:color.candidate, width:2.2},
+      {values:data.series.prior_alpha_min, color:"#1f6b54", width:1.2, dash:[5, 4]},
+      {values:data.series.prior_alpha_max, color:color.benchmark, width:1.2, dash:[5, 4]},
+    ];
+    const finite = alphaSeries.flatMap(item => item.values).filter(Number.isFinite);
+    const rawMin = Math.min(...finite), rawMax = Math.max(...finite);
+    const padding = Math.max(0.002, (rawMax - rawMin) * 0.08);
+    const chart = drawChart(
+      $("alpha-chart"),
+      alphaSeries,
+      {min:rawMin - padding, max:rawMax + padding, axisFormatter:value => value.toFixed(3)},
+      hoverIndex,
+    );
+    const {geometry, y} = chart;
+    const {ctx} = geometry;
+    if (rawMin < 0 && rawMax > 0) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(23,35,43,.32)";
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(chartPadding.l, y(0));
+      ctx.lineTo(geometry.width - chartPadding.r, y(0));
+      ctx.stroke();
+      ctx.restore();
+    }
+    data.series.alpha.forEach((value, index) => {
+      if (!Number.isFinite(value)) return;
+      if (data.series.raw_signal[index] === 1) drawAlphaMarker(ctx, geometry.x(index), y(value), "long");
+      else if (data.series.raw_signal[index] === -1) drawAlphaMarker(ctx, geometry.x(index), y(value), "exit");
+      else if (data.series.signal_reason[index] === "max_hold_exit") drawAlphaMarker(ctx, geometry.x(index), y(value), "expiry");
+    });
+  }
+
   function pointerIndex(canvas, event) {
     const rect = canvas.getBoundingClientRect();
     const geometry = canvas._geometry;
@@ -257,13 +342,15 @@
     tooltip.style.transform = localX > rect.width - 230 ? "translate(calc(-100% - 12px),-50%)" : "translate(12px,-50%)";
   }
 
-  function bindHover(canvas, tooltip, key, rowsForIndex) {
+  function bindHover(canvas, tooltip, key, rowsForIndex, annotationForIndex = null) {
     canvas.addEventListener("pointermove", (event) => {
       const index = pointerIndex(canvas, event);
       chartHover[key] = index;
       renderCharts();
       const rows = rowsForIndex(index);
-      const eventLabel = eventLabels.get(data.series.dates[index]);
+      const eventLabel = annotationForIndex
+        ? annotationForIndex(index)
+        : eventLabels.get(data.series.dates[index]);
       showTooltip(canvas, tooltip, event, `<strong>${data.series.dates[index]}</strong>${rows.map(([label, value]) => `<div class="tooltip-row"><span>${label}</span><b>${value}</b></div>`).join("")}${eventLabel ? `<div class="tooltip-event">${eventLabel}</div>` : ""}`);
     });
     canvas.addEventListener("pointerleave", () => {
@@ -284,6 +371,7 @@
       {values:data.series.base_drawdown, color:color.base, width:1.5},
     ], {bands:true, percent:true, max:0}, chartHover.drawdown);
     drawTriggerChart(chartHover.trigger);
+    drawAlphaChart(chartHover.alpha);
   }
 
   renderCharts();
@@ -302,5 +390,12 @@
     ["250日高点回撤", pct(Number.isFinite(triggerDrawdown[index]) ? triggerDrawdown[index] : eventDrawdowns.get(data.series.dates[index]), 2)],
     ["杠杆状态", data.series.regime_active[index] ? "已开启" : "未开启"],
   ]);
+  bindHover($("alpha-chart"), $("alpha-tooltip"), "alpha", index => [
+    ["回归 α", num(data.series.alpha[index], 4)],
+    ["前40日下沿", num(data.series.prior_alpha_min[index], 4)],
+    ["前40日上沿", num(data.series.prior_alpha_max[index], 4)],
+    ["当日状态", alphaSignalLabel(index)],
+    ["基础目标仓位", pct(data.series.base_target[index], 0)],
+  ], () => null);
   window.addEventListener("resize", renderCharts);
 })();

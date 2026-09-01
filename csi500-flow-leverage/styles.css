@@ -21,3 +21,24 @@
 .chart-legend .trigger-dot{background:var(--red)}
 .chart-legend .exit-dot{background:var(--green)}
 @media(max-width:580px){.chart-tooltip{min-width:165px;font-size:10px}.trigger-chart-card{padding:14px}}
+
+.alpha-chart-card{margin-top:14px}
+.alpha-chart-card .chart-header p{margin:7px 0 14px;color:var(--muted);font-size:11px}
+.alpha-legend{margin-top:2px}
+.chart-legend .alpha-series{background:var(--red-deep)}
+.chart-legend .alpha-lower{height:0;border-top:2px dashed var(--green)}
+.chart-legend .alpha-upper{height:0;border-top:2px dashed var(--orange)}
+.chart-legend .long-signal,.chart-legend .short-signal,.chart-legend .expiry-signal{width:8px;height:8px;border-radius:50%}
+.chart-legend .long-signal{background:var(--green)}
+.chart-legend .short-signal{background:var(--red)}
+.chart-legend .expiry-signal{background:var(--orange);border-radius:1px}
+.trade-history-heading{margin-top:58px}
+.trade-score{max-width:300px;color:var(--muted);font-size:11px;line-height:1.8;text-align:right}
+.trade-score strong{color:var(--ink);font:700 20px serif}
+.trade-history-table{max-height:540px;overflow:auto}
+.trade-history-table thead{position:sticky;top:0;z-index:2}
+.trade-history-table tr.open-trade td{background:#f4eee5}
+.trade-history-table .status-open{color:var(--red);font-weight:700}
+.negative{color:var(--red);font-weight:700}
+.floating-tag{margin-left:5px;padding:2px 4px;color:#7a5419;background:#f4dfba;border-radius:2px;font-size:9px;font-weight:700}
+@media(max-width:580px){.alpha-chart-card{padding:14px}.trade-score{text-align:left}.trade-history-heading{margin-top:42px}}

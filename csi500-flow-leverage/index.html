@@ -101,6 +101,12 @@
           <canvas id="trigger-chart" height="310" aria-label="杠杆触发与退出信号图"></canvas>
           <div class="chart-tooltip" id="trigger-tooltip" hidden></div>
         </article>
+        <article class="chart-card card interactive-chart alpha-chart-card">
+          <div class="chart-header"><div><span class="kicker">基础择时信号</span><h3>回归 α 与择时触发</h3><p>α 跌破此前 40 日下沿时触发做多；突破上沿且未被20日涨幅过滤时退出；连续持有达到上限时执行到期退出。</p></div></div>
+          <div class="chart-legend alpha-legend"><span><i class="alpha-series"></i>回归 α</span><span><i class="alpha-lower"></i>前40日下沿</span><span><i class="alpha-upper"></i>前40日上沿</span><span><i class="long-signal"></i>做多触发</span><span><i class="short-signal"></i>退出触发</span><span><i class="expiry-signal"></i>到期退出</span></div>
+          <canvas id="alpha-chart" height="360" aria-label="回归α择时信号图"></canvas>
+          <div class="chart-tooltip" id="alpha-tooltip" hidden></div>
+        </article>
       </section>
 
       <section class="shell two-column" id="signals">
@@ -132,6 +138,8 @@
       <section class="shell events-section" id="validation">
         <div class="section-heading"><div><span class="eyebrow">事件验证</span><h2>历史杠杆事件</h2><p id="sample-note">—</p></div><div class="event-score"><span>真实加杠杆盈利</span><strong id="event-score">—</strong></div></div>
         <div class="table-wrap card"><table><thead><tr><th>触发日</th><th>退出日</th><th>触发回撤</th><th>T+1实现收益</th><th>实际杠杆日</th><th>结果</th></tr></thead><tbody id="events-body"></tbody></table></div>
+        <div class="section-heading trade-history-heading"><div><span class="eyebrow">基础策略执行记录</span><h2>历史择时交易</h2><p>T 日收盘形成信号，T+1 开盘交易；单笔收益按基础100%策略净值计算，包含买入与卖出交易成本。</p></div><div class="trade-score" id="trade-score">—</div></div>
+        <div class="table-wrap card trade-history-table"><table><thead><tr><th>做多信号日</th><th>买入日</th><th>退出信号日</th><th>卖出日</th><th>持有交易日</th><th>单笔收益</th><th>退出原因</th></tr></thead><tbody id="base-trades-body"></tbody></table></div>
       </section>
     </main>
 
