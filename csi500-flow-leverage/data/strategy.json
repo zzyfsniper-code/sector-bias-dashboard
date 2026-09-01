@@ -4,10 +4,10 @@
   "strategy_number": "02",
   "strategy_name": "中证500资金流向与底部杠杆",
   "status": "PASS",
-  "run_id": "csi500_flow_live_20260901_105715",
-  "generated_at": "2026-09-01T10:57:15+08:00",
-  "data_as_of": "2026-08-31",
-  "next_trade_date": "2026-09-01",
+  "run_id": "csi500_flow_live_20260901_211701",
+  "generated_at": "2026-09-01T21:17:03+08:00",
+  "data_as_of": "2026-09-01",
+  "next_trade_date": "2026-09-02",
   "execution": "T 日收盘形成信号，T+1 开盘按目标仓位交易",
   "source": {
     "primary": "Tushare Pro",
@@ -15,14 +15,17 @@
     "trading_proxy": "510500.SH",
     "update": {
       "previous_latest": "2026-08-31",
-      "missing_dates": [],
-      "rows_added": 0,
-      "latest": "2026-08-31"
+      "missing_dates": [
+        "2026-09-01"
+      ],
+      "rows_added": 1,
+      "latest": "2026-09-01",
+      "weight_snapshot": "2026-08-31"
     },
     "dates": {
-      "moneyflow": "2026-08-31",
-      "index": "2026-08-31",
-      "etf": "2026-08-31"
+      "moneyflow": "2026-09-01",
+      "index": "2026-09-01",
+      "etf": "2026-09-01"
     }
   },
   "trade": {
@@ -40,42 +43,42 @@
   "leverage": {
     "active": false,
     "armed": false,
-    "drawdown_250": -0.1195033697401775,
+    "drawdown_250": -0.12986513199955696,
     "trigger_drawdown": -0.15,
     "rearm_drawdown": -0.05,
     "exit_positive_days": 5,
-    "current_positive_streak": 1
+    "current_positive_streak": 0
   },
   "indicators": {
-    "mf_ratio": -0.00120280396061,
-    "alpha": 0.006807197694773391,
+    "mf_ratio": -0.022250877903677715,
+    "alpha": 0.00693671113294631,
     "prior_alpha_min": 0.00670806872164047,
     "prior_alpha_max": 0.016111706467236447,
     "member_coverage": 1.0,
     "active_members": 500,
     "expected_members": 500,
-    "weight_snapshot_date": "2026-07-31",
-    "index_close": 7952.0986,
-    "index_pct_chg": 0.7175
+    "weight_snapshot_date": "2026-08-31",
+    "index_close": 7858.5176,
+    "index_pct_chg": -1.1768
   },
   "performance": {
     "period": {
       "start": "2016-01-04",
-      "end": "2026-08-31"
+      "end": "2026-09-01"
     },
     "candidate": {
       "first_date": "2016-01-04",
-      "last_date": "2026-08-31",
-      "final_nav": 3.7427060202016995,
-      "annual_return": 0.1370234481988819,
-      "annual_volatility": 0.1648395925255263,
+      "last_date": "2026-09-01",
+      "final_nav": 3.7023052774205594,
+      "annual_return": 0.1357675698797567,
+      "annual_volatility": 0.16484582597604297,
       "max_drawdown": -0.3653963626523058,
-      "sharpe": 0.8609435755708759,
-      "average_exposure": 0.5261073902406758,
+      "sharpe": 0.8542099326778385,
+      "average_exposure": 0.5262902897427056,
       "max_exposure": 2.113312258949417,
       "regime_count": 9,
       "completed_regimes": 9,
-      "regime_active_fraction": 0.1525096525096525,
+      "regime_active_fraction": 0.15245079120030877,
       "average_regime_days": 43.888888888888886,
       "overlay_win_rate": 0.7777777777777778,
       "worst_overlay_return": 0.0,
@@ -83,18 +86,18 @@
       "total_financing_cost": 0.046223069214406845
     },
     "base": {
-      "final_nav": 2.3972779811665013,
-      "annual_return": 0.08879363589134215,
-      "annual_volatility": 0.13887733541629568,
+      "final_nav": 2.3714004982519388,
+      "annual_return": 0.08760922282828254,
+      "annual_volatility": 0.13889421609022903,
       "max_drawdown": -0.38204046575744144,
-      "sharpe": 0.681869142328774
+      "sharpe": 0.6739643386176398
     },
     "benchmark": {
-      "final_nav": 1.138713748268681,
-      "annual_return": 0.012719062032150674,
-      "annual_volatility": 0.22838037268740088,
+      "final_nav": 1.1253132641151355,
+      "annual_return": 0.011548805350128033,
+      "annual_volatility": 0.2283665498006485,
       "max_drawdown": -0.43126450229299484,
-      "sharpe": 0.1701061384994528
+      "sharpe": 0.16503883017700144
     }
   },
   "validation": {
@@ -107,10 +110,10 @@
     "completed_regime_events": 9,
     "actual_leverage_events": 7,
     "positive_actual_leverage_events": 7,
-    "sample_note": "历史真实使用额外杠杆的事件仅 7 次，全部盈利是样本事实，不等于未来保证。",
-    "costs": "单边交易成本 10bp；额外融资年化 5%",
     "completed_base_trades": 28,
-    "positive_base_trades": 17
+    "positive_base_trades": 17,
+    "sample_note": "历史真实使用额外杠杆的事件仅 7 次，全部盈利是样本事实，不等于未来保证。",
+    "costs": "单边交易成本 10bp；额外融资年化 5%"
   },
   "events": [
     {
@@ -193,6 +196,356 @@
       "duration_days": 16,
       "leveraged_days": 4,
       "status": "exit_up_streak_5"
+    }
+  ],
+  "base_trades": [
+    {
+      "entry_signal_date": "2016-05-20",
+      "entry_trade_date": "2016-05-23",
+      "entry_price": 5.97,
+      "exit_signal_date": "2016-06-29",
+      "exit_trade_date": "2016-06-30",
+      "exit_price": 6.392,
+      "holding_days": 26,
+      "round_trip_return": 0.06854646432160827,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2016-07-07",
+      "entry_trade_date": "2016-07-08",
+      "entry_price": 6.61,
+      "exit_signal_date": "2016-08-04",
+      "exit_trade_date": "2016-08-05",
+      "exit_price": 6.509,
+      "holding_days": 20,
+      "round_trip_return": -0.017248334493192075,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2016-09-09",
+      "entry_trade_date": "2016-09-12",
+      "entry_price": 6.657,
+      "exit_signal_date": "2016-12-21",
+      "exit_trade_date": "2016-12-22",
+      "exit_price": 6.626,
+      "holding_days": 66,
+      "round_trip_return": -0.0066464434429927,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2017-02-14",
+      "entry_trade_date": "2017-02-15",
+      "entry_price": 6.656,
+      "exit_signal_date": "2017-03-31",
+      "exit_trade_date": "2017-04-05",
+      "exit_price": 6.737,
+      "holding_days": 33,
+      "round_trip_return": 0.010146144381009137,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2017-06-09",
+      "entry_trade_date": "2017-06-12",
+      "entry_price": 6.244,
+      "exit_signal_date": "2017-08-04",
+      "exit_trade_date": "2017-08-07",
+      "exit_price": 6.536,
+      "holding_days": 40,
+      "round_trip_return": 0.04467241127482269,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2017-12-25",
+      "entry_trade_date": "2017-12-26",
+      "entry_price": 6.507,
+      "exit_signal_date": "2018-02-13",
+      "exit_trade_date": "2018-02-14",
+      "exit_price": 6.037,
+      "holding_days": 35,
+      "round_trip_return": -0.07408451867220034,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2018-05-07",
+      "entry_trade_date": "2018-05-08",
+      "entry_price": 6.35,
+      "exit_signal_date": "2018-06-20",
+      "exit_trade_date": "2018-06-21",
+      "exit_price": 5.489,
+      "holding_days": 31,
+      "round_trip_return": -0.13731850566929127,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2018-08-14",
+      "entry_trade_date": "2018-08-15",
+      "entry_price": 5.34,
+      "exit_signal_date": "2018-10-17",
+      "exit_trade_date": "2018-10-18",
+      "exit_price": 4.369,
+      "holding_days": 40,
+      "round_trip_return": -0.1834707174157304,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2019-01-04",
+      "entry_trade_date": "2019-01-07",
+      "entry_price": 4.535,
+      "exit_signal_date": "2019-03-07",
+      "exit_trade_date": "2019-03-08",
+      "exit_price": 5.651,
+      "holding_days": 39,
+      "round_trip_return": 0.24359507188533658,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2019-06-04",
+      "entry_trade_date": "2019-06-05",
+      "entry_price": 5.191,
+      "exit_signal_date": "2019-09-30",
+      "exit_trade_date": "2019-10-08",
+      "exit_price": 5.342,
+      "holding_days": 82,
+      "round_trip_return": 0.0270316590252353,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2019-11-12",
+      "entry_trade_date": "2019-11-13",
+      "entry_price": 5.267,
+      "exit_signal_date": "2020-01-07",
+      "exit_trade_date": "2020-01-08",
+      "exit_price": 5.928,
+      "holding_days": 39,
+      "round_trip_return": 0.12324851490412048,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2020-04-14",
+      "entry_trade_date": "2020-04-15",
+      "entry_price": 5.715,
+      "exit_signal_date": "2020-07-14",
+      "exit_trade_date": "2020-07-15",
+      "exit_price": 7.462,
+      "holding_days": 60,
+      "round_trip_return": 0.3030767212598422,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2020-09-10",
+      "entry_trade_date": "2020-09-11",
+      "entry_price": 6.837,
+      "exit_signal_date": "2021-01-05",
+      "exit_trade_date": "2021-01-06",
+      "exit_price": 7.229,
+      "holding_days": 76,
+      "round_trip_return": 0.05522147564721247,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2021-03-16",
+      "entry_trade_date": "2021-03-17",
+      "entry_price": 6.841,
+      "exit_signal_date": "2021-06-09",
+      "exit_trade_date": "2021-06-10",
+      "exit_price": 7.455,
+      "holding_days": 57,
+      "round_trip_return": 0.08757454392632624,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2021-11-04",
+      "entry_trade_date": "2021-11-05",
+      "entry_price": 7.925,
+      "exit_signal_date": "2022-01-25",
+      "exit_trade_date": "2022-01-26",
+      "exit_price": 7.6,
+      "holding_days": 57,
+      "round_trip_return": -0.042926485804415604,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2022-06-24",
+      "entry_trade_date": "2022-06-27",
+      "entry_price": 7.265,
+      "exit_signal_date": "2022-10-26",
+      "exit_trade_date": "2022-10-27",
+      "exit_price": 6.011,
+      "holding_days": 82,
+      "round_trip_return": -0.054069358912669285,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2022-12-12",
+      "entry_trade_date": "2022-12-13",
+      "entry_price": 6.181,
+      "exit_signal_date": "2023-03-01",
+      "exit_trade_date": "2023-03-02",
+      "exit_price": 6.42,
+      "holding_days": 51,
+      "round_trip_return": 0.036590587283610754,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2023-04-19",
+      "entry_trade_date": "2023-04-20",
+      "entry_price": 6.425,
+      "exit_signal_date": "2023-07-11",
+      "exit_trade_date": "2023-07-12",
+      "exit_price": 6.129,
+      "holding_days": 54,
+      "round_trip_return": -0.04797694490272353,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2023-09-25",
+      "entry_trade_date": "2023-09-26",
+      "entry_price": 5.772,
+      "exit_signal_date": "2023-12-01",
+      "exit_trade_date": "2023-12-04",
+      "exit_price": 5.667,
+      "holding_days": 43,
+      "round_trip_return": -0.020153903846153787,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2024-01-11",
+      "entry_trade_date": "2024-01-12",
+      "entry_price": 5.295,
+      "exit_signal_date": "2024-01-25",
+      "exit_trade_date": "2024-01-26",
+      "exit_price": 5.145,
+      "holding_days": 10,
+      "round_trip_return": -0.030270983002832708,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2024-02-26",
+      "entry_trade_date": "2024-02-27",
+      "entry_price": 5.26,
+      "exit_signal_date": "2024-03-25",
+      "exit_trade_date": "2024-03-26",
+      "exit_price": 5.386,
+      "holding_days": 20,
+      "round_trip_return": 0.021907487832700134,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2024-04-12",
+      "entry_trade_date": "2024-04-15",
+      "entry_price": 5.35,
+      "exit_signal_date": "2024-04-17",
+      "exit_trade_date": "2024-04-18",
+      "exit_price": 5.41,
+      "holding_days": 3,
+      "round_trip_return": 0.009193534579439389,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2024-06-26",
+      "entry_trade_date": "2024-06-27",
+      "entry_price": 5.053,
+      "exit_signal_date": "2024-08-14",
+      "exit_trade_date": "2024-08-15",
+      "exit_price": 4.724,
+      "holding_days": 35,
+      "round_trip_return": -0.06697868117949746,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2024-09-13",
+      "entry_trade_date": "2024-09-18",
+      "entry_price": 4.527,
+      "exit_signal_date": "2024-10-28",
+      "exit_trade_date": "2024-10-29",
+      "exit_price": 5.99,
+      "holding_days": 24,
+      "round_trip_return": 0.3205270576540753,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2024-12-18",
+      "entry_trade_date": "2024-12-19",
+      "entry_price": 5.931,
+      "exit_signal_date": "2025-03-05",
+      "exit_trade_date": "2025-03-06",
+      "exit_price": 5.97,
+      "holding_days": 48,
+      "round_trip_return": 0.02119328110797114,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2025-06-06",
+      "entry_trade_date": "2025-06-09",
+      "entry_price": 5.795,
+      "exit_signal_date": "2025-07-21",
+      "exit_trade_date": "2025-07-22",
+      "exit_price": 6.229,
+      "holding_days": 31,
+      "round_trip_return": 0.07274343899913593,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2025-11-14",
+      "entry_trade_date": "2025-11-17",
+      "entry_price": 7.334,
+      "exit_signal_date": "2026-01-09",
+      "exit_trade_date": "2026-01-12",
+      "exit_price": 8.27,
+      "holding_days": 38,
+      "round_trip_return": 0.12537063948731997,
+      "exit_reason": "max_hold_exit",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2026-03-30",
+      "entry_trade_date": "2026-03-31",
+      "entry_price": 7.805,
+      "exit_signal_date": "2026-05-26",
+      "exit_trade_date": "2026-05-27",
+      "exit_price": 8.74,
+      "holding_days": 37,
+      "round_trip_return": 0.11755653299167323,
+      "exit_reason": "exit_signal",
+      "status": "COMPLETED"
+    },
+    {
+      "entry_signal_date": "2026-08-04",
+      "entry_trade_date": "2026-08-05",
+      "entry_price": 7.6,
+      "exit_signal_date": null,
+      "exit_trade_date": null,
+      "exit_price": null,
+      "holding_days": 20,
+      "round_trip_return": 0.03593671052631575,
+      "exit_reason": "OPEN",
+      "status": "OPEN"
     }
   ],
   "series": {
@@ -2786,7 +3139,8 @@
       "2026-08-26",
       "2026-08-27",
       "2026-08-28",
-      "2026-08-31"
+      "2026-08-31",
+      "2026-09-01"
     ],
     "candidate_nav": [
       1.0,
@@ -5378,7 +5732,8 @@
       3.659086,
       3.745525,
       3.722036,
-      3.742706
+      3.742706,
+      3.702305
     ],
     "base_nav": [
       1.0,
@@ -7970,7 +8325,8 @@
       2.343718,
       2.399083,
       2.384038,
-      2.397278
+      2.397278,
+      2.3714
     ],
     "benchmark_nav": [
       1.0,
@@ -10562,7 +10918,8 @@
       1.112714,
       1.137887,
       1.130602,
-      1.138714
+      1.138714,
+      1.125313
     ],
     "candidate_drawdown": [
       0.0,
@@ -13154,7 +13511,8 @@
       -0.049774,
       -0.027327,
       -0.033427,
-      -0.028059
+      -0.028059,
+      -0.038551
     ],
     "base_drawdown": [
       0.0,
@@ -15746,7 +16104,8 @@
       -0.049774,
       -0.027327,
       -0.033427,
-      -0.028059
+      -0.028059,
+      -0.038551
     ],
     "regime_active": [
       true,
@@ -18323,6 +18682,7 @@
       true,
       true,
       true,
+      false,
       false,
       false,
       false,
@@ -20930,7 +21290,8 @@
       0.00720784,
       0.00675972,
       0.00670807,
-      0.0068072
+      0.0068072,
+      0.00693671
     ],
     "prior_alpha_min": [
       null,
@@ -23522,6 +23883,7 @@
       0.00769131,
       0.00720784,
       0.00675972,
+      0.00670807,
       0.00670807
     ],
     "prior_alpha_max": [
@@ -26086,6 +26448,7 @@
       0.01515691,
       0.01515691,
       0.01515691,
+      0.01611171,
       0.01611171,
       0.01611171,
       0.01611171,
@@ -28706,6 +29069,7 @@
       1,
       1,
       1,
+      0,
       0
     ],
     "base_target": [
@@ -31279,6 +31643,7 @@
       0,
       0,
       0,
+      1,
       1,
       1,
       1,
@@ -33890,358 +34255,9 @@
       "long_signal",
       "long_signal",
       "long_signal",
+      "hold_long",
       "hold_long"
     ]
   },
-  "execution_count": 65,
-  "base_trades": [
-    {
-      "entry_signal_date": "2016-05-20",
-      "entry_trade_date": "2016-05-23",
-      "entry_price": 5.97,
-      "exit_signal_date": "2016-06-29",
-      "exit_trade_date": "2016-06-30",
-      "exit_price": 6.392,
-      "holding_days": 26,
-      "round_trip_return": 0.06854646432160849,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2016-07-07",
-      "entry_trade_date": "2016-07-08",
-      "entry_price": 6.61,
-      "exit_signal_date": "2016-08-04",
-      "exit_trade_date": "2016-08-05",
-      "exit_price": 6.509,
-      "holding_days": 20,
-      "round_trip_return": -0.017248334493192186,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2016-09-09",
-      "entry_trade_date": "2016-09-12",
-      "entry_price": 6.657,
-      "exit_signal_date": "2016-12-21",
-      "exit_trade_date": "2016-12-22",
-      "exit_price": 6.626,
-      "holding_days": 66,
-      "round_trip_return": -0.0066464434429927,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2017-02-14",
-      "entry_trade_date": "2017-02-15",
-      "entry_price": 6.656,
-      "exit_signal_date": "2017-03-31",
-      "exit_trade_date": "2017-04-05",
-      "exit_price": 6.737,
-      "holding_days": 33,
-      "round_trip_return": 0.010146144381008915,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2017-06-09",
-      "entry_trade_date": "2017-06-12",
-      "entry_price": 6.244,
-      "exit_signal_date": "2017-08-04",
-      "exit_trade_date": "2017-08-07",
-      "exit_price": 6.536,
-      "holding_days": 40,
-      "round_trip_return": 0.04467241127482291,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2017-12-25",
-      "entry_trade_date": "2017-12-26",
-      "entry_price": 6.507,
-      "exit_signal_date": "2018-02-13",
-      "exit_trade_date": "2018-02-14",
-      "exit_price": 6.037,
-      "holding_days": 35,
-      "round_trip_return": -0.07408451867220034,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2018-05-07",
-      "entry_trade_date": "2018-05-08",
-      "entry_price": 6.35,
-      "exit_signal_date": "2018-06-20",
-      "exit_trade_date": "2018-06-21",
-      "exit_price": 5.489,
-      "holding_days": 31,
-      "round_trip_return": -0.13731850566929127,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2018-08-14",
-      "entry_trade_date": "2018-08-15",
-      "entry_price": 5.34,
-      "exit_signal_date": "2018-10-17",
-      "exit_trade_date": "2018-10-18",
-      "exit_price": 4.369,
-      "holding_days": 40,
-      "round_trip_return": -0.1834707174157304,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2019-01-04",
-      "entry_trade_date": "2019-01-07",
-      "entry_price": 4.535,
-      "exit_signal_date": "2019-03-07",
-      "exit_trade_date": "2019-03-08",
-      "exit_price": 5.651,
-      "holding_days": 39,
-      "round_trip_return": 0.24359507188533658,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2019-06-04",
-      "entry_trade_date": "2019-06-05",
-      "entry_price": 5.191,
-      "exit_signal_date": "2019-09-30",
-      "exit_trade_date": "2019-10-08",
-      "exit_price": 5.342,
-      "holding_days": 82,
-      "round_trip_return": 0.02703165902523552,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2019-11-12",
-      "entry_trade_date": "2019-11-13",
-      "entry_price": 5.267,
-      "exit_signal_date": "2020-01-07",
-      "exit_trade_date": "2020-01-08",
-      "exit_price": 5.928,
-      "holding_days": 39,
-      "round_trip_return": 0.12324851490412025,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2020-04-14",
-      "entry_trade_date": "2020-04-15",
-      "entry_price": 5.715,
-      "exit_signal_date": "2020-07-14",
-      "exit_trade_date": "2020-07-15",
-      "exit_price": 7.462,
-      "holding_days": 60,
-      "round_trip_return": 0.3030767212598422,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2020-09-10",
-      "entry_trade_date": "2020-09-11",
-      "entry_price": 6.837,
-      "exit_signal_date": "2021-01-05",
-      "exit_trade_date": "2021-01-06",
-      "exit_price": 7.229,
-      "holding_days": 76,
-      "round_trip_return": 0.05522147564721247,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2021-03-16",
-      "entry_trade_date": "2021-03-17",
-      "entry_price": 6.841,
-      "exit_signal_date": "2021-06-09",
-      "exit_trade_date": "2021-06-10",
-      "exit_price": 7.455,
-      "holding_days": 57,
-      "round_trip_return": 0.08757454392632624,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2021-11-04",
-      "entry_trade_date": "2021-11-05",
-      "entry_price": 7.925,
-      "exit_signal_date": "2022-01-25",
-      "exit_trade_date": "2022-01-26",
-      "exit_price": 7.6,
-      "holding_days": 57,
-      "round_trip_return": -0.04292648580441549,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2022-06-24",
-      "entry_trade_date": "2022-06-27",
-      "entry_price": 7.265,
-      "exit_signal_date": "2022-10-26",
-      "exit_trade_date": "2022-10-27",
-      "exit_price": 6.011,
-      "holding_days": 82,
-      "round_trip_return": -0.054069358912669285,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2022-12-12",
-      "entry_trade_date": "2022-12-13",
-      "entry_price": 6.181,
-      "exit_signal_date": "2023-03-01",
-      "exit_trade_date": "2023-03-02",
-      "exit_price": 6.42,
-      "holding_days": 51,
-      "round_trip_return": 0.036590587283610754,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2023-04-19",
-      "entry_trade_date": "2023-04-20",
-      "entry_price": 6.425,
-      "exit_signal_date": "2023-07-11",
-      "exit_trade_date": "2023-07-12",
-      "exit_price": 6.129,
-      "holding_days": 54,
-      "round_trip_return": -0.04797694490272353,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2023-09-25",
-      "entry_trade_date": "2023-09-26",
-      "entry_price": 5.772,
-      "exit_signal_date": "2023-12-01",
-      "exit_trade_date": "2023-12-04",
-      "exit_price": 5.667,
-      "holding_days": 43,
-      "round_trip_return": -0.020153903846153898,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2024-01-11",
-      "entry_trade_date": "2024-01-12",
-      "entry_price": 5.295,
-      "exit_signal_date": "2024-01-25",
-      "exit_trade_date": "2024-01-26",
-      "exit_price": 5.145,
-      "holding_days": 10,
-      "round_trip_return": -0.030270983002832486,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2024-02-26",
-      "entry_trade_date": "2024-02-27",
-      "entry_price": 5.26,
-      "exit_signal_date": "2024-03-25",
-      "exit_trade_date": "2024-03-26",
-      "exit_price": 5.386,
-      "holding_days": 20,
-      "round_trip_return": 0.021907487832700134,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2024-04-12",
-      "entry_trade_date": "2024-04-15",
-      "entry_price": 5.35,
-      "exit_signal_date": "2024-04-17",
-      "exit_trade_date": "2024-04-18",
-      "exit_price": 5.41,
-      "holding_days": 3,
-      "round_trip_return": 0.009193534579439389,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2024-06-26",
-      "entry_trade_date": "2024-06-27",
-      "entry_price": 5.053,
-      "exit_signal_date": "2024-08-14",
-      "exit_trade_date": "2024-08-15",
-      "exit_price": 4.724,
-      "holding_days": 35,
-      "round_trip_return": -0.06697868117949712,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2024-09-13",
-      "entry_trade_date": "2024-09-18",
-      "entry_price": 4.527,
-      "exit_signal_date": "2024-10-28",
-      "exit_trade_date": "2024-10-29",
-      "exit_price": 5.99,
-      "holding_days": 24,
-      "round_trip_return": 0.3205270576540751,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2024-12-18",
-      "entry_trade_date": "2024-12-19",
-      "entry_price": 5.931,
-      "exit_signal_date": "2025-03-05",
-      "exit_trade_date": "2025-03-06",
-      "exit_price": 5.97,
-      "holding_days": 48,
-      "round_trip_return": 0.021193281107971362,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2025-06-06",
-      "entry_trade_date": "2025-06-09",
-      "entry_price": 5.795,
-      "exit_signal_date": "2025-07-21",
-      "exit_trade_date": "2025-07-22",
-      "exit_price": 6.229,
-      "holding_days": 31,
-      "round_trip_return": 0.07274343899913549,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2025-11-14",
-      "entry_trade_date": "2025-11-17",
-      "entry_price": 7.334,
-      "exit_signal_date": "2026-01-09",
-      "exit_trade_date": "2026-01-12",
-      "exit_price": 8.27,
-      "holding_days": 38,
-      "round_trip_return": 0.1253706394873202,
-      "exit_reason": "max_hold_exit",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2026-03-30",
-      "entry_trade_date": "2026-03-31",
-      "entry_price": 7.805,
-      "exit_signal_date": "2026-05-26",
-      "exit_trade_date": "2026-05-27",
-      "exit_price": 8.74,
-      "holding_days": 37,
-      "round_trip_return": 0.11755653299167323,
-      "exit_reason": "exit_signal",
-      "status": "COMPLETED"
-    },
-    {
-      "entry_signal_date": "2026-08-04",
-      "entry_trade_date": "2026-08-05",
-      "entry_price": 7.6,
-      "exit_signal_date": null,
-      "exit_trade_date": null,
-      "exit_price": null,
-      "holding_days": 19,
-      "round_trip_return": 0.047241184210526255,
-      "exit_reason": "OPEN",
-      "status": "OPEN"
-    }
-  ]
+  "execution_count": 65
 }
