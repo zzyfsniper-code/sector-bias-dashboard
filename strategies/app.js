@@ -31,5 +31,6 @@
     $("fresh-count").textContent=`${state.fresh} / 2`;
     $("trade-count").textContent=String(state.trades);
     $("updated").textContent=state.dates.length?`最新数据 ${state.dates.sort().at(-1)}`:"策略状态读取失败";
+    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 2);
   });
 })();

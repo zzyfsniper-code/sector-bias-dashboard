@@ -60,27 +60,247 @@
     return `<tr><td>${event.trigger_date}</td><td>${event.exit_date || "—"}</td><td>${pct(event.trigger_drawdown,1)}</td><td class="${event.overlay_return > 0 ? "positive" : "neutral"}">${event.overlay_return == null ? "—" : pct(event.overlay_return,2)}</td><td>${event.leveraged_days ?? "—"}</td><td>${active ? "进行中" : result}</td></tr>`;
   }).join("");
 
-  function drawChart(canvas, series, options = {}) {
-    const dpr = window.devicePixelRatio || 1, rect = canvas.getBoundingClientRect();
-    const height = Number(canvas.getAttribute("height")); canvas.width = Math.max(600, rect.width) * dpr; canvas.height = height * dpr;
-    const ctx = canvas.getContext("2d"); ctx.scale(dpr,dpr);
-    const width = canvas.width/dpr, h = height, pad = {l:54,r:18,t:18,b:34}, cw=width-pad.l-pad.r, ch=h-pad.t-pad.b;
-    const values = series.flatMap(s => s.values).filter(Number.isFinite); let min = options.min ?? Math.min(...values), max = options.max ?? Math.max(...values);
-    if (max === min) max += 1; const x = i => pad.l + i/(data.series.dates.length-1)*cw; const y = v => pad.t + (max-v)/(max-min)*ch;
-    ctx.font="10px Microsoft YaHei"; ctx.fillStyle=color.text; ctx.strokeStyle=color.grid; ctx.lineWidth=1;
-    for(let i=0;i<=4;i++){const yy=pad.t+i*ch/4, val=max-i*(max-min)/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(width-pad.r,yy);ctx.stroke();ctx.fillText(options.percent?`${(val*100).toFixed(0)}%`:val.toFixed(1),4,yy+3)}
-    if(options.bands){let start=null; data.series.regime_active.forEach((active,i)=>{if(active&&start===null)start=i;if((!active||i===data.series.regime_active.length-1)&&start!==null){const end=active?i:i-1;ctx.fillStyle=color.band;ctx.fillRect(x(start),pad.t,Math.max(2,x(end)-x(start)),ch);start=null}})}
-    series.forEach(s=>{ctx.strokeStyle=s.color;ctx.lineWidth=s.width||2;ctx.beginPath();s.values.forEach((v,i)=>{if(!Number.isFinite(v))return;const xx=x(i),yy=y(v);i===0?ctx.moveTo(xx,yy):ctx.lineTo(xx,yy)});ctx.stroke()});
-    const years=[]; data.series.dates.forEach((date,i)=>{const year=date.slice(0,4);if(!years.length||years.at(-1).year!==year)years.push({year,i})}); const step=Math.max(1,Math.ceil(years.length/8));years.filter((_,i)=>i%step===0).forEach(t=>{ctx.fillStyle=color.text;ctx.fillText(t.year,x(t.i)-10,h-10)});
+  const chartHover = {nav:null, drawdown:null, trigger:null};
+  const chartPadding = {l:54, r:18, t:18, b:34};
+  const triggerEvents = [];
+  const eventLabels = new Map();
+  const eventDrawdowns = new Map();
+  data.events.forEach((event) => {
+    triggerEvents.push({date:event.trigger_date, type:"trigger", drawdown:event.trigger_drawdown});
+    eventLabels.set(event.trigger_date, "触发杠杆状态");
+    eventDrawdowns.set(event.trigger_date, event.trigger_drawdown);
+    if (event.exit_date) {
+      triggerEvents.push({date:event.exit_date, type:"exit"});
+      eventLabels.set(event.exit_date, "退出杠杆状态");
+    }
+  });
+  const triggerDrawdown = data.series.benchmark_nav.map((value, index, values) => {
+    if (index < 249 || !Number.isFinite(value)) return null;
+    const rollingPeak = Math.max(...values.slice(index - 249, index + 1).filter(Number.isFinite));
+    return value / rollingPeak - 1;
+  });
+
+  function chartGeometry(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const height = Number(canvas.dataset.chartHeight || canvas.getAttribute("height"));
+    canvas.dataset.chartHeight = String(height);
+    const width = Math.max(600, rect.width);
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.height = `${height}px`;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    const cw = width - chartPadding.l - chartPadding.r;
+    const ch = height - chartPadding.t - chartPadding.b;
+    const geometry = {
+      ctx, width, height, cw, ch,
+      x:index => chartPadding.l + index / Math.max(1, data.series.dates.length - 1) * cw,
+    };
+    canvas._geometry = geometry;
+    return geometry;
   }
-  function renderCharts(){
-    drawChart($("nav-chart"),[
-      {values:data.series.candidate_nav,color:color.candidate,width:2.5},
-      {values:data.series.base_nav,color:color.base,width:1.6},
-      {values:data.series.benchmark_nav,color:color.benchmark,width:1.4}],{bands:true,min:0});
-    drawChart($("drawdown-chart"),[
-      {values:data.series.candidate_drawdown,color:color.candidate,width:2.2},
-      {values:data.series.base_drawdown,color:color.base,width:1.5}],{bands:true,percent:true,max:0});
+
+  function drawBands(ctx, geometry) {
+    let start = null;
+    data.series.regime_active.forEach((active, index) => {
+      if (active && start === null) start = index;
+      if ((!active || index === data.series.regime_active.length - 1) && start !== null) {
+        const end = active ? index : index - 1;
+        ctx.fillStyle = color.band;
+        ctx.fillRect(geometry.x(start), chartPadding.t, Math.max(2, geometry.x(end) - geometry.x(start)), geometry.ch);
+        start = null;
+      }
+    });
   }
-  renderCharts(); window.addEventListener("resize", renderCharts);
+
+  function drawAxes(ctx, geometry, min, max, percent) {
+    ctx.font = "10px Microsoft YaHei";
+    ctx.lineWidth = 1;
+    for (let index = 0; index <= 4; index += 1) {
+      const yy = chartPadding.t + index * geometry.ch / 4;
+      const value = max - index * (max - min) / 4;
+      ctx.strokeStyle = color.grid;
+      ctx.beginPath();
+      ctx.moveTo(chartPadding.l, yy);
+      ctx.lineTo(geometry.width - chartPadding.r, yy);
+      ctx.stroke();
+      ctx.fillStyle = color.text;
+      ctx.fillText(percent ? `${(value * 100).toFixed(0)}%` : value.toFixed(1), 4, yy + 3);
+    }
+    const years = [];
+    data.series.dates.forEach((date, index) => {
+      const year = date.slice(0, 4);
+      if (!years.length || years.at(-1).year !== year) years.push({year, index});
+    });
+    const step = Math.max(1, Math.ceil(years.length / 8));
+    years.filter((_, index) => index % step === 0).forEach((tick) => {
+      ctx.fillStyle = color.text;
+      ctx.fillText(tick.year, geometry.x(tick.index) - 10, geometry.height - 10);
+    });
+  }
+
+  function drawHover(ctx, geometry, series, index, y) {
+    if (index == null) return;
+    const xx = geometry.x(index);
+    ctx.save();
+    ctx.strokeStyle = "rgba(23,35,43,.4)";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(xx, chartPadding.t);
+    ctx.lineTo(xx, geometry.height - chartPadding.b);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    series.forEach((item) => {
+      const value = item.values[index];
+      if (!Number.isFinite(value)) return;
+      ctx.fillStyle = item.color;
+      ctx.strokeStyle = "#fffdf8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(xx, y(value), 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawChart(canvas, series, options = {}, hoverIndex = null) {
+    const geometry = chartGeometry(canvas);
+    const {ctx} = geometry;
+    const values = series.flatMap(item => item.values).filter(Number.isFinite);
+    let min = options.min ?? Math.min(...values);
+    let max = options.max ?? Math.max(...values);
+    if (max === min) max += 1;
+    const y = value => chartPadding.t + (max - value) / (max - min) * geometry.ch;
+    if (options.bands) drawBands(ctx, geometry);
+    drawAxes(ctx, geometry, min, max, options.percent);
+    series.forEach((item) => {
+      ctx.strokeStyle = item.color;
+      ctx.lineWidth = item.width || 2;
+      ctx.beginPath();
+      let started = false;
+      item.values.forEach((value, index) => {
+        if (!Number.isFinite(value)) { started = false; return; }
+        const xx = geometry.x(index), yy = y(value);
+        if (!started) { ctx.moveTo(xx, yy); started = true; }
+        else ctx.lineTo(xx, yy);
+      });
+      ctx.stroke();
+    });
+    drawHover(ctx, geometry, series, hoverIndex, y);
+  }
+
+  function drawTriggerChart(hoverIndex = null) {
+    const canvas = $("trigger-chart");
+    const geometry = chartGeometry(canvas);
+    const {ctx} = geometry;
+    const finite = triggerDrawdown.filter(Number.isFinite);
+    const min = Math.min(-0.30, ...finite);
+    const max = 0;
+    const y = value => chartPadding.t + (max - value) / (max - min) * geometry.ch;
+    drawBands(ctx, geometry);
+    drawAxes(ctx, geometry, min, max, true);
+    [[-0.15, color.candidate], [-0.05, "#1f6b54"]].forEach(([value, lineColor]) => {
+      ctx.save();
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.3;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.moveTo(chartPadding.l, y(value));
+      ctx.lineTo(geometry.width - chartPadding.r, y(value));
+      ctx.stroke();
+      ctx.restore();
+    });
+    const series = [{values:triggerDrawdown, color:color.base, width:2}];
+    ctx.strokeStyle = color.base;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    triggerDrawdown.forEach((value, index) => {
+      if (!Number.isFinite(value)) { started = false; return; }
+      const xx = geometry.x(index), yy = y(value);
+      if (!started) { ctx.moveTo(xx, yy); started = true; }
+      else ctx.lineTo(xx, yy);
+    });
+    ctx.stroke();
+    triggerEvents.forEach((event) => {
+      const index = data.series.dates.indexOf(event.date);
+      const value = Number.isFinite(triggerDrawdown[index]) ? triggerDrawdown[index] : event.drawdown;
+      if (index < 0 || !Number.isFinite(value)) return;
+      ctx.fillStyle = event.type === "trigger" ? color.candidate : "#1f6b54";
+      ctx.strokeStyle = "#fffdf8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(geometry.x(index), y(value), 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+    drawHover(ctx, geometry, series, hoverIndex, y);
+  }
+
+  function pointerIndex(canvas, event) {
+    const rect = canvas.getBoundingClientRect();
+    const geometry = canvas._geometry;
+    const logicalX = (event.clientX - rect.left) / rect.width * geometry.width;
+    return Math.max(0, Math.min(data.series.dates.length - 1, Math.round((logicalX - chartPadding.l) / geometry.cw * (data.series.dates.length - 1))));
+  }
+
+  function showTooltip(canvas, tooltip, event, html) {
+    const rect = canvas.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+    tooltip.innerHTML = html;
+    tooltip.hidden = false;
+    tooltip.style.left = `${canvas.offsetLeft + localX}px`;
+    tooltip.style.top = `${canvas.offsetTop + localY}px`;
+    tooltip.style.transform = localX > rect.width - 230 ? "translate(calc(-100% - 12px),-50%)" : "translate(12px,-50%)";
+  }
+
+  function bindHover(canvas, tooltip, key, rowsForIndex) {
+    canvas.addEventListener("pointermove", (event) => {
+      const index = pointerIndex(canvas, event);
+      chartHover[key] = index;
+      renderCharts();
+      const rows = rowsForIndex(index);
+      const eventLabel = eventLabels.get(data.series.dates[index]);
+      showTooltip(canvas, tooltip, event, `<strong>${data.series.dates[index]}</strong>${rows.map(([label, value]) => `<div class="tooltip-row"><span>${label}</span><b>${value}</b></div>`).join("")}${eventLabel ? `<div class="tooltip-event">${eventLabel}</div>` : ""}`);
+    });
+    canvas.addEventListener("pointerleave", () => {
+      chartHover[key] = null;
+      tooltip.hidden = true;
+      renderCharts();
+    });
+  }
+
+  function renderCharts() {
+    drawChart($("nav-chart"), [
+      {values:data.series.candidate_nav, color:color.candidate, width:2.5},
+      {values:data.series.base_nav, color:color.base, width:1.6},
+      {values:data.series.benchmark_nav, color:color.benchmark, width:1.4},
+    ], {bands:true, min:0}, chartHover.nav);
+    drawChart($("drawdown-chart"), [
+      {values:data.series.candidate_drawdown, color:color.candidate, width:2.2},
+      {values:data.series.base_drawdown, color:color.base, width:1.5},
+    ], {bands:true, percent:true, max:0}, chartHover.drawdown);
+    drawTriggerChart(chartHover.trigger);
+  }
+
+  renderCharts();
+  bindHover($("nav-chart"), $("nav-tooltip"), "nav", index => [
+    ["200%策略净值", num(data.series.candidate_nav[index], 2)],
+    ["100%策略净值", num(data.series.base_nav[index], 2)],
+    ["中证500净值", num(data.series.benchmark_nav[index], 2)],
+    ["杠杆状态", data.series.regime_active[index] ? "已开启" : "未开启"],
+  ]);
+  bindHover($("drawdown-chart"), $("drawdown-tooltip"), "drawdown", index => [
+    ["200%策略回撤", pct(data.series.candidate_drawdown[index], 2)],
+    ["100%策略回撤", pct(data.series.base_drawdown[index], 2)],
+    ["杠杆状态", data.series.regime_active[index] ? "已开启" : "未开启"],
+  ]);
+  bindHover($("trigger-chart"), $("trigger-tooltip"), "trigger", index => [
+    ["250日高点回撤", pct(Number.isFinite(triggerDrawdown[index]) ? triggerDrawdown[index] : eventDrawdowns.get(data.series.dates[index]), 2)],
+    ["杠杆状态", data.series.regime_active[index] ? "已开启" : "未开启"],
+  ]);
+  window.addEventListener("resize", renderCharts);
 })();

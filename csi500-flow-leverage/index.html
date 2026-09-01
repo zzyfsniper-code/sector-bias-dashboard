@@ -7,6 +7,7 @@
     <title>中证500资金流向与底部杠杆｜每日信号</title>
     <link rel="icon" href="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="../strategies/header.css" />
   </head>
   <body>
     <div class="top-line"></div>
@@ -84,13 +85,21 @@
       <section class="shell performance" id="performance">
         <div class="section-heading"><div><span class="eyebrow">历史表现</span><h2>收益曲线与杠杆区间</h2><p>红色背景表示底部状态已激活；只有基础策略同时做多时，实际目标仓位才为 200%。</p></div><div class="period" id="performance-period">—</div></div>
         <div class="metric-grid" id="metric-grid"></div>
-        <article class="chart-card card">
+        <article class="chart-card card interactive-chart">
           <div class="chart-legend"><span><i class="candidate"></i>200% 底部杠杆策略</span><span><i class="base"></i>原始 100% 策略</span><span><i class="benchmark"></i>中证500</span><span><i class="regime"></i>杠杆状态区间</span></div>
           <canvas id="nav-chart" height="420" aria-label="策略收益曲线"></canvas>
+          <div class="chart-tooltip" id="nav-tooltip" hidden></div>
         </article>
-        <article class="chart-card card">
+        <article class="chart-card card interactive-chart">
           <div class="chart-header"><div><span class="kicker">风险路径</span><h3>最大回撤曲线</h3></div></div>
           <canvas id="drawdown-chart" height="250" aria-label="策略最大回撤曲线"></canvas>
+          <div class="chart-tooltip" id="drawdown-tooltip" hidden></div>
+        </article>
+        <article class="chart-card card interactive-chart trigger-chart-card">
+          <div class="chart-header"><div><span class="kicker">杠杆状态信号</span><h3>250日回撤触发与退出</h3><p>跌至 -15% 触发底部状态，连续上涨 5 日退出；回撤修复至 -5% 后重新允许触发。</p></div></div>
+          <div class="chart-legend trigger-legend"><span><i class="trigger-series"></i>中证500相对250日高点回撤</span><span><i class="trigger-threshold"></i>-15% 触发线</span><span><i class="rearm-threshold"></i>-5% 解锁线</span><span><i class="trigger-dot"></i>触发</span><span><i class="exit-dot"></i>退出</span></div>
+          <canvas id="trigger-chart" height="310" aria-label="杠杆触发与退出信号图"></canvas>
+          <div class="chart-tooltip" id="trigger-tooltip" hidden></div>
         </article>
       </section>
 
