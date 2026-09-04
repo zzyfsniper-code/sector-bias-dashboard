@@ -4,28 +4,29 @@
   "strategy_number": "02",
   "strategy_name": "中证500资金流向与底部杠杆",
   "status": "PASS",
-  "run_id": "csi500_flow_live_20260902_211624",
-  "generated_at": "2026-09-02T21:16:25+08:00",
-  "data_as_of": "2026-09-02",
-  "next_trade_date": "2026-09-03",
+  "run_id": "csi500_flow_live_20260904_210328",
+  "generated_at": "2026-09-04T21:03:29+08:00",
+  "data_as_of": "2026-09-04",
+  "next_trade_date": "2026-09-07",
   "execution": "T 日收盘形成信号，T+1 开盘按目标仓位交易",
   "source": {
     "primary": "Tushare Pro",
     "index": "000905.SH",
     "trading_proxy": "510500.SH",
     "update": {
-      "previous_latest": "2026-09-01",
+      "previous_latest": "2026-09-02",
       "missing_dates": [
-        "2026-09-02"
+        "2026-09-03",
+        "2026-09-04"
       ],
-      "rows_added": 1,
-      "latest": "2026-09-02",
+      "rows_added": 2,
+      "latest": "2026-09-04",
       "weight_snapshot": "2026-08-31"
     },
     "dates": {
-      "moneyflow": "2026-09-02",
-      "index": "2026-09-02",
-      "etf": "2026-09-02"
+      "moneyflow": "2026-09-04",
+      "index": "2026-09-04",
+      "etf": "2026-09-04"
     }
   },
   "trade": {
@@ -43,42 +44,42 @@
   "leverage": {
     "active": false,
     "armed": false,
-    "drawdown_250": -0.14418015552619723,
+    "drawdown_250": -0.15265555022451283,
     "trigger_drawdown": -0.15,
     "rearm_drawdown": -0.05,
     "exit_positive_days": 5,
     "current_positive_streak": 0
   },
   "indicators": {
-    "mf_ratio": -0.031810252150489174,
-    "alpha": 0.0070032444962821235,
-    "prior_alpha_min": 0.00670806872164047,
+    "mf_ratio": -0.041859203445091774,
+    "alpha": 0.007154146031504011,
+    "prior_alpha_min": 0.0062885056218597015,
     "prior_alpha_max": 0.016111706467236447,
     "member_coverage": 1.0,
     "active_members": 500,
     "expected_members": 500,
     "weight_snapshot_date": "2026-08-31",
-    "index_close": 7729.2332,
-    "index_pct_chg": -1.6451
+    "index_close": 7652.6887,
+    "index_pct_chg": -1.3239
   },
   "performance": {
     "period": {
       "start": "2016-01-04",
-      "end": "2026-09-02"
+      "end": "2026-09-04"
     },
     "candidate": {
       "first_date": "2016-01-04",
-      "last_date": "2026-09-02",
-      "final_nav": 3.641234387169998,
-      "annual_return": 0.13387672213689927,
-      "annual_volatility": 0.16489977242632473,
+      "last_date": "2026-09-04",
+      "final_nav": 3.6045918530196617,
+      "annual_return": 0.13265343298934806,
+      "annual_volatility": 0.16490078661186328,
       "max_drawdown": -0.3653963626523058,
-      "sharpe": 0.8438756311702461,
-      "average_exposure": 0.5264730481185765,
+      "sharpe": 0.8373229591045811,
+      "average_exposure": 0.5268381421446994,
       "max_exposure": 2.113312258949417,
       "regime_count": 9,
       "completed_regimes": 9,
-      "regime_active_fraction": 0.15239197530864199,
+      "regime_active_fraction": 0.1522744795682344,
       "average_regime_days": 43.888888888888886,
       "overlay_win_rate": 0.7777777777777778,
       "worst_overlay_return": 0.0,
@@ -86,18 +87,18 @@
       "total_financing_cost": 0.046223069214406845
     },
     "base": {
-      "final_nav": 2.332283372915972,
-      "annual_return": 0.08581669993338292,
-      "annual_volatility": 0.1389669615678184,
+      "final_nav": 2.3088130977143924,
+      "annual_return": 0.0846814802217486,
+      "annual_volatility": 0.13898860212366027,
       "max_drawdown": -0.38204046575744144,
-      "sharpe": 0.6618113843960981
+      "sharpe": 0.6542019345035841
     },
     "benchmark": {
-      "final_nav": 1.1068001732793822,
-      "annual_return": 0.00991426666070594,
-      "annual_volatility": 0.22838114455567365,
+      "final_nav": 1.0958392585713637,
+      "annual_return": 0.008930609669393519,
+      "annual_volatility": 0.2283333874080411,
       "max_drawdown": -0.43126450229299484,
-      "sharpe": 0.1579611850039414
+      "sharpe": 0.15367799042152996
     }
   },
   "validation": {
@@ -542,8 +543,8 @@
       "exit_signal_date": null,
       "exit_trade_date": null,
       "exit_price": null,
-      "holding_days": 21,
-      "round_trip_return": 0.01884855263157892,
+      "holding_days": 23,
+      "round_trip_return": 0.008595657894736819,
       "exit_reason": "OPEN",
       "status": "OPEN"
     }
@@ -3141,7 +3142,9 @@
       "2026-08-28",
       "2026-08-31",
       "2026-09-01",
-      "2026-09-02"
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04"
     ],
     "candidate_nav": [
       1.0,
@@ -5735,7 +5738,9 @@
       3.722036,
       3.742706,
       3.702305,
-      3.641234
+      3.641234,
+      3.655328,
+      3.604592
     ],
     "base_nav": [
       1.0,
@@ -8329,7 +8334,9 @@
       2.384038,
       2.397278,
       2.3714,
-      2.332283
+      2.332283,
+      2.34131,
+      2.308813
     ],
     "benchmark_nav": [
       1.0,
@@ -10923,7 +10930,9 @@
       1.130602,
       1.138714,
       1.125313,
-      1.1068
+      1.1068,
+      1.110542,
+      1.095839
     ],
     "candidate_drawdown": [
       0.0,
@@ -13517,7 +13526,9 @@
       -0.033427,
       -0.028059,
       -0.038551,
-      -0.05441
+      -0.05441,
+      -0.05075,
+      -0.063926
     ],
     "base_drawdown": [
       0.0,
@@ -16111,7 +16122,9 @@
       -0.033427,
       -0.028059,
       -0.038551,
-      -0.05441
+      -0.05441,
+      -0.05075,
+      -0.063926
     ],
     "regime_active": [
       true,
@@ -18688,6 +18701,8 @@
       true,
       true,
       true,
+      false,
+      false,
       false,
       false,
       false,
@@ -21299,7 +21314,9 @@
       0.00670807,
       0.0068072,
       0.00693671,
-      0.00700324
+      0.00700324,
+      0.00628851,
+      0.00715415
     ],
     "prior_alpha_min": [
       null,
@@ -23893,7 +23910,9 @@
       0.00675972,
       0.00670807,
       0.00670807,
-      0.00670807
+      0.00670807,
+      0.00670807,
+      0.00628851
     ],
     "prior_alpha_max": [
       null,
@@ -26457,6 +26476,8 @@
       0.01515691,
       0.01515691,
       0.01515691,
+      0.01611171,
+      0.01611171,
       0.01611171,
       0.01611171,
       0.01611171,
@@ -29081,6 +29102,8 @@
       1,
       0,
       0,
+      0,
+      1,
       0
     ],
     "base_target": [
@@ -31654,6 +31677,8 @@
       0,
       0,
       0,
+      1,
+      1,
       1,
       1,
       1,
@@ -34269,6 +34294,8 @@
       "long_signal",
       "hold_long",
       "hold_long",
+      "hold_long",
+      "long_signal",
       "hold_long"
     ]
   },
