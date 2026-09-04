@@ -107,6 +107,25 @@
         <div class="method-grid"><article class="card method-card"><span class="kicker">核心公式</span><h3>等风险贡献 ERC</h3><p>组合波动率为 <code>σp = √(w′Σw)</code>，资产 i 的风险贡献为 <code>RCi = wi × (Σw)i / σp</code>。模型寻找四个资产风险贡献尽量相等的权重。</p><div class="formula-note">低波动的国债通常获得更高名义权重，高波动资产通常获得更低名义权重。</div></article><article class="card method-card"><span class="kicker">成本与融资</span><h3>三个版本的区别</h3><ul><li>稳健1.0x：总敞口100%，不融资。</li><li>1.5x · 0%：总敞口150%，暂不计融资成本。</li><li>1.5x · 3%：总敞口150%，按50%融资敞口×3%年化逐日计提。</li></ul><div class="formula-note">页面中的3%是回测假设，不是券商实际融资利率报价。</div></article><article class="card method-card"><span class="kicker">解释边界</span><h3>它能做什么、不能做什么</h3><ul><li>通过多资产分散和定期再平衡降低单一资产风险集中。</li><li>不能保证股、债、金在所有压力环境下都负相关。</li><li>1.5x会同时放大收益、成本、融资风险和回撤。</li></ul></article></div>
       </section>
 
+      <section class="shell weight-diagnostics-section" id="weight-diagnostics">
+        <article class="card weight-diagnostics-card">
+          <div class="section-heading"><div><span class="eyebrow">权重计算结果</span><h2>本季度的比例是怎么算出来的</h2><p>同一套 ERC 算法先看过去126个交易日的共同波动，再把风险贡献尽量拉齐，最后应用单资产60%的上限。</p></div><span class="validation-seal pass" id="weight-diagnostic-status">等待计算</span></div>
+          <div class="weight-flow" aria-label="权重计算流程">
+            <div><b>01</b><strong>历史收益</strong><span>四类资产过去126个交易日</span></div>
+            <div><b>02</b><strong>协方差矩阵</strong><span>年化共同波动与相关性</span></div>
+            <div><b>03</b><strong>等风险贡献</strong><span>目标是每类约25%的风险贡献</span></div>
+            <div><b>04</b><strong>约束与输出</strong><span>不做空，单资产最多60%</span></div>
+          </div>
+          <div class="weight-diagnostic-grid">
+            <div class="weight-result">
+              <div class="weight-result-heading"><div><span class="kicker">本季度输出</span><h3>最终组合权重与风险贡献</h3></div><span class="weight-result-period" id="weight-diagnostic-period">—</span></div>
+              <div class="table-wrap"><table><thead><tr><th>资产</th><th>年化波动</th><th>最终权重</th><th>实际风险贡献</th><th>目标风险贡献</th><th>约束</th></tr></thead><tbody id="weight-diagnostic-body"></tbody></table></div>
+            </div>
+            <aside class="weight-formula-card"><span class="kicker">核心公式</span><h3>让风险贡献接近均等</h3><div class="weight-formula"><code>σp = √(w′Σw)</code><code>RCi = wi × (Σw)i / σp</code></div><p>模型不是简单地把资金平均分配，而是让每类资产对组合波动的贡献接近。波动越低的资产，通常会得到更高的名义权重。</p><div class="weight-facts"><div><span>协方差窗口</span><strong id="weight-window">—</strong></div><div><span>组合年化波动</span><strong id="weight-volatility">—</strong></div><div><span>目标风险贡献</span><strong id="weight-risk-target">—</strong></div><div><span>权重合计</span><strong id="weight-sum">—</strong></div></div><div class="formula-note" id="weight-cap-note">—</div></aside>
+          </div>
+        </article>
+      </section>
+
       <section class="shell history-section" id="validation"><div class="section-heading"><div><span class="eyebrow">历史调仓记录</span><h2>最近季度信号</h2><p>下表记录每次季度信号计算出的稳健版ERC权重，页面日更会追加最新批次。</p></div><span class="validation-seal" id="validation-seal">等待校验</span></div><div class="table-wrap card"><table><thead><tr><th>信号日</th><th>执行日</th><th>沪深300</th><th>纳指</th><th>黄金</th><th>国债</th><th>组合合计</th></tr></thead><tbody id="signal-history-body"></tbody></table></div></section>
     </main>
 

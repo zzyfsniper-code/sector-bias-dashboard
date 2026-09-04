@@ -162,11 +162,22 @@ def refresh_prices(pro: Any, target: pd.Timestamp, prices: pd.DataFrame) -> dict
     }
 
 
-def covariance_weights(returns: pd.DataFrame, max_weight: float = 0.60) -> np.ndarray:
+def annualized_covariance(returns: pd.DataFrame) -> np.ndarray:
     cov = returns.cov().to_numpy(dtype=float) * 252.0
     cov = np.nan_to_num((cov + cov.T) / 2.0, nan=0.0, posinf=0.0, neginf=0.0)
     scale = max(float(np.nanmean(np.diag(cov))), 1e-8)
     cov += np.eye(len(cov)) * scale * 1e-6
+    return cov
+
+
+def normalized_risk_contribution(weights: np.ndarray, cov: np.ndarray) -> tuple[float, np.ndarray]:
+    sigma = float(np.sqrt(max(weights @ cov @ weights, 1e-16)))
+    contributions = weights * (cov @ weights) / sigma
+    return sigma, contributions / max(float(contributions.sum()), 1e-12)
+
+
+def covariance_weights(returns: pd.DataFrame, max_weight: float = 0.60) -> np.ndarray:
+    cov = annualized_covariance(returns)
 
     def risk_contribution(w: np.ndarray) -> np.ndarray:
         sigma = float(np.sqrt(max(w @ cov @ w, 1e-16)))
@@ -191,6 +202,41 @@ def covariance_weights(returns: pd.DataFrame, max_weight: float = 0.60) -> np.nd
         inv = 1.0 / np.maximum(vol, 1e-8)
         return inv / inv.sum()
     return result.x / result.x.sum()
+
+
+def weight_diagnostics(prices: pd.DataFrame, signals: pd.DataFrame) -> dict[str, Any]:
+    latest = signals.iloc[-1]
+    signal_date = pd.Timestamp(latest["signal_date"])
+    execution_date = pd.Timestamp(latest["execution_date"])
+    history = prices.loc[:signal_date, CORE].dropna(how="any").tail(127)
+    returns = history.pct_change(fill_method=None).dropna(how="any")
+    cov = annualized_covariance(returns)
+    weights = np.array([float(latest[f"weight_{code}"]) for code in CORE], dtype=float)
+    portfolio_volatility, risk_contributions = normalized_risk_contribution(weights, cov)
+    asset_volatility = np.sqrt(np.maximum(np.diag(cov), 0.0))
+    assets = []
+    for code, weight, volatility, contribution in zip(CORE, weights, asset_volatility, risk_contributions):
+        assets.append({
+            "code": code,
+            **ASSET_INFO[code],
+            "final_weight": float(weight),
+            "annualized_volatility": float(volatility),
+            "risk_contribution": float(contribution),
+            "target_risk_contribution": float(1.0 / len(CORE)),
+            "cap_applied": bool(abs(weight - 0.60) < 1e-6),
+        })
+    return {
+        "signal_date": signal_date.date().isoformat(),
+        "execution_date": execution_date.date().isoformat(),
+        "window_start": returns.index[0].date().isoformat(),
+        "window_end": returns.index[-1].date().isoformat(),
+        "lookback_days": int(len(returns)),
+        "portfolio_annualized_volatility": float(portfolio_volatility),
+        "target_risk_contribution": float(1.0 / len(CORE)),
+        "weight_sum": float(weights.sum()),
+        "max_weight": 0.60,
+        "assets": assets,
+    }
 
 
 def build_targets(prices: pd.DataFrame, target: pd.Timestamp) -> tuple[dict[pd.Timestamp, np.ndarray], pd.DataFrame]:
@@ -336,6 +382,7 @@ def build_payload(run_id: str, target: pd.Timestamp, next_trade_date: pd.Timesta
         for i, value in enumerate(dd):
             series[i][key + "_dd"] = float(value)
     latest_daily = daily.iloc[-1]
+    diagnostics = weight_diagnostics(prices, signals)
     current = {code: float(state["active_weights"].get(code, 0.0)) for code in CORE}
     target_weights = {code: float(state["target_weights"].get(code, 0.0)) for code in CORE}
     holdings = []
@@ -379,6 +426,7 @@ def build_payload(run_id: str, target: pd.Timestamp, next_trade_date: pd.Timesta
             "levered_target_total": float(sum(target_weights.values()) * LEVERAGE),
         },
         "performance": performance,
+        "weight_diagnostics": diagnostics,
         "latest": {
             "base_nav": float(latest_daily["base_nav"]),
             "levered_0_nav": float(latest_daily["levered_0_nav"]),

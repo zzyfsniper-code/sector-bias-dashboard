@@ -99,6 +99,26 @@
     }).join("");
   }
 
+  function renderWeightDiagnostics() {
+    const diagnostic = data.weight_diagnostics;
+    if (!diagnostic) return;
+    $("weight-diagnostic-status").textContent = `已计算 · ${date(diagnostic.signal_date)}`;
+    $("weight-diagnostic-period").textContent = `${date(diagnostic.signal_date)} 信号 / ${date(diagnostic.execution_date)} 执行`;
+    $("weight-window").textContent = `${date(diagnostic.window_start)} — ${date(diagnostic.window_end)}`;
+    $("weight-volatility").textContent = pct(diagnostic.portfolio_annualized_volatility, 1);
+    $("weight-risk-target").textContent = pct(diagnostic.target_risk_contribution, 0);
+    $("weight-sum").textContent = pct(diagnostic.weight_sum, 0);
+    $("weight-diagnostic-body").innerHTML = diagnostic.assets.map((asset) => {
+      const capClass = asset.cap_applied ? "constraint-hit" : "";
+      const capText = asset.cap_applied ? "触及60%上限" : "未触及上限";
+      return `<tr><td><strong>${asset.name}</strong><small>${asset.code}</small></td><td>${pct(asset.annualized_volatility, 1)}</td><td>${pct(asset.final_weight, 1)}</td><td class="${capClass}">${pct(asset.risk_contribution, 1)}</td><td>${pct(asset.target_risk_contribution, 1)}</td><td class="${capClass}">${capText}</td></tr>`;
+    }).join("");
+    const capped = diagnostic.assets.filter((asset) => asset.cap_applied).map((asset) => asset.name);
+    $("weight-cap-note").textContent = capped.length
+      ? `${capped.join("、")}触及单资产60%上限；其余权重共同调整，组合权重仍合计100%。`
+      : "本季度没有资产触及60%上限，最终权重由等风险贡献约束直接求解。";
+  }
+
   const chartLabels = {
     base: "稳健 1.0x",
     levered_0: "1.5x · 0%融资",
@@ -228,6 +248,7 @@
   renderHeader();
   renderAssets();
   renderHistory();
+  renderWeightDiagnostics();
   renderVersion();
   renderCharts();
   bindChartHover($("nav-chart"), $("nav-tooltip"), ["base", "levered_0", "levered_3"], false);
