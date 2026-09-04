@@ -99,13 +99,28 @@
     }).join("");
   }
 
-  function drawChart(canvas, keys, percent = false) {
+  const chartLabels = {
+    base: "稳健 1.0x",
+    levered_0: "1.5x · 0%融资",
+    levered_3: "1.5x · 3%融资",
+    base_dd: "稳健 1.0x回撤",
+    levered_0_dd: "1.5x · 0%融资回撤",
+    levered_3_dd: "1.5x · 3%融资回撤",
+  };
+
+  function chartValue(value, percent) {
+    if (value == null || !Number.isFinite(Number(value))) return "—";
+    return percent ? pct(value, 2) : Number(value).toFixed(3);
+  }
+
+  function drawChart(canvas, keys, percent = false, hoverIndex = null) {
     const rect = canvas.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
     const width = Math.max(320, rect.width);
     const height = Number(canvas.getAttribute("height"));
     canvas.width = Math.floor(width * ratio);
     canvas.height = Math.floor(height * ratio);
+    canvas.style.height = `${height}px`;
     const ctx = canvas.getContext("2d");
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     const left = 58, right = width - 18, top = 18, bottom = height - 32;
@@ -137,10 +152,66 @@
       });
       ctx.stroke();
     });
+    canvas._chartState = { keys, percent, width, left, right, top, bottom };
+    if (hoverIndex != null) {
+      const index = Math.max(0, Math.min(data.series.length - 1, hoverIndex));
+      const hoverX = x(index);
+      ctx.save();
+      ctx.strokeStyle = "rgba(23,35,43,.38)";
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(hoverX, top); ctx.lineTo(hoverX, bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      keys.forEach((key, seriesIndex) => {
+        const value = Number(data.series[index][key]) * (percent ? 100 : 1);
+        if (!Number.isFinite(value)) return;
+        ctx.fillStyle = colors[seriesIndex];
+        ctx.strokeStyle = "#fffdf8";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(hoverX, y(value), 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      });
+      ctx.restore();
+    }
     ctx.fillStyle = "#6e797e";
     [0, Math.floor((data.series.length - 1) / 2), data.series.length - 1].forEach((i) => {
       const label = date(data.series[i].date);
       ctx.fillText(label, x(i) - 25, height - 8);
+    });
+  }
+
+  function pointerIndex(canvas, event) {
+    const state = canvas._chartState;
+    const rect = canvas.getBoundingClientRect();
+    const logicalX = (event.clientX - rect.left) / Math.max(rect.width, 1) * state.width;
+    const ratio = Math.max(0, Math.min(1, (logicalX - state.left) / (state.right - state.left)));
+    return Math.round(ratio * (data.series.length - 1));
+  }
+
+  function showChartTooltip(canvas, tooltip, event, rows) {
+    const parentRect = tooltip.parentElement.getBoundingClientRect();
+    const localX = event.clientX - parentRect.left;
+    const localY = event.clientY - parentRect.top;
+    tooltip.innerHTML = `<strong>${date(data.series[pointerIndex(canvas, event)].date)}</strong>${rows.map(([label, value]) => `<div class="tooltip-row"><span>${label}</span><b>${value}</b></div>`).join("")}`;
+    tooltip.hidden = false;
+    const flip = localX > parentRect.width - tooltip.offsetWidth - 24;
+    const offsetX = flip ? localX - 14 : localX + 14;
+    const minX = 8;
+    const maxX = Math.max(minX, parentRect.width - tooltip.offsetWidth - 8);
+    tooltip.style.left = `${Math.max(minX, Math.min(maxX, offsetX))}px`;
+    tooltip.style.top = `${Math.max(8, Math.min(parentRect.height - 8, localY))}px`;
+    tooltip.style.transform = flip ? "translate(-100%,-50%)" : "translate(0,-50%)";
+  }
+
+  function bindChartHover(canvas, tooltip, keys, percent) {
+    canvas.addEventListener("pointermove", (event) => {
+      const index = pointerIndex(canvas, event);
+      drawChart(canvas, keys, percent, index);
+      const row = data.series[index];
+      const rows = keys.map((key) => [chartLabels[key], chartValue(row[key], percent)]);
+      showChartTooltip(canvas, tooltip, event, rows);
+    });
+    canvas.addEventListener("pointerleave", () => {
+      tooltip.hidden = true;
+      drawChart(canvas, keys, percent);
     });
   }
 
@@ -159,4 +230,6 @@
   renderHistory();
   renderVersion();
   renderCharts();
+  bindChartHover($("nav-chart"), $("nav-tooltip"), ["base", "levered_0", "levered_3"], false);
+  bindChartHover($("drawdown-chart"), $("drawdown-tooltip"), ["base_dd", "levered_0_dd", "levered_3_dd"], true);
 })();
