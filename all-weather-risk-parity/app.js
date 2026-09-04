@@ -3,6 +3,8 @@
   const $ = (id) => document.getElementById(id);
   const pct = (value, digits = 2) => value == null ? "—" : `${(Number(value) * 100).toFixed(digits)}%`;
   const date = (value) => value ? String(value).slice(0, 10) : "—";
+  const money = (value) => `¥${Math.round(Number(value) || 0).toLocaleString("zh-CN")}`;
+  const LOT_SIZE = 100;
   const versions = data?.performance || {};
   let selected = "base";
 
@@ -74,6 +76,9 @@
 
   function renderHoldings() {
     const multiplier = Number(versions[selected].exposure);
+    const accountAmount = Math.max(0, Number($("account-amount").value) || 0);
+    const grossTarget = accountAmount * multiplier;
+    let purchaseTotal = 0;
     const body = $("holdings-body");
     body.innerHTML = data.portfolio.assets.map((asset) => {
       const current = Number(asset.current_weight) * multiplier;
@@ -82,9 +87,24 @@
       const delta = target - current;
       const action = Math.abs(delta) < 0.0005 ? "维持" : delta > 0 ? "增配" : "减配";
       const actionClass = delta > 0.0005 ? "delta-up" : delta < -0.0005 ? "delta-down" : "";
-      return `<tr><td><strong>${asset.name}</strong><small>${asset.market}</small></td><td>${asset.code}</td><td>${asset.role}</td><td>${pct(current, 1)}</td><td>${pct(robust, 1)}</td><td class="${actionClass}">${pct(target, 1)}</td><td class="${actionClass}">${action}</td></tr>`;
+      const price = Number(asset.latest_price);
+      const targetAmount = accountAmount * target;
+      const shares = price > 0 ? Math.floor(targetAmount / price / LOT_SIZE) * LOT_SIZE : 0;
+      const actualAmount = price > 0 ? shares * price : 0;
+      purchaseTotal += actualAmount;
+      return `<tr><td><strong>${asset.name}</strong><small>${asset.market}</small></td><td>${asset.code}</td><td>${asset.role}</td><td>${pct(current, 1)}</td><td class="${actionClass}">${pct(target, 1)}</td><td>${price > 0 ? price.toFixed(3) : "—"}</td><td>${money(targetAmount)}</td><td class="${actionClass}">${price > 0 ? `${shares.toLocaleString("zh-CN")} 份` : "—"}</td><td>${price > 0 ? money(actualAmount) : "—"}</td><td class="${actionClass}">${action}</td></tr>`;
     }).join("");
     $("holding-total").textContent = `${(multiplier * 100).toFixed(0)}%`;
+    $("calc-capital").textContent = money(accountAmount);
+    $("calc-gross").textContent = money(grossTarget);
+    $("calc-purchase").textContent = money(purchaseTotal);
+    const isLevered = multiplier > 1;
+    $("calc-balance-label").textContent = isLevered ? "预计融资需求" : "预计剩余资金";
+    $("calc-balance").textContent = money(isLevered ? Math.max(0, purchaseTotal - accountAmount) : Math.max(0, accountAmount - purchaseTotal));
+    const roundingGap = Math.max(0, grossTarget - purchaseTotal);
+    $("calc-note").textContent = isLevered
+      ? `当前为${multiplier.toFixed(1)}x版本，目标总持仓约${money(grossTarget)}；预计融资需求按实际买入金额减自有资金估算，未使用名义额度约${money(roundingGap)}。`
+      : `当前为稳健1.0x版本，按100份整数手向下取整后预计剩余资金约${money(Math.max(0, accountAmount - purchaseTotal))}；未使用额度主要来自手数取整。`;
   }
 
   function renderAssets() {
@@ -244,6 +264,8 @@
     selected = button.dataset.version;
     renderVersion();
   }));
+  $("calculate-positions").addEventListener("click", renderHoldings);
+  $("account-amount").addEventListener("input", renderHoldings);
   window.addEventListener("resize", renderCharts);
   renderHeader();
   renderAssets();

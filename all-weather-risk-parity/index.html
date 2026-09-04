@@ -83,9 +83,10 @@
 
       <section class="shell holdings-section" aria-label="当前持仓与目标权重">
         <article class="card holdings-card">
-          <div class="section-heading"><div><span class="eyebrow">可执行持仓清单</span><h2>四资产风险预算</h2><p>稳健版显示资产内部权重；1.5x版本显示放大后的目标敞口，合计为150%。</p></div><div class="total-badge"><span>当前版本目标合计</span><strong id="holding-total">—</strong></div></div>
-          <div class="table-wrap"><table><thead><tr><th>资产</th><th>代码</th><th>风险角色</th><th>模型当前</th><th>稳健目标</th><th>所选版本目标</th><th>动作</th></tr></thead><tbody id="holdings-body"></tbody></table></div>
-          <div class="trade-note"><span>信号形成后滞后一个交易日收盘执行</span><span>比例是模型目标，不代表券商账户已成交</span><span>1.5x含50%融资敞口，实际融资可用性需另行确认</span></div>
+          <div class="section-heading holdings-heading"><div><span class="eyebrow">可执行持仓清单</span><h2>四资产风险预算</h2><p>输入账户自有资金后，按当前选定版本的目标权重计算每个 ETF 的买入数量。</p></div><div class="position-calculator"><label for="account-amount">账户自有资金（元）</label><div class="calc-input-row"><span>¥</span><input id="account-amount" type="number" min="0" step="100" value="100000" inputmode="decimal" /><button id="calculate-positions" type="button">一键计算数量</button></div><small>按数据日参考收盘价、100份整数手估算</small></div><div class="total-badge"><span>当前版本目标合计</span><strong id="holding-total">—</strong></div></div>
+          <div class="calc-summary"><div><span>账户自有资金</span><strong id="calc-capital">—</strong></div><div><span>目标总持仓</span><strong id="calc-gross">—</strong></div><div><span>预计买入总额</span><strong id="calc-purchase">—</strong></div><div><span id="calc-balance-label">剩余资金</span><strong id="calc-balance">—</strong></div></div>
+          <div class="table-wrap"><table><thead><tr><th>资产</th><th>代码</th><th>风险角色</th><th>模型当前</th><th>所选目标</th><th>参考收盘</th><th>目标金额</th><th>建议买入</th><th>预计金额</th><th>动作</th></tr></thead><tbody id="holdings-body"></tbody></table></div>
+          <div class="trade-note"><span>信号形成后滞后一个交易日收盘执行</span><span>参考价为数据日收盘价，不代表下一执行日成交价</span><span>买入数量按100份整数手向下取整，余款保留在账户</span><span id="calc-note">1.5x含50%融资敞口，实际融资可用性需另行确认</span></div>
         </article>
       </section>
 

@@ -103,6 +103,26 @@ def load_prices() -> pd.DataFrame:
     return prices.reindex(calendar).reindex(columns=ALL_CODES).ffill()
 
 
+def load_spot_prices() -> pd.DataFrame:
+    if not SEED_PATH.exists():
+        raise FileNotFoundError(f"seed price file not found: {SEED_PATH}")
+    seed = pd.read_csv(SEED_PATH, compression="gzip", dtype={"trade_date": str}, usecols=["ts_code", "trade_date", "close"])
+    seed = seed.loc[seed["ts_code"].isin(CORE)].copy()
+    seed["trade_date"] = pd.to_datetime(seed["trade_date"], format="%Y%m%d")
+    delta_path = LIVE_DIR / "etf_daily_delta.parquet"
+    if delta_path.exists():
+        delta = pd.read_parquet(delta_path)
+        if "close" in delta.columns:
+            delta = delta.loc[delta["ts_code"].isin(CORE), ["ts_code", "trade_date", "close"]].copy()
+            delta["trade_date"] = pd.to_datetime(delta["trade_date"])
+            seed = pd.concat([seed, delta], ignore_index=True)
+    seed["close"] = pd.to_numeric(seed["close"], errors="coerce")
+    prices = seed.dropna(subset=["close"]).drop_duplicates(["ts_code", "trade_date"], keep="last")
+    prices = prices.pivot(index="trade_date", columns="ts_code", values="close").sort_index()
+    calendar = prices["510300.SH"].dropna().index
+    return prices.reindex(calendar).reindex(columns=CORE).ffill()
+
+
 def fetch_trade_context(pro: Any, as_of: pd.Timestamp) -> tuple[pd.Timestamp, pd.Timestamp, list[pd.Timestamp]]:
     calendar = pro.trade_cal(
         exchange="SSE",
@@ -146,12 +166,15 @@ def refresh_prices(pro: Any, target: pd.Timestamp, prices: pd.DataFrame) -> dict
         frame["adj_factor"] = pd.to_numeric(frame["adj_factor"], errors="coerce")
         frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
         frame["adj_close"] = frame["close"] * frame["adj_factor"]
-        frame = frame.dropna(subset=["adj_close"])[["ts_code", "trade_date", "adj_close"]]
+        frame = frame.dropna(subset=["adj_close"])[["ts_code", "trade_date", "close", "adj_close"]]
         additions.append(frame)
     if not additions:
         raise RuntimeError("no ETF price additions were returned")
     delta_path = LIVE_DIR / "etf_daily_delta.parquet"
-    old = pd.read_parquet(delta_path) if delta_path.exists() else pd.DataFrame(columns=["ts_code", "trade_date", "adj_close"])
+    old = pd.read_parquet(delta_path) if delta_path.exists() else pd.DataFrame(columns=["ts_code", "trade_date", "close", "adj_close"])
+    if "close" not in old.columns:
+        old["close"] = np.nan
+    old = old[["ts_code", "trade_date", "close", "adj_close"]]
     merged = pd.concat([old, *additions], ignore_index=True).drop_duplicates(["ts_code", "trade_date"], keep="last")
     merged = merged.sort_values(["trade_date", "ts_code"])
     write_frame(delta_path, merged)
@@ -359,7 +382,7 @@ def active_state(targets: dict[pd.Timestamp, np.ndarray], signals: pd.DataFrame,
     }
 
 
-def build_payload(run_id: str, target: pd.Timestamp, next_trade_date: pd.Timestamp, prices: pd.DataFrame, daily: pd.DataFrame, signals: pd.DataFrame, state: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
+def build_payload(run_id: str, target: pd.Timestamp, next_trade_date: pd.Timestamp, prices: pd.DataFrame, spot_prices: pd.DataFrame, daily: pd.DataFrame, signals: pd.DataFrame, state: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
     specs = {
         "base": {"label": "稳健版 ERC 1.0x", "return_col": "base_return", "nav_col": "base_nav", "exposure": 1.0, "financing_rate": 0.0},
         "levered_0": {"label": "1.5x（0%融资成本）", "return_col": "levered_0_return", "nav_col": "levered_0_nav", "exposure": 1.5, "financing_rate": 0.0},
@@ -385,6 +408,7 @@ def build_payload(run_id: str, target: pd.Timestamp, next_trade_date: pd.Timesta
     diagnostics = weight_diagnostics(prices, signals)
     current = {code: float(state["active_weights"].get(code, 0.0)) for code in CORE}
     target_weights = {code: float(state["target_weights"].get(code, 0.0)) for code in CORE}
+    latest_prices = spot_prices.loc[target, CORE]
     holdings = []
     for code in CORE:
         holdings.append({
@@ -393,6 +417,8 @@ def build_payload(run_id: str, target: pd.Timestamp, next_trade_date: pd.Timesta
             "current_weight": current[code],
             "target_weight": target_weights[code],
             "levered_target_weight": target_weights[code] * LEVERAGE,
+            "latest_price": float(latest_prices[code]),
+            "price_date": target.date().isoformat(),
         })
     return {
         "schema_version": "1.0",
@@ -494,12 +520,15 @@ def main() -> None:
         prices = load_prices()
         if prices.index.max() < target:
             raise RuntimeError(f"price data ended at {prices.index.max().date()}, target is {target.date()}")
+        spot_prices = load_spot_prices()
+        if spot_prices.index.max() < target or spot_prices.loc[target, CORE].isna().any():
+            raise RuntimeError(f"spot price data is incomplete at {target.date()}")
         targets, signals = build_targets(prices, target)
         if signals.empty:
             raise RuntimeError("no valid quarterly ERC signal was generated")
         daily = simulate(prices, targets, target)
         state = active_state(targets, signals, target, open_dates)
-        payload = build_payload(run_id, target, next_trade_date, prices, daily, signals, state, source)
+        payload = build_payload(run_id, target, next_trade_date, prices, spot_prices, daily, signals, state, source)
         write_frame(run_dir / "daily.csv.gz", daily)
         write_frame(run_dir / "signals.csv", signals, date_format="%Y-%m-%d")
         publish_local_payload(payload, run_dir)

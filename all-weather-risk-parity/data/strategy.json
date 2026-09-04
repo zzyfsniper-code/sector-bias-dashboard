@@ -4,8 +4,8 @@
   "strategy_number": "03",
   "strategy_name": "多资产风险平价",
   "status": "PASS",
-  "run_id": "all_weather_rp_live_20260904_145638",
-  "generated_at": "2026-09-04T14:56:43+08:00",
+  "run_id": "all_weather_rp_live_20260904_171841",
+  "generated_at": "2026-09-04T17:18:45+08:00",
   "data_as_of": "2026-09-03",
   "next_trade_date": "2026-09-04",
   "execution": "季度末收盘形成信号，下一交易日收盘执行；执行日之后的收益开始计入",
@@ -41,7 +41,9 @@
         "market": "A股",
         "current_weight": 0.18292657658648923,
         "target_weight": 0.18292657658648923,
-        "levered_target_weight": 0.2743898648797338
+        "levered_target_weight": 0.2743898648797338,
+        "latest_price": 4.621,
+        "price_date": "2026-09-03"
       },
       {
         "code": "513100.SH",
@@ -50,7 +52,9 @@
         "market": "海外权益",
         "current_weight": 0.1248183480481272,
         "target_weight": 0.1248183480481272,
-        "levered_target_weight": 0.18722752207219082
+        "levered_target_weight": 0.18722752207219082,
+        "latest_price": 2.196,
+        "price_date": "2026-09-03"
       },
       {
         "code": "518880.SH",
@@ -59,7 +63,9 @@
         "market": "商品",
         "current_weight": 0.09225507536532135,
         "target_weight": 0.09225507536532135,
-        "levered_target_weight": 0.13838261304798202
+        "levered_target_weight": 0.13838261304798202,
+        "latest_price": 9.105,
+        "price_date": "2026-09-03"
       },
       {
         "code": "511010.SH",
@@ -68,7 +74,9 @@
         "market": "利率债",
         "current_weight": 0.6000000000000623,
         "target_weight": 0.6000000000000623,
-        "levered_target_weight": 0.9000000000000934
+        "levered_target_weight": 0.9000000000000934,
+        "latest_price": 141.23,
+        "price_date": "2026-09-03"
       }
     ],
     "cash_asset": "511880.SH",
