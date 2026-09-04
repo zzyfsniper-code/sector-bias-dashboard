@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="多资产风险平价策略每日交易信号与回测研究页" />
+    <title>多资产风险平价｜每日信号</title>
+    <link rel="icon" href="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" />
+    <link rel="stylesheet" href="../strategies/header.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="top-line"></div>
+    <header class="site-header">
+      <a class="brand" href="../strategies/" aria-label="返回策略中心">
+        <span class="brand-mark">策</span>
+        <span><strong>策略研究室</strong><small>STRATEGY LAB</small></span>
+      </a>
+      <nav class="strategy-nav" aria-label="策略导航">
+        <a href="../strategies/">策略总览</a>
+        <a href="../growth-value-five-dim/">01 五维轮动</a>
+        <a href="../csi500-flow-leverage/">02 中证500</a>
+        <a class="active" href="./">03 风险平价</a>
+      </nav>
+      <div class="header-status"><span class="status-dot"></span><span id="header-status">读取数据中</span></div>
+    </header>
+
+    <main>
+      <section class="hero shell" id="overview">
+        <div>
+          <div class="eyebrow"><span>策略 03</span> 多资产配置 / 等风险贡献</div>
+          <h1>多资产风险平价</h1>
+          <p class="hero-lead">用沪深300、纳指、黄金和国债四类资产分摊组合风险，让单一市场的波动不再决定全部净值路径。页面同时展示稳健版、1.5倍无融资成本和1.5倍年化3%融资成本版本。</p>
+          <div class="tags">
+            <span class="tag tag-live">每日跟踪 · 季度调仓</span>
+            <span class="tag">126日风险窗口</span>
+            <span class="tag">下一交易日收盘执行</span>
+            <span class="tag" id="validation-tag">校验中</span>
+          </div>
+        </div>
+        <aside class="run-meta">
+          <span>最新运行</span><strong id="run-time">—</strong>
+          <dl>
+            <div><dt>数据日期</dt><dd id="data-date">—</dd></div>
+            <div><dt>下一交易日</dt><dd id="next-date">—</dd></div>
+            <div><dt>执行口径</dt><dd>T+1 收盘</dd></div>
+            <div><dt>默认成本</dt><dd>单边 10bp</dd></div>
+          </dl>
+        </aside>
+      </section>
+
+      <section class="shell trade-layout" id="trade">
+        <article class="trade-card dark-card">
+          <div class="card-top"><span class="kicker">下一交易日指令</span><b id="action-badge">待生成</b></div>
+          <div class="trade-main">
+            <div class="target-block"><span>目标敞口</span><strong id="target-exposure">—</strong><small id="target-version">—</small></div>
+            <div class="trade-copy"><h2 id="action-text">等待信号</h2><p id="trade-summary">正在读取风险平价组合状态。</p></div>
+          </div>
+          <div class="position-flow">
+            <div><span>模型当前敞口</span><strong id="current-exposure">—</strong></div>
+            <i>→</i>
+            <div><span>下一目标敞口</span><strong id="flow-target">—</strong></div>
+            <div class="execute-at"><span>执行时点</span><strong id="execute-at">—</strong></div>
+          </div>
+          <div class="holding-strip">
+            <div><span>最新信号日</span><strong id="signal-date">—</strong></div>
+            <div><span>下一季度信号</span><strong id="next-signal-date">—</strong></div>
+            <div><span>融资选项</span><strong id="funding-label">—</strong></div>
+          </div>
+        </article>
+
+        <article class="version-card card">
+          <div class="section-title"><div><span class="kicker">版本选择</span><h2>同一套权重，三种敞口</h2></div><span class="state-pill pass">研究版</span></div>
+          <div class="version-tabs" id="version-tabs">
+            <button class="active" data-version="base" type="button">稳健 1.0x</button>
+            <button data-version="levered_0" type="button">1.5x · 0%融资</button>
+            <button data-version="levered_3" type="button">1.5x · 3%融资</button>
+          </div>
+          <div class="version-note" id="version-note">基准组合不融资，四资产目标权重合计100%。</div>
+          <div class="version-facts"><div><span>历史年化</span><strong id="version-cagr">—</strong></div><div><span>最大回撤</span><strong id="version-mdd">—</strong></div><div><span>夏普</span><strong id="version-sharpe">—</strong></div></div>
+        </article>
+      </section>
+
+      <section class="shell holdings-section" aria-label="当前持仓与目标权重">
+        <article class="card holdings-card">
+          <div class="section-heading"><div><span class="eyebrow">可执行持仓清单</span><h2>四资产风险预算</h2><p>稳健版显示资产内部权重；1.5x版本显示放大后的目标敞口，合计为150%。</p></div><div class="total-badge"><span>当前版本目标合计</span><strong id="holding-total">—</strong></div></div>
+          <div class="table-wrap"><table><thead><tr><th>资产</th><th>代码</th><th>风险角色</th><th>模型当前</th><th>稳健目标</th><th>所选版本目标</th><th>动作</th></tr></thead><tbody id="holdings-body"></tbody></table></div>
+          <div class="trade-note"><span>信号形成后滞后一个交易日收盘执行</span><span>比例是模型目标，不代表券商账户已成交</span><span>1.5x含50%融资敞口，实际融资可用性需另行确认</span></div>
+        </article>
+      </section>
+
+      <section class="shell performance" id="performance">
+        <div class="section-heading"><div><span class="eyebrow">历史表现</span><h2>收益曲线与回撤路径</h2><p>四资产ERC，126日协方差窗口，季度调仓，T+1收盘成交，单边10bp；曲线按当前数据批次重算。</p></div><div class="period" id="performance-period">—</div></div>
+        <div class="metric-grid"><article class="metric"><span>年化收益</span><strong id="metric-cagr">—</strong><small>按日收益年化</small></article><article class="metric"><span>年化波动</span><strong id="metric-vol">—</strong><small>零无风险收益夏普</small></article><article class="metric"><span>最大回撤</span><strong id="metric-mdd">—</strong><small>历史净值峰值回撤</small></article><article class="metric"><span>夏普比率</span><strong id="metric-sharpe">—</strong><small>无风险利率按0处理</small></article><article class="metric"><span>年换手</span><strong id="metric-turnover">—</strong><small>调仓权重绝对变化</small></article></div>
+        <article class="chart-card card interactive-chart"><div class="chart-header"><div><span class="kicker">组合增长</span><h3>累计净值曲线</h3><p>三种版本从同一历史组合起点开始比较。</p></div><div class="chart-legend"><span><i class="line base"></i>稳健 1.0x</span><span><i class="line lev0"></i>1.5x · 0%</span><span><i class="line lev3"></i>1.5x · 3%</span></div></div><canvas id="nav-chart" height="380" aria-label="三种版本累计净值曲线"></canvas></article>
+        <article class="chart-card card interactive-chart"><div class="chart-header"><div><span class="kicker">风险路径</span><h3>最大回撤曲线</h3><p>负值越深，代表从历史净值高点回撤越大。</p></div><div class="chart-legend"><span><i class="line base"></i>稳健 1.0x</span><span><i class="line lev0"></i>1.5x · 0%</span><span><i class="line lev3"></i>1.5x · 3%</span></div></div><canvas id="drawdown-chart" height="270" aria-label="三种版本最大回撤曲线"></canvas></article>
+      </section>
+
+      <section class="shell two-column" id="signals">
+        <article class="card indicator-card"><div class="section-title"><div><span class="kicker">最新信号</span><h2>下一次调仓看什么</h2></div><span class="date-chip" id="signal-chip">—</span></div><div class="indicator-grid"><div><span>最近信号日</span><strong id="signal-readout">—</strong><small>季度末盘后计算</small></div><div><span>最近执行日</span><strong id="execution-readout">—</strong><small>下一交易日收盘</small></div><div><span>下一信号日</span><strong id="next-signal-readout">—</strong><small>到期前沿用当前权重</small></div><div><span>下一执行日</span><strong id="next-execution-readout">—</strong><small>按新目标调仓</small></div><div><span>风险窗口</span><strong>126日</strong><small>历史日收益协方差</small></div><div><span>资产数量</span><strong>4类</strong><small>权益、黄金、债券</small></div></div></article>
+        <article class="card rules-card"><div class="section-title"><div><span class="kicker">交易规则</span><h2>信号到成交的顺序</h2></div><span class="state-pill pass">v1</span></div><ol class="rule-list"><li><b>季度信号</b><p>每季度最后一个交易日收盘后，用截至当日的四资产过去126个交易日收益率估计协方差矩阵。</p></li><li><b>风险平价</b><p>求解各资产等风险贡献权重，限制单资产不超过60%，不做空。</p></li><li><b>交易时点</b><p>T日收盘形成目标权重，T+1收盘执行；执行日之后的收益才计入新组合。</p></li><li><b>1.5倍版本</b><p>把四资产目标权重同比放大到150%总敞口，内部比例不变；0%和3%融资成本作为两个可选版本。</p></li></ol></article>
+      </section>
+
+      <section class="shell method-section" id="algorithms">
+        <div class="section-heading"><div><span class="eyebrow">完整口径</span><h2>这套策略具体是什么</h2><p>风险平价不预测哪个资产一定上涨，它控制的是组合风险来源的集中度。</p></div></div>
+        <div class="asset-grid" id="asset-grid"></div>
+        <div class="method-grid"><article class="card method-card"><span class="kicker">核心公式</span><h3>等风险贡献 ERC</h3><p>组合波动率为 <code>σp = √(w′Σw)</code>，资产 i 的风险贡献为 <code>RCi = wi × (Σw)i / σp</code>。模型寻找四个资产风险贡献尽量相等的权重。</p><div class="formula-note">低波动的国债通常获得更高名义权重，高波动资产通常获得更低名义权重。</div></article><article class="card method-card"><span class="kicker">成本与融资</span><h3>三个版本的区别</h3><ul><li>稳健1.0x：总敞口100%，不融资。</li><li>1.5x · 0%：总敞口150%，暂不计融资成本。</li><li>1.5x · 3%：总敞口150%，按50%融资敞口×3%年化逐日计提。</li></ul><div class="formula-note">页面中的3%是回测假设，不是券商实际融资利率报价。</div></article><article class="card method-card"><span class="kicker">解释边界</span><h3>它能做什么、不能做什么</h3><ul><li>通过多资产分散和定期再平衡降低单一资产风险集中。</li><li>不能保证股、债、金在所有压力环境下都负相关。</li><li>1.5x会同时放大收益、成本、融资风险和回撤。</li></ul></article></div>
+      </section>
+
+      <section class="shell history-section" id="validation"><div class="section-heading"><div><span class="eyebrow">历史调仓记录</span><h2>最近季度信号</h2><p>下表记录每次季度信号计算出的稳健版ERC权重，页面日更会追加最新批次。</p></div><span class="validation-seal" id="validation-seal">等待校验</span></div><div class="table-wrap card"><table><thead><tr><th>信号日</th><th>执行日</th><th>沪深300</th><th>纳指</th><th>黄金</th><th>国债</th><th>组合合计</th></tr></thead><tbody id="signal-history-body"></tbody></table></div></section>
+    </main>
+
+    <footer><a href="../strategies/">返回策略中心</a><span>策略结果用于研究与执行辅助，不构成收益承诺。</span><span id="footer-run">—</span></footer>
+    <script src="data/strategy-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

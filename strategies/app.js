@@ -9,8 +9,9 @@
   };
   Promise.allSettled([
     fetch("../growth-value-five-dim/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
-    fetch("../csi500-flow-leverage/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
-  ]).then(([growth,csi]) => {
+    fetch("../csi500-flow-leverage/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
+    fetch("../all-weather-risk-parity/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
+  ]).then(([growth,csi,risk]) => {
     if(growth.status === "fulfilled"){
       const d=growth.value, plan=d.tradingPlan || {}, current=d.current || {};
       const growthWeight=plan.targetGrowthWeight ?? current.desiredGrowthWeight ?? null;
@@ -28,9 +29,17 @@
       $("csi-action").textContent=`动作 ${d.trade.action}`;
       mark("csi",d.status==="PASS",d.data_as_of,d.trade.action);
     } else { mark("csi",false); }
-    $("fresh-count").textContent=`${state.fresh} / 2`;
+    if(risk.status === "fulfilled"){
+      const d=risk.value, action=d.trade?.action || "—";
+      $("risk-signal").textContent=action.includes("持有") ? "持有" : "待调仓";
+      $("risk-target").textContent=`${Number(d.trade?.target_exposure || 1).toFixed(1)}x`;
+      $("risk-date").textContent=`数据 ${d.data_as_of || "—"}`;
+      $("risk-action").textContent=`动作 ${action}`;
+      mark("risk",d.status === "PASS",d.data_as_of,action.includes("执行") ? action : "NO_TRADE");
+    } else { mark("risk",false); }
+    $("fresh-count").textContent=`${state.fresh} / 3`;
     $("trade-count").textContent=String(state.trades);
     $("updated").textContent=state.dates.length?`最新数据 ${state.dates.sort().at(-1)}`:"策略状态读取失败";
-    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 2);
+    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 3);
   });
 })();
