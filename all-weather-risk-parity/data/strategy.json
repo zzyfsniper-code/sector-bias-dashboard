@@ -4,17 +4,17 @@
   "strategy_number": "03",
   "strategy_name": "多资产风险平价",
   "status": "PASS",
-  "run_id": "all_weather_rp_live_20260904_210505",
-  "generated_at": "2026-09-04T21:05:08+08:00",
+  "run_id": "all_weather_rp_live_20260906_210519",
+  "generated_at": "2026-09-06T21:05:21+08:00",
   "data_as_of": "2026-09-04",
   "next_trade_date": "2026-09-07",
   "execution": "季度末收盘形成信号，下一交易日收盘执行；执行日之后的收益开始计入",
   "source": {
     "primary": "Tushare Pro",
     "update": {
-      "previous_latest": "2026-09-03",
+      "previous_latest": "2026-09-04",
       "latest": "2026-09-04",
-      "rows_added": 5
+      "rows_added": 0
     }
   },
   "trade": {
