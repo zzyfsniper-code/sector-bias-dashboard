@@ -1,0 +1,384 @@
+﻿{
+    "schema_version":  "1.0",
+    "run_id":  "three_strategy_live_20260908_092919",
+    "status":  "PASS",
+    "mode":  "VALIDATE_ONLY",
+    "requested_as_of":  null,
+    "started_at":  "2026-09-08T09:29:19.5574609+08:00",
+    "finished_at":  "2026-09-08T09:29:19.8077201+08:00",
+    "execution_contract":  "The orchestrator runs each child script once in fixed serial order; child scripts own data refresh, signal generation, GitHub publication, and online verification.",
+    "counts":  {
+                   "total":  3,
+                   "passed":  3,
+                   "failed":  0
+               },
+    "strategies":  [
+                       {
+                           "strategy":  "growth_value_five_dim",
+                           "name":  "五维成长价值轮动",
+                           "status":  "PASS",
+                           "exit_code":  0,
+                           "old_run_id":  "five_dim_live_20260906_210201",
+                           "run_id":  "five_dim_live_20260906_210201",
+                           "target_trade_date":  "2026-09-04",
+                           "failures":  [
+
+                                        ],
+                           "failure_stage":  null,
+                           "error_summary":  null,
+                           "stdout_log":  null,
+                           "stderr_log":  null,
+                           "publish":  {
+                                           "copy_status":  "PASS",
+                                           "git_status":  "PUSHED_SCOPED",
+                                           "online_status":  "PASS",
+                                           "url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/growth-value-five-dim/",
+                                           "verified_run_id":  "five_dim_live_20260906_210201"
+                                       },
+                           "page_url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/growth-value-five-dim/",
+                           "report":  {
+                                          "composite_score":  1,
+                                          "dimensions":  {
+                                                             "macro":  {
+                                                                           "signal":  -1,
+                                                                           "lastChange":  "2026-05-29",
+                                                                           "tradingDaysInState":  70,
+                                                                           "evidence":  {
+                                                                                            "diagnosticDate":  "2026-09",
+                                                                                            "lastActionDate":  "2026-08",
+                                                                                            "activeFactors":  7,
+                                                                                            "rawScore":  -5,
+                                                                                            "note":  "激活因子投票形成当月方向；统一滞后 1 个月进入交易信号。"
+                                                                                        }
+                                                                       },
+                                                             "valuation":  {
+                                                                               "signal":  1,
+                                                                               "lastChange":  "2023-09-28",
+                                                                               "tradingDaysInState":  710,
+                                                                               "evidence":  {
+                                                                                                "diagnosticDate":  "2026-08-31",
+                                                                                                "lastActionDate":  "2026-01-30",
+                                                                                                "pbRatio":  3.8251,
+                                                                                                "pbPercentile":  0.65,
+                                                                                                "pbState":  0,
+                                                                                                "peRatio":  2.2181,
+                                                                                                "pePercentile":  0.4667,
+                                                                                                "peState":  0,
+                                                                                                "note":  "PB、PE 均未触发新极值时，组合沿用最近非零方向。"
+                                                                                            }
+                                                                           },
+                                                             "momentum":  {
+                                                                              "signal":  -1,
+                                                                              "lastChange":  "2026-08-24",
+                                                                              "tradingDaysInState":  10,
+                                                                              "evidence":  {
+                                                                                               "diagnosticDate":  "2026-09-04",
+                                                                                               "amountVote":  -1,
+                                                                                               "returnVote":  -1,
+                                                                                               "rawScore":  -2,
+                                                                                               "growthWeightedReturn":  -0.003971,
+                                                                                               "valueWeightedReturn":  0.001387,
+                                                                                               "note":  "成交额强度与加权收益两票同向支持价值。"
+                                                                                           }
+                                                                          },
+                                                             "breadth":  {
+                                                                             "signal":  1,
+                                                                             "lastChange":  "2026-08-17",
+                                                                             "tradingDaysInState":  15,
+                                                                             "evidence":  {
+                                                                                              "diagnosticDate":  "2026-09-04",
+                                                                                              "coverage":  1,
+                                                                                              "qrd":  2.4585,
+                                                                                              "mad":  0.5228,
+                                                                                              "qrdVote":  -1,
+                                                                                              "madVote":  1,
+                                                                                              "rawScore":  0,
+                                                                                              "note":  "QRD 与相对 MAD 两票抵消，沿用上一方向。"
+                                                                                          }
+                                                                         },
+                                                             "crowding":  {
+                                                                              "signal":  1,
+                                                                              "lastChange":  "2026-07-23",
+                                                                              "tradingDaysInState":  32,
+                                                                              "evidence":  {
+                                                                                               "diagnosticDate":  "2026-09-04",
+                                                                                               "lastActionDate":  "2026-09-03",
+                                                                                               "growthAmountPercentile":  0.0167,
+                                                                                               "valueAmountPercentile":  0.7333,
+                                                                                               "growthTurnoverPercentile":  0.0167,
+                                                                                               "valueTurnoverPercentile":  0.25,
+                                                                                               "rawScore":  0,
+                                                                                               "note":  "当前未出现单边 95% 拥挤，沿用最近非零方向。"
+                                                                                           }
+                                                                          }
+                                                         },
+                                          "trading_plan":  {
+                                                               "signalAsOf":  "2026-09-04",
+                                                               "portfolioAsOf":  "2026-09-04",
+                                                               "execution":  "下一交易日收盘",
+                                                               "status":  "NO_TRADE",
+                                                               "instruction":  "模型仓位无需调仓",
+                                                               "currentGrowthWeight":  1,
+                                                               "currentValueWeight":  0,
+                                                               "targetGrowthWeight":  1,
+                                                               "targetValueWeight":  0,
+                                                               "holdings":  [
+                                                                                {
+                                                                                    "code":  "159915.SZ",
+                                                                                    "name":  "创业板ETF",
+                                                                                    "style":  "growth",
+                                                                                    "type":  "ETF",
+                                                                                    "currentWeight":  0.33333333,
+                                                                                    "targetWeight":  0.33333333,
+                                                                                    "changeWeight":  0,
+                                                                                    "action":  "维持"
+                                                                                },
+                                                                                {
+                                                                                    "code":  "588000.SH",
+                                                                                    "name":  "科创50ETF",
+                                                                                    "style":  "growth",
+                                                                                    "type":  "ETF",
+                                                                                    "currentWeight":  0.33333333,
+                                                                                    "targetWeight":  0.33333333,
+                                                                                    "changeWeight":  0,
+                                                                                    "action":  "维持"
+                                                                                },
+                                                                                {
+                                                                                    "code":  "159967.SZ",
+                                                                                    "name":  "创业板成长ETF",
+                                                                                    "style":  "growth",
+                                                                                    "type":  "ETF",
+                                                                                    "currentWeight":  0.33333333,
+                                                                                    "targetWeight":  0.33333333,
+                                                                                    "changeWeight":  0,
+                                                                                    "action":  "维持"
+                                                                                },
+                                                                                {
+                                                                                    "code":  "100032.OF",
+                                                                                    "name":  "中证红利指数增强A",
+                                                                                    "style":  "value",
+                                                                                    "type":  "指数增强基金",
+                                                                                    "currentWeight":  0,
+                                                                                    "targetWeight":  0,
+                                                                                    "changeWeight":  0,
+                                                                                    "action":  "维持"
+                                                                                },
+                                                                                {
+                                                                                    "code":  "512890.SH",
+                                                                                    "name":  "红利低波ETF",
+                                                                                    "style":  "value",
+                                                                                    "type":  "ETF",
+                                                                                    "currentWeight":  0,
+                                                                                    "targetWeight":  0,
+                                                                                    "changeWeight":  0,
+                                                                                    "action":  "维持"
+                                                                                },
+                                                                                {
+                                                                                    "code":  "515100.SH",
+                                                                                    "name":  "红利低波100ETF",
+                                                                                    "style":  "value",
+                                                                                    "type":  "ETF",
+                                                                                    "currentWeight":  0,
+                                                                                    "targetWeight":  0,
+                                                                                    "changeWeight":  0,
+                                                                                    "action":  "维持"
+                                                                                }
+                                                                            ],
+                                                               "freshness":  [
+                                                                                 {
+                                                                                     "dimension":  "macro",
+                                                                                     "dataDate":  "2026-09",
+                                                                                     "status":  "月频·逐源更新·统一滞后1个月",
+                                                                                     "carried":  false
+                                                                                 },
+                                                                                 {
+                                                                                     "dimension":  "valuation",
+                                                                                     "dataDate":  "2026-08-31",
+                                                                                     "status":  "月频·月末更新",
+                                                                                     "carried":  false
+                                                                                 },
+                                                                                 {
+                                                                                     "dimension":  "momentum",
+                                                                                     "dataDate":  "2026-09-04",
+                                                                                     "status":  "当日数据",
+                                                                                     "carried":  false
+                                                                                 },
+                                                                                 {
+                                                                                     "dimension":  "breadth",
+                                                                                     "dataDate":  "2026-09-04",
+                                                                                     "status":  "当日数据",
+                                                                                     "carried":  false
+                                                                                 },
+                                                                                 {
+                                                                                     "dimension":  "crowding",
+                                                                                     "dataDate":  "2026-09-04",
+                                                                                     "status":  "当日数据",
+                                                                                     "carried":  false
+                                                                                 }
+                                                                             ],
+                                                               "weightRule":  "风格仓位在当日可用标的中等权分配"
+                                                           }
+                                      }
+                       },
+                       {
+                           "strategy":  "csi500_flow_leverage",
+                           "name":  "中证500资金流向与底部杠杆",
+                           "status":  "PASS",
+                           "exit_code":  0,
+                           "old_run_id":  "csi500_flow_live_20260907_210114",
+                           "run_id":  "csi500_flow_live_20260907_210114",
+                           "target_trade_date":  "2026-09-07",
+                           "failures":  [
+
+                                        ],
+                           "failure_stage":  null,
+                           "error_summary":  null,
+                           "stdout_log":  null,
+                           "stderr_log":  null,
+                           "publish":  {
+                                           "git_status":  "PUSHED_SCOPED",
+                                           "online_status":  "PASS",
+                                           "url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/csi500-flow-leverage/",
+                                           "center_url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/strategies/",
+                                           "verified_run_id":  "csi500_flow_live_20260907_210114"
+                                       },
+                           "page_url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/csi500-flow-leverage/",
+                           "report":  {
+                                          "trade":  {
+                                                        "action":  "NO_TRADE",
+                                                        "action_text":  "维持现有目标仓位",
+                                                        "signal":  "无新信号",
+                                                        "signal_reason":  "hold_long",
+                                                        "current_target":  1.0,
+                                                        "current_exposure":  1.0,
+                                                        "base_target":  1,
+                                                        "next_target":  1.0,
+                                                        "etf_target":  1.0,
+                                                        "cash_target":  0.0
+                                                    },
+                                          "leverage":  {
+                                                           "active":  false,
+                                                           "armed":  false,
+                                                           "drawdown_250":  -0.14084352214304208,
+                                                           "trigger_drawdown":  -0.15,
+                                                           "rearm_drawdown":  -0.05,
+                                                           "exit_positive_days":  5,
+                                                           "current_positive_streak":  1
+                                                       },
+                                          "indicators":  {
+                                                             "mf_ratio":  0.02001965847851961,
+                                                             "alpha":  0.0068858259707839375,
+                                                             "prior_alpha_min":  0.0062885056218597015,
+                                                             "prior_alpha_max":  0.016111706467236447,
+                                                             "member_coverage":  1.0,
+                                                             "active_members":  500,
+                                                             "expected_members":  500,
+                                                             "weight_snapshot_date":  "2026-08-31",
+                                                             "index_close":  7759.3676,
+                                                             "index_pct_chg":  1.394
+                                                         }
+                                      }
+                       },
+                       {
+                           "strategy":  "all_weather_risk_parity",
+                           "name":  "多资产风险平价",
+                           "status":  "PASS",
+                           "exit_code":  0,
+                           "old_run_id":  "all_weather_rp_live_20260907_210255",
+                           "run_id":  "all_weather_rp_live_20260907_210255",
+                           "target_trade_date":  "2026-09-07",
+                           "failures":  [
+
+                                        ],
+                           "failure_stage":  null,
+                           "error_summary":  null,
+                           "stdout_log":  null,
+                           "stderr_log":  null,
+                           "publish":  {
+                                           "git_status":  "PUSHED_SCOPED",
+                                           "online_status":  "PASS",
+                                           "url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/all-weather-risk-parity/",
+                                           "center_url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/strategies/",
+                                           "verified_run_id":  "all_weather_rp_live_20260907_210255"
+                                       },
+                           "page_url":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/all-weather-risk-parity/",
+                           "report":  {
+                                          "trade":  {
+                                                        "action":  "持有当前组合，等待下一季度信号",
+                                                        "signal_date":  "2026-06-30",
+                                                        "signal_execution_date":  "2026-07-01",
+                                                        "next_signal_date":  "2026-09-30",
+                                                        "next_execution_date":  "2026-10-08",
+                                                        "current_exposure":  1.0,
+                                                        "target_exposure":  1.0,
+                                                        "levered_target_exposure":  1.5,
+                                                        "financing_rate_options":  [
+                                                                                       0.0,
+                                                                                       0.03
+                                                                                   ]
+                                                    },
+                                          "portfolio":  null,
+                                          "performance":  {
+                                                              "base":  {
+                                                                           "label":  "稳健版 ERC 1.0x",
+                                                                           "return_col":  "base_return",
+                                                                           "nav_col":  "base_nav",
+                                                                           "exposure":  1.0,
+                                                                           "financing_rate":  0.0,
+                                                                           "metrics":  {
+                                                                                           "start":  "2014-04-01",
+                                                                                           "end":  "2026-09-07",
+                                                                                           "total_return":  3.30812630700843,
+                                                                                           "cagr":  0.12462313149287851,
+                                                                                           "volatility":  0.07996374777650779,
+                                                                                           "max_drawdown":  -0.09329582205071585,
+                                                                                           "sharpe_zero_rf":  1.5604117134483757,
+                                                                                           "calmar":  1.3357846981093435,
+                                                                                           "annual_turnover":  1.5367396298147777,
+                                                                                           "rebalances":  50
+                                                                                       }
+                                                                       },
+                                                              "levered_0":  {
+                                                                                "label":  "1.5x（0%融资成本）",
+                                                                                "return_col":  "levered_0_return",
+                                                                                "nav_col":  "levered_0_nav",
+                                                                                "exposure":  1.5,
+                                                                                "financing_rate":  0.0,
+                                                                                "metrics":  {
+                                                                                                "start":  "2014-04-01",
+                                                                                                "end":  "2026-09-07",
+                                                                                                "total_return":  7.6847972913478735,
+                                                                                                "cagr":  0.1898477893518684,
+                                                                                                "volatility":  0.1199456216647617,
+                                                                                                "max_drawdown":  -0.13787999837513898,
+                                                                                                "sharpe_zero_rf":  1.5604117134483755,
+                                                                                                "calmar":  1.3769059442206935,
+                                                                                                "annual_turnover":  1.5367396298147777,
+                                                                                                "rebalances":  50
+                                                                                            }
+                                                                            },
+                                                              "levered_3":  {
+                                                                                "label":  "1.5x（年化3%融资）",
+                                                                                "return_col":  "levered_3_return",
+                                                                                "nav_col":  "levered_3_nav",
+                                                                                "exposure":  1.5,
+                                                                                "financing_rate":  0.03,
+                                                                                "metrics":  {
+                                                                                                "start":  "2014-04-01",
+                                                                                                "end":  "2026-09-07",
+                                                                                                "total_return":  6.254577378187264,
+                                                                                                "cagr":  0.1727544352105519,
+                                                                                                "volatility":  0.1199456216647617,
+                                                                                                "max_drawdown":  -0.1392210664510689,
+                                                                                                "sharpe_zero_rf":  1.4353550436691,
+                                                                                                "calmar":  1.2408641853872648,
+                                                                                                "annual_turnover":  1.5367396298147777,
+                                                                                                "rebalances":  50
+                                                                                            }
+                                                                            }
+                                                          }
+                                      }
+                       }
+                   ],
+    "strategy_center":  "https://zzyfsniper-code.github.io/sector-bias-dashboard/strategies/"
+}
