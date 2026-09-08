@@ -538,6 +538,7 @@ def main() -> None:
             "target_trade_date": target.date().isoformat(),
             "next_trade_date": next_trade_date.date().isoformat(),
             "trade": payload["trade"],
+            "portfolio": payload["portfolio"],
             "performance": payload["performance"],
             "validation": payload["validation"],
             "data_quality": {"status": "PASS", "price_date": target.date().isoformat(), "asset_count": len(CORE)},
