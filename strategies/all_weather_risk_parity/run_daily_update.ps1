@@ -53,7 +53,7 @@ for ($attempt = 1; $attempt -le 30; $attempt++) {
             break
         }
     } catch {
-        if ($attempt -eq 6) { break }
+        if ($attempt -eq 30) { break }
     }
     Start-Sleep -Seconds 10
 }
