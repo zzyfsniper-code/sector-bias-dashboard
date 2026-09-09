@@ -2,3 +2,11 @@ C:\Users\86136\AppData\Local\Programs\Python\Python312\Lib\site-packages\request
   warnings.warn(
 C:\Users\86136\AppData\Local\Programs\Python\Python312\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.4.1)/charset_normalizer (3.4.7) doesn't match a supported version!
   warnings.warn(
+GitHub Pages did not expose run csi500_flow_live_20260909_210332 within the verification window.
+所在位置 D:\agent工作目录\A股趋势看板\交易策略回测\strategies\fund_flow_long_timing\run_daily_update.ps1:92 字符: 5
++     throw "GitHub Pages did not expose run $($latest.run_id) within t ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (GitHub Pages di...ication window.:String) [], RuntimeException
+    + FullyQualifiedErrorId : GitHub Pages did not expose run csi500_flow_live_20260909_210332 within the verification 
+    window.
+ 
