@@ -44,7 +44,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Failed to publish the strategy pages through t
 
 $onlineVerified = $false
 $onlineDataUrl = $pageUrl + 'data/strategy-data.js?run=' + [uri]::EscapeDataString([string]$latest.run_id)
-for ($attempt = 1; $attempt -le 6; $attempt++) {
+for ($attempt = 1; $attempt -le 30; $attempt++) {
     try {
         $response = Invoke-WebRequest -Uri $onlineDataUrl -UseBasicParsing -TimeoutSec 30
         $center = Invoke-WebRequest -Uri $centerUrl -UseBasicParsing -TimeoutSec 30
