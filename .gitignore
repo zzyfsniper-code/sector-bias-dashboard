@@ -4,3 +4,24 @@
 __pycache__/
 .git/
 .DS_Store
+
+# 保留以下py文件追踪
+!build_home.py
+!pull_rrg_data.py
+!build_rrg.py
+!rrg_data/rrg_snapshot.json
+!pull_asset_rrg_data.py
+!build_asset_rrg.py
+!asset_rrg_data/asset_rrg_snapshot.json
+!backtest_rrg_signals.py
+!rrg_backtest_report.json
+!four_dim_timing/pull_institutional_flow_v2.py
+!four_dim_timing/build_institutional_flow_html_v2.py
+strategies/all_weather_risk_parity/results/
+strategies/all_weather_risk_parity/logs/
+strategies/three_strategy_daily/logs/
+!four_dim_timing/pull_articles.py
+!four_dim_timing/build_articles_html.py
+!strategies/all_weather_risk_parity/daily_update.py
+!strategies/all_weather_risk_parity/run_daily_update.ps1
+!strategies/three_strategy_daily/publish_github_pages.py

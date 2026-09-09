@@ -34,7 +34,7 @@ function Add-Failure {
 }
 
 function Test-CommonManifest {
-    param($Manifest, [int]$ExitCode, [string]$OldRunId, [bool]$RequireNewRun)
+    param($Manifest, [int]$ExitCode, [string]$OldRunId, [bool]$RequireNewRun, [bool]$RequirePublish)
     $failures = [System.Collections.Generic.List[string]]::new()
     Add-Failure $failures ($ExitCode -eq 0) "child exit_code=$ExitCode"
     Add-Failure $failures ($null -ne $Manifest) 'final latest.json is missing or invalid'
@@ -47,9 +47,11 @@ function Test-CommonManifest {
     }
     Add-Failure $failures ((Get-NestedValue $Manifest @('status')) -eq 'PASS') 'top-level status is not PASS'
     Add-Failure $failures ((Get-NestedValue $Manifest @('validation', 'status')) -eq 'PASS') 'validation.status is not PASS'
-    Add-Failure $failures ((Get-NestedValue $Manifest @('publish', 'git_status')) -eq 'PUSHED_SCOPED') 'publish.git_status is not PUSHED_SCOPED'
-    Add-Failure $failures ((Get-NestedValue $Manifest @('publish', 'online_status')) -eq 'PASS') 'publish.online_status is not PASS'
-    Add-Failure $failures ((Get-NestedValue $Manifest @('publish', 'verified_run_id')) -eq $runId) 'publish.verified_run_id does not match run_id'
+    if ($RequirePublish) {
+        Add-Failure $failures ((Get-NestedValue $Manifest @('publish', 'git_status')) -eq 'PUSHED_SCOPED') 'publish.git_status is not PUSHED_SCOPED'
+        Add-Failure $failures ((Get-NestedValue $Manifest @('publish', 'online_status')) -eq 'PASS') 'publish.online_status is not PASS'
+        Add-Failure $failures ((Get-NestedValue $Manifest @('publish', 'verified_run_id')) -eq $runId) 'publish.verified_run_id does not match run_id'
+    }
     return $failures.ToArray()
 }
 
@@ -139,6 +141,32 @@ function Get-ErrorSummary {
     return (($lines | Select-Object -Last 12) -join ' | ').Substring(0, [math]::Min(1800, (($lines | Select-Object -Last 12) -join ' | ').Length))
 }
 
+function Write-JsonFile {
+    param($Object, [string]$Path)
+    $temporary = "$Path.tmp"
+    $Object | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $temporary -Encoding UTF8
+    Move-Item -LiteralPath $temporary -Destination $Path -Force
+}
+
+function Set-ResultFailure {
+    param($Result, [string]$Stage, [string]$Message, [string]$ErrorSummary)
+    $Result['status'] = 'FAIL'
+    $Result['failures'] = @($Result['failures']) + $Message
+    $Result['failure_stage'] = $Stage
+    $Result['error_summary'] = $ErrorSummary
+}
+
+function Test-OnlineStrategy {
+    param([string]$PageUrl, [string]$RunId)
+    try {
+        $dataUrl = $PageUrl + 'data/strategy-data.js?run=' + [uri]::EscapeDataString($RunId)
+        $response = Invoke-WebRequest -Uri $dataUrl -UseBasicParsing -TimeoutSec 30
+        return $response.StatusCode -eq 200 -and $response.Content.Contains($RunId)
+    } catch {
+        return $false
+    }
+}
+
 function Get-FailureStage {
     param([string]$ErrorSummary, [string[]]$Failures)
     if ($ErrorSummary -match 'Wind crowding did not reach|881001\.WI') { return 'wind_crowding_freshness' }
@@ -203,6 +231,9 @@ $strategies = @(
 $startedAt = [DateTimeOffset]::Now
 $batchId = 'three_strategy_live_{0}_{1}' -f $startedAt.ToString('yyyyMMdd'), $startedAt.ToString('HHmmss')
 $results = [System.Collections.Generic.List[object]]::new()
+$publisher = Join-Path $strategyDir 'publish_github_pages.py'
+$centerUrl = 'https://zzyfsniper-code.github.io/sector-bias-dashboard/strategies/'
+$batchPublish = [ordered]@{ status = if ($ValidateOnly) { 'NOT_RUN' } else { 'PENDING' }; commit = $null; online_status = 'PENDING' }
 
 foreach ($strategy in $strategies) {
     $before = Read-JsonFile $strategy.latest
@@ -212,7 +243,7 @@ foreach ($strategy in $strategies) {
     $exitCode = 0
 
     if (-not $ValidateOnly) {
-        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$($strategy.runner)`""
+        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$($strategy.runner)`" -SkipPublish"
         if (-not [string]::IsNullOrWhiteSpace($AsOf)) { $arguments += " -AsOf $AsOf" }
         try {
             $process = Start-Process -FilePath 'powershell.exe' -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
@@ -225,7 +256,7 @@ foreach ($strategy in $strategies) {
 
     $after = Read-JsonFile $strategy.latest
     $failures = [System.Collections.Generic.List[string]]::new()
-    foreach ($failure in @(Test-CommonManifest $after $exitCode $oldRunId (-not $ValidateOnly))) { $failures.Add([string]$failure) | Out-Null }
+    foreach ($failure in @(Test-CommonManifest $after $exitCode $oldRunId (-not $ValidateOnly) $ValidateOnly)) { $failures.Add([string]$failure) | Out-Null }
     switch ($strategy.key) {
         'growth_value_five_dim' { foreach ($failure in @(Test-GrowthManifest $after)) { $failures.Add([string]$failure) | Out-Null } }
         'csi500_flow_leverage' { foreach ($failure in @(Test-Csi500Manifest $after)) { $failures.Add([string]$failure) | Out-Null } }
@@ -253,6 +284,78 @@ foreach ($strategy in $strategies) {
     }) | Out-Null
 }
 
+if (-not $ValidateOnly) {
+    $publishable = @($results | Where-Object { $_.status -eq 'PASS' })
+    if ($publishable.Count -gt 0) {
+        $publishStdout = Join-Path $logDir "$batchId.publish.stdout.log"
+        $publishStderr = Join-Path $logDir "$batchId.publish.stderr.log"
+        $publishExitCode = -1
+        try {
+            $githubToken = [Environment]::GetEnvironmentVariable('GITHUB_TOKEN', 'Process')
+            if ([string]::IsNullOrWhiteSpace($githubToken)) { $githubToken = [Environment]::GetEnvironmentVariable('GITHUB_TOKEN', 'User') }
+            if ([string]::IsNullOrWhiteSpace($githubToken)) { throw 'GITHUB_TOKEN is not configured.' }
+            $env:GITHUB_TOKEN = $githubToken
+            $publishArguments = "-3 `"$publisher`" --message `"data: update three strategies $batchId`""
+            $publishProcess = Start-Process -FilePath 'py' -ArgumentList $publishArguments -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $publishStdout -RedirectStandardError $publishStderr
+            $publishExitCode = [int]$publishProcess.ExitCode
+            if ($publishExitCode -ne 0) { throw "Combined GitHub publish failed with exit code $publishExitCode." }
+            $publishLines = @(Get-Content -LiteralPath $publishStdout -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($publishLines.Count -eq 0) { throw 'Combined GitHub publisher returned no result.' }
+            $publishResult = $publishLines[-1] | ConvertFrom-Json
+            if ($publishResult.status -ne 'PASS' -or [string]::IsNullOrWhiteSpace([string]$publishResult.commit)) {
+                throw 'Combined GitHub publisher did not return a valid commit.'
+            }
+            $batchPublish['status'] = 'PUSHED_SCOPED'
+            $batchPublish['commit'] = [string]$publishResult.commit
+            $batchPublish['files'] = [int]$publishResult.files
+
+            Start-Sleep -Seconds 60
+            Start-Sleep -Seconds 60
+            $centerOnline = $false
+            try {
+                $centerResponse = Invoke-WebRequest -Uri ($centerUrl + '?run=' + [uri]::EscapeDataString($batchId)) -UseBasicParsing -TimeoutSec 30
+                $centerOnline = $centerResponse.StatusCode -eq 200
+            } catch {
+                $centerOnline = $false
+            }
+
+            foreach ($result in $publishable) {
+                $runId = [string]$result['run_id']
+                if (-not $centerOnline -or -not (Test-OnlineStrategy $result['page_url'] $runId)) {
+                    Set-ResultFailure $result 'batch_online_verification' "online page did not expose $runId after the combined publish wait" 'The combined GitHub commit succeeded, but the one-time online verification did not match the new run_id.'
+                    continue
+                }
+                $strategy = $strategies | Where-Object { $_.key -eq $result['strategy'] } | Select-Object -First 1
+                $manifest = Read-JsonFile $strategy.latest
+                $manifest.publish.git_status = 'PUSHED_SCOPED'
+                $manifest.publish.online_status = 'PASS'
+                $manifest.publish | Add-Member -NotePropertyName url -NotePropertyValue $result['page_url'] -Force
+                $manifest.publish | Add-Member -NotePropertyName center_url -NotePropertyValue $centerUrl -Force
+                $manifest.publish | Add-Member -NotePropertyName commit -NotePropertyValue ([string]$publishResult.commit) -Force
+                $manifest.publish | Add-Member -NotePropertyName verified_run_id -NotePropertyValue $runId -Force
+                Write-JsonFile $manifest $strategy.latest
+                $result['publish'] = $manifest.publish
+            }
+            $onlinePassed = @($publishable | Where-Object { $_.status -eq 'PASS' }).Count
+            $batchPublish['online_status'] = if ($onlinePassed -eq $publishable.Count) { 'PASS' } else { 'FAIL' }
+        } catch {
+            $batchPublish['status'] = 'FAIL'
+            $batchPublish['online_status'] = 'FAIL'
+            $batchPublish['error_summary'] = $_.Exception.Message
+            foreach ($result in $publishable) {
+                Set-ResultFailure $result 'batch_github_publish' 'combined GitHub publish did not complete' $_.Exception.Message
+            }
+        }
+        $batchPublish['stdout_log'] = $publishStdout
+        $batchPublish['stderr_log'] = $publishStderr
+        $batchPublish['exit_code'] = $publishExitCode
+    } else {
+        $batchPublish['status'] = 'SKIPPED'
+        $batchPublish['online_status'] = 'SKIPPED'
+        $batchPublish['reason'] = 'No child strategy produced a valid new batch.'
+    }
+}
+
 $passCount = @($results | Where-Object { $_.status -eq 'PASS' }).Count
 $overallStatus = if ($passCount -eq $strategies.Count) { 'PASS' } elseif ($passCount -eq 0) { 'FAIL' } else { 'PARTIAL' }
 $batch = [ordered]@{
@@ -263,8 +366,9 @@ $batch = [ordered]@{
     requested_as_of = if ([string]::IsNullOrWhiteSpace($AsOf)) { $null } else { $AsOf }
     started_at = $startedAt.ToString('o')
     finished_at = [DateTimeOffset]::Now.ToString('o')
-    execution_contract = 'The orchestrator runs each child script once in fixed serial order; child scripts own data refresh, signal generation, GitHub publication, and online verification.'
+    execution_contract = 'The orchestrator runs each child script once in fixed serial order, creates one combined GitHub commit, waits two minutes, and verifies all successful strategy pages once.'
     counts = [ordered]@{ total = $strategies.Count; passed = $passCount; failed = $strategies.Count - $passCount }
+    publish = $batchPublish
     strategies = $results.ToArray()
     strategy_center = 'https://zzyfsniper-code.github.io/sector-bias-dashboard/strategies/'
 }

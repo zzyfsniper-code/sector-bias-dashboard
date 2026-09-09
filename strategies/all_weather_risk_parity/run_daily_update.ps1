@@ -1,5 +1,6 @@
 param(
-    [string]$AsOf
+    [string]$AsOf,
+    [switch]$SkipPublish
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,10 +18,12 @@ $token = [Environment]::GetEnvironmentVariable('TUSHARE_TOKEN', 'Process')
 if ([string]::IsNullOrWhiteSpace($token)) { $token = [Environment]::GetEnvironmentVariable('TUSHARE_TOKEN', 'User') }
 if ([string]::IsNullOrWhiteSpace($token)) { throw 'TUSHARE_TOKEN is not configured in the process or Windows user environment.' }
 $env:TUSHARE_TOKEN = $token
-$githubToken = [Environment]::GetEnvironmentVariable('GITHUB_TOKEN', 'Process')
-if ([string]::IsNullOrWhiteSpace($githubToken)) { $githubToken = [Environment]::GetEnvironmentVariable('GITHUB_TOKEN', 'User') }
-if ([string]::IsNullOrWhiteSpace($githubToken)) { throw 'GITHUB_TOKEN is not configured in the process or Windows user environment.' }
-$env:GITHUB_TOKEN = $githubToken
+if (-not $SkipPublish) {
+    $githubToken = [Environment]::GetEnvironmentVariable('GITHUB_TOKEN', 'Process')
+    if ([string]::IsNullOrWhiteSpace($githubToken)) { $githubToken = [Environment]::GetEnvironmentVariable('GITHUB_TOKEN', 'User') }
+    if ([string]::IsNullOrWhiteSpace($githubToken)) { throw 'GITHUB_TOKEN is not configured in the process or Windows user environment.' }
+    $env:GITHUB_TOKEN = $githubToken
+}
 
 foreach ($name in @('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy')) {
     Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
@@ -37,6 +40,11 @@ if ($latest.status -ne 'PASS' -or $latest.validation.status -ne 'PASS' -or [stri
 }
 if ($latest.data_quality.status -ne 'PASS' -or [string]::IsNullOrWhiteSpace([string]$latest.target_trade_date)) {
     throw 'Daily risk-parity data-quality validation did not pass.'
+}
+
+if ($SkipPublish) {
+    Write-Output ($latest | ConvertTo-Json -Depth 100 -Compress)
+    exit 0
 }
 
 & py -3 $publisher --message "data: update all-weather risk parity $($latest.target_trade_date)"
