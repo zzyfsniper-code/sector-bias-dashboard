@@ -319,31 +319,37 @@ if (-not $ValidateOnly) {
                 $centerOnline = $false
             }
 
+            $onlinePassed = 0
             foreach ($result in $publishable) {
                 $runId = [string]$result['run_id']
-                if (-not $centerOnline -or -not (Test-OnlineStrategy $result['page_url'] $runId)) {
+                $onlineVerified = $centerOnline -and (Test-OnlineStrategy $result['page_url'] $runId)
+                if ($onlineVerified) { $onlinePassed++ }
+                if (-not $onlineVerified) {
                     Set-ResultFailure $result 'batch_online_verification' "online page did not expose $runId after the combined publish wait" 'The combined GitHub commit succeeded, but the one-time online verification did not match the new run_id.'
-                    continue
                 }
-                $strategy = $strategies | Where-Object { $_.key -eq $result['strategy'] } | Select-Object -First 1
-                $manifest = Read-JsonFile $strategy.latest
-                $manifest.publish.git_status = 'PUSHED_SCOPED'
-                $manifest.publish.online_status = 'PASS'
-                $manifest.publish | Add-Member -NotePropertyName url -NotePropertyValue $result['page_url'] -Force
-                $manifest.publish | Add-Member -NotePropertyName center_url -NotePropertyValue $centerUrl -Force
-                $manifest.publish | Add-Member -NotePropertyName commit -NotePropertyValue ([string]$publishResult.commit) -Force
-                $manifest.publish | Add-Member -NotePropertyName verified_run_id -NotePropertyValue $runId -Force
-                Write-JsonFile $manifest $strategy.latest
-                $result['publish'] = $manifest.publish
+                try {
+                    $strategy = $strategies | Where-Object { $_.key -eq $result['strategy'] } | Select-Object -First 1
+                    $manifest = Read-JsonFile $strategy.latest
+                    $manifest.publish | Add-Member -NotePropertyName git_status -NotePropertyValue 'PUSHED_SCOPED' -Force
+                    $manifest.publish | Add-Member -NotePropertyName online_status -NotePropertyValue $(if ($onlineVerified) { 'PASS' } else { 'FAIL' }) -Force
+                    $manifest.publish | Add-Member -NotePropertyName url -NotePropertyValue $result['page_url'] -Force
+                    $manifest.publish | Add-Member -NotePropertyName center_url -NotePropertyValue $centerUrl -Force
+                    $manifest.publish | Add-Member -NotePropertyName commit -NotePropertyValue ([string]$publishResult.commit) -Force
+                    $manifest.publish | Add-Member -NotePropertyName verified_run_id -NotePropertyValue $(if ($onlineVerified) { $runId } else { $null }) -Force
+                    $result['publish'] = $manifest.publish
+                    Write-JsonFile $manifest $strategy.latest
+                } catch {
+                    Set-ResultFailure $result 'result_persistence' 'failed to save the child publication result' $_.Exception.Message
+                }
             }
-            $onlinePassed = @($publishable | Where-Object { $_.status -eq 'PASS' }).Count
             $batchPublish['online_status'] = if ($onlinePassed -eq $publishable.Count) { 'PASS' } else { 'FAIL' }
         } catch {
-            $batchPublish['status'] = 'FAIL'
+            if ($null -eq $batchPublish['commit']) { $batchPublish['status'] = 'FAIL' }
             $batchPublish['online_status'] = 'FAIL'
             $batchPublish['error_summary'] = $_.Exception.Message
             foreach ($result in $publishable) {
-                Set-ResultFailure $result 'batch_github_publish' 'combined GitHub publish did not complete' $_.Exception.Message
+                $stage = if ($null -eq $batchPublish['commit']) { 'batch_github_publish' } else { 'batch_finalization' }
+                Set-ResultFailure $result $stage 'combined publication flow did not complete' $_.Exception.Message
             }
         }
         $batchPublish['stdout_log'] = $publishStdout

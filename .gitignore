@@ -25,3 +25,4 @@ strategies/three_strategy_daily/logs/
 !strategies/all_weather_risk_parity/daily_update.py
 !strategies/all_weather_risk_parity/run_daily_update.ps1
 !strategies/three_strategy_daily/publish_github_pages.py
+!strategies/three_strategy_daily/test_orchestrator.py
