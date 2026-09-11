@@ -52,6 +52,28 @@ exit $LASTEXITCODE
 
 
 class ControllerTest(unittest.TestCase):
+    def test_balance_error_is_readable_in_both_windows_encodings(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            for encoding in ("utf-8", "gbk"):
+                log = directory / "stderr.log"
+                log.write_bytes('{"code":"backend_error","message":"余额不足，请先充值"}'.encode(encoding))
+                harness = directory / "check.ps1"
+                harness.write_text("""
+$ErrorActionPreference = 'Stop'
+$tokens=$null; $errors=$null
+$ast=[System.Management.Automation.Language.Parser]::ParseFile('__MASTER__',[ref]$tokens,[ref]$errors)
+foreach($name in @('Get-ErrorSummary','Get-FailureStage')){
+  $fn=$ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst]},$true) | Where-Object Name -eq $name
+  . ([scriptblock]::Create($fn.Extent.Text))
+}
+$summary=Get-ErrorSummary "$PSScriptRoot/missing-stdout.log" '__LOG__'
+if(-not $summary.Contains('余额不足，请先充值')){throw 'Message was corrupted'}
+if((Get-FailureStage $summary @()) -ne 'data_provider_insufficient_balance'){throw 'Wrong failure stage'}
+""".replace("__MASTER__", str(ROOT / "run_daily_update.ps1")).replace("__LOG__", str(log)), encoding="utf-8-sig")
+                process = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)], capture_output=True, timeout=30)
+                self.assertEqual(process.returncode, 0, process.stderr.decode(errors="replace"))
+
     def exercise(self, scenario):
         with tempfile.TemporaryDirectory() as folder:
             directory = Path(folder)

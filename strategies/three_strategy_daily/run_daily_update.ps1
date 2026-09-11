@@ -133,7 +133,15 @@ function Get-ErrorSummary {
     param([string]$StdoutPath, [string]$StderrPath)
     $text = ''
     foreach ($path in @($StdoutPath, $StderrPath)) {
-        if (Test-Path -LiteralPath $path) { $text += "`n" + (Get-Content -LiteralPath $path -Raw -Encoding UTF8) }
+        if (Test-Path -LiteralPath $path) {
+            $bytes = [System.IO.File]::ReadAllBytes($path)
+            try {
+                $decoded = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
+            } catch [System.Text.DecoderFallbackException] {
+                $decoded = [System.Text.Encoding]::GetEncoding(936).GetString($bytes)
+            }
+            $text += "`n" + $decoded
+        }
     }
     $text = $text -replace '(?i)(TUSHARE_TOKEN|GITHUB_TOKEN|WIND_TOKEN|BEARER)\s*[:=]\s*\S+', '$1=[REDACTED]'
     $lines = @($text -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -169,6 +177,7 @@ function Test-OnlineStrategy {
 
 function Get-FailureStage {
     param([string]$ErrorSummary, [string[]]$Failures)
+    if ($ErrorSummary -match '余额不足|insufficient balance') { return 'data_provider_insufficient_balance' }
     if ($ErrorSummary -match 'Wind crowding did not reach|881001\.WI') { return 'wind_crowding_freshness' }
     if ($ErrorSummary -match 'GitHub Pages did not expose') { return 'github_pages_verification' }
     if ($Failures -match 'publish\.') { return 'publish_validation' }
