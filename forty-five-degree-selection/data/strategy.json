@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "dataAsOf": "2026-09-18",
+  "constituentDate": "2026-09-01",
+  "rules": {
+    "universe": "沪深300当期成分股",
+    "pullback": "近30日最高价/最新收盘价-1不超过8%",
+    "volume": "近7日均量/近200日均量不超过1.60",
+    "regression": "近120日收盘价线性回归，斜率/截距>0.005且R²>0.81",
+    "ranking": "按R²降序，目标最多5只，等权",
+    "rebalance": "每周一次；信号日收盘后计算，下一交易日执行"
+  },
+  "filterCounts": {
+    "universe": 300,
+    "complete_history": 296,
+    "pullback": 112,
+    "volume": 111,
+    "regression": 0
+  },
+  "selection": {
+    "eligibleCount": 0,
+    "targetCount": 0,
+    "cashWeight": 1.0,
+    "targets": [],
+    "eligibleCandidates": []
+  },
+  "validation": {
+    "status": "PASS",
+    "checks": {
+      "memberCountIs300": true,
+      "historyAtLeast200Rows": true,
+      "matricesShareColumns": true,
+      "signalDatePresent": true,
+      "rankingIsDescendingRSquared": true,
+      "targetCountWithinLimit": true
+    }
+  },
+  "meta": {
+    "runId": "forty_five_wind_20260919_215229_f11c04d0",
+    "generatedAt": "2026-09-19T21:54:23+08:00",
+    "requestedAsOf": "2026-09-19",
+    "source": "Wind Excel add-in WDF.Addin",
+    "indexCode": "000300.SH",
+    "windMemberCount": 300,
+    "windTradingRows": 303,
+    "currentUserWorkbookTouched": false
+  },
+  "limitations": [
+    "当前版本完成实时选股复刻，不把当前沪深300成分倒推到历史。",
+    "历史回测需另取每个调仓日的当期成分股，并加入T+1成交、停牌和涨跌停约束后验收。",
+    "附件中的收益率和回撤来自旧平台旧样本，未作为本版本的已复现结果。"
+  ]
+}

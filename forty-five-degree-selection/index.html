@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="45度趋势选股最新候选与规则核验" />
+    <title>45度趋势选股｜沪深300</title>
+    <link rel="icon" href="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="../strategies/header.css" />
+  </head>
+  <body>
+    <div class="top-line"></div>
+    <header class="site-header">
+      <a class="brand" href="../strategies/" aria-label="返回策略中心"><span class="brand-mark">策</span><span><strong>策略研究室</strong><small>STRATEGY LAB</small></span></a>
+      <nav class="strategy-nav" aria-label="策略导航"><a href="../strategies/">策略总览</a><a href="../growth-value-five-dim/">01 五维轮动</a><a href="../csi500-flow-leverage/">02 中证500</a><a href="../all-weather-risk-parity/">03 风险平价</a><a class="active" href="./">04 45度选股</a></nav>
+      <div class="header-status"><span class="status-dot"></span><span id="header-status">读取数据中</span></div>
+    </header>
+
+    <main>
+      <section class="hero shell">
+        <div><span class="eyebrow">策略 04 · 沪深300趋势筛选</span><h1>45度趋势选股</h1><p>寻找上涨斜率明确、拟合度高、回撤浅且成交量没有异常放大的股票。规则来自附件，缺失的回归窗口与阈值由公开同源代码补齐。</p><div class="tags"><span>每周调仓</span><span>最多5只</span><span>等权目标</span><span>Wind Excel</span></div></div>
+        <aside class="run-card"><span>本轮信号日期</span><strong id="data-date">—</strong><dl><div><dt>成分股日期</dt><dd id="member-date">—</dd></div><div><dt>Wind批次</dt><dd id="run-id">—</dd></div><div><dt>校验</dt><dd id="validation">—</dd></div></dl></aside>
+      </section>
+
+      <section class="shell targets-section">
+        <div class="section-heading"><div><span class="eyebrow">当前目标名单</span><h2>按 R² 排序的前5只</h2><p>当合格股票少于5只时保留现金，不为凑满仓位放宽规则。</p></div><div class="count"><strong id="target-count">—</strong><span>只目标</span></div></div>
+        <article class="card table-card"><div class="table-wrap"><table><thead><tr><th>排名</th><th>股票</th><th>行业</th><th>目标权重</th><th>R²</th><th>斜率/截距</th><th>30日回撤比</th><th>7日/200日量比</th></tr></thead><tbody id="target-body"></tbody></table></div><div class="empty" id="empty-targets" hidden>本轮信号没有股票同时通过全部条件，目标为现金。</div></article>
+      </section>
+
+      <section class="shell funnel-section">
+        <div class="section-heading"><div><span class="eyebrow">筛选过程</span><h2>每一层剩下多少股票</h2></div></div>
+        <div class="funnel" id="funnel"></div>
+      </section>
+
+      <section class="shell rule-section">
+        <div class="section-heading"><div><span class="eyebrow">固定口径</span><h2>策略规则</h2></div></div>
+        <div class="rule-grid" id="rules"></div>
+      </section>
+
+      <section class="shell audit-section">
+        <article class="card"><span class="eyebrow">复刻边界</span><h2>当前完成实时选股，历史收益仍待严谨复算</h2><ul id="limitations"></ul><p class="source">数据由本机隔离 Excel 实例调用 Wind WDF.Addin 获取；不会接触用户当前打开的工作簿。</p></article>
+      </section>
+    </main>
+    <footer><span>45度趋势选股 · 研究版本</span><span>结果不构成投资建议或收益承诺</span></footer>
+    <script src="data/strategy-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

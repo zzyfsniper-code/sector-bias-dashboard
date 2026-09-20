@@ -10,8 +10,10 @@
   Promise.allSettled([
     fetch("../growth-value-five-dim/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
     fetch("../csi500-flow-leverage/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
-    fetch("../all-weather-risk-parity/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
-  ]).then(([growth,csi,risk]) => {
+    fetch("../all-weather-risk-parity/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
+    fetch("../forty-five-degree-selection/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
+    fetch("../core-etf-rotation/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
+  ]).then(([growth,csi,risk,trend,etf]) => {
     if(growth.status === "fulfilled"){
       const d=growth.value, plan=d.tradingPlan || {}, current=d.current || {};
       const growthWeight=plan.targetGrowthWeight ?? current.desiredGrowthWeight ?? null;
@@ -37,9 +39,26 @@
       $("risk-action").textContent=`动作 ${action}`;
       mark("risk",d.status === "PASS",d.data_as_of,action.includes("执行") ? action : "NO_TRADE");
     } else { mark("risk",false); }
-    $("fresh-count").textContent=`${state.fresh} / 3`;
+    if(trend.status === "fulfilled"){
+      const d=trend.value, targets=d.selection?.targets || [];
+      $("trend-signal").textContent=targets.length ? `${targets.length} 只入选` : "保持现金";
+      $("trend-target").textContent=targets.length ? targets.slice(0,2).map(item => item.name).join("、") : "无目标股票";
+      $("trend-date").textContent=`数据 ${d.dataAsOf || "—"}`;
+      $("trend-action").textContent="动作 每周调仓";
+      mark("trend",d.status === "PASS",d.dataAsOf,"NO_TRADE");
+    } else { mark("trend",false); }
+    if(etf.status === "fulfilled"){
+      const d=etf.value, livePass=d.validation?.intraday === "PASS";
+      $("etf-signal").textContent=d.signal?.action === "REBALANCE" ? "目标切换" : "继续持有";
+      $("etf-target").textContent=d.signal?.targetName || "—";
+      $("etf-date").textContent=`数据 ${d.dataAsOf || "—"}`;
+      $("etf-action").textContent="动作 周末14:50";
+      mark("etf",d.status === "PASS" && livePass,d.dataAsOf,d.signal?.action === "REBALANCE" ? "REBALANCE" : "NO_TRADE");
+      if(!livePass) $("etf-status").textContent="盘中待验证";
+    } else { mark("etf",false); }
+    $("fresh-count").textContent=`${state.fresh} / 5`;
     $("trade-count").textContent=String(state.trades);
     $("updated").textContent=state.dates.length?`最新数据 ${state.dates.sort().at(-1)}`:"策略状态读取失败";
-    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 3);
+    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 5);
   });
 })();
