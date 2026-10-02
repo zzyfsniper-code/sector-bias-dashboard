@@ -4,8 +4,8 @@
   "strategy_number": "02",
   "strategy_name": "中证500资金流向与底部杠杆",
   "status": "PASS",
-  "run_id": "csi500_flow_live_20261001_215752",
-  "generated_at": "2026-10-01T21:57:53+08:00",
+  "run_id": "csi500_flow_live_20261003_075847",
+  "generated_at": "2026-10-03T07:58:47+08:00",
   "data_as_of": "2026-09-30",
   "next_trade_date": "2026-10-08",
   "execution": "T 日收盘形成信号，T+1 开盘按目标仓位交易",
@@ -14,13 +14,10 @@
     "index": "000905.SH",
     "trading_proxy": "510500.SH",
     "update": {
-      "previous_latest": "2026-09-29",
-      "missing_dates": [
-        "2026-09-30"
-      ],
-      "rows_added": 1,
-      "latest": "2026-09-30",
-      "weight_snapshot": "2026-09-30"
+      "previous_latest": "2026-09-30",
+      "missing_dates": [],
+      "rows_added": 0,
+      "latest": "2026-09-30"
     },
     "dates": {
       "moneyflow": "2026-09-30",
