@@ -23,4 +23,6 @@ assert.equal(Object.keys(core.parseQuotes('bad input')).length,0);
 const eod={...held,basis_date:'2026-10-13',basis_last_close:106,stop_basis:102,armed:true};
 assert.equal(core.evaluate(eod,{...final,low:100},close,['2026-10-12','2026-10-13']).status,'持有');
 assert.equal(core.evaluate({...held,basis_date:'2026-10-09'},quote,now,['2026-10-09','2026-10-12']).profit_pct,null);
-console.log('FRONTEND SIGNAL CHECKS PASS: 17 trading/timing checks');
+assert.equal(core.evaluate({...record,status:'剔除',status_note:'同日采用更新报告期'},final,close).status,'剔除');
+assert.equal(core.evaluate(held,{...quote,open:111,last:105,high:111,low:90},now,['2026-10-12']).status,'卖出提示');
+console.log('FRONTEND SIGNAL CHECKS PASS: 19 trading/timing checks');

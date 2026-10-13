@@ -58,6 +58,13 @@ class RulesTest(unittest.TestCase):
         with patch.object(update_data,'finance',side_effect=RuntimeError('offline')):
             with self.assertRaises(RuntimeError):update_data.update()
         self.assertEqual(path.read_bytes(),before)
+    def test_latest_report_selected_before_financial_filter(self):
+        from update_data import newest_reports
+        a=dict(SECUCODE='600000.SH',REPORTDATE='2025-12-31',NOTICE_DATE='2026-04-25',PARENT_NETPROFIT=100)
+        b=dict(SECUCODE='600000.SH',REPORTDATE='2026-03-31',NOTICE_DATE='2026-04-26',PARENT_NETPROFIT=-1)
+        selected=newest_reports([a,b],['2026-04-24','2026-04-27'])
+        self.assertEqual(selected,[b])
+        self.assertEqual(newest_reports([a,b],['2026-04-24']),[b])
 
 
 if __name__=='__main__':unittest.main()

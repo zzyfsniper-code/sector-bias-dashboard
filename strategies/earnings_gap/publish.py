@@ -31,7 +31,14 @@ def publish(data_only=False):
             baseline=ROOT/'strategies/earnings_gap/logs'/('remote-'+Path(name).name)
             if baseline.exists():
                 b=baseline.read_bytes();expected=hashlib.sha1(f'blob {len(b)}\0'.encode()+b).hexdigest()
-                if current.get(name)!=expected:raise RuntimeError('Strategy overview changed remotely; review required before overwriting '+name)
+                prior=ROOT/'strategies/earnings_gap/logs/publication.json'
+                accepted={expected}
+                if prior.exists():
+                    previous=json.loads(prior.read_text('utf-8'))
+                    local=(ROOT/name).read_bytes()
+                    if previous.get('files',{}).get(name)==hashlib.sha256(local).hexdigest():
+                        accepted.add(hashlib.sha1(f'blob {len(local)}\0'.encode()+local).hexdigest())
+                if current.get(name) not in accepted:raise RuntimeError('Strategy overview changed remotely; review required before overwriting '+name)
     tree=[];hashes={}
     for name in files:
         blob=(ROOT/name).read_bytes();hashes[name]=hashlib.sha256(blob).hexdigest()
