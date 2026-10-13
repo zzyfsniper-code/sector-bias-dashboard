@@ -11,8 +11,9 @@
     fetch("../growth-value-five-dim/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
     fetch("../csi500-flow-leverage/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
     fetch("../all-weather-risk-parity/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
-    fetch("../core-etf-rotation/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
-  ]).then(([growth,csi,risk,etf]) => {
+    fetch("../core-etf-rotation/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
+    fetch("../earnings-gap/data/live.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
+  ]).then(([growth,csi,risk,etf,earnings]) => {
     if(growth.status === "fulfilled"){
       const d=growth.value, plan=d.tradingPlan || {}, current=d.current || {};
       const growthWeight=plan.targetGrowthWeight ?? current.desiredGrowthWeight ?? null;
@@ -47,9 +48,16 @@
       mark("etf",d.status === "PASS" && livePass,d.dataAsOf,d.signal?.action === "REBALANCE" ? "REBALANCE" : "NO_TRADE");
       if(!livePass) $("etf-status").textContent="盘中待验证";
     } else { mark("etf",false); }
-    $("fresh-count").textContent=`${state.fresh} / 4`;
+    if(earnings.status === "fulfilled"){
+      const d=earnings.value;
+      $("earnings-target").textContent=`${d.records_count || 0}只`;
+      $("earnings-date").textContent=`数据 ${d.financial_asof || "—"}`;
+      $("earnings-signal").textContent="收盘确认";
+      mark("earnings",d.status === "PASS",d.financial_asof,"NO_TRADE");
+    } else { mark("earnings",false); }
+    $("fresh-count").textContent=`${state.fresh} / 5`;
     $("trade-count").textContent=String(state.trades);
     $("updated").textContent=state.dates.length?`最新数据 ${state.dates.sort().at(-1)}`:"策略状态读取失败";
-    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 4);
+    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 5);
   });
 })();

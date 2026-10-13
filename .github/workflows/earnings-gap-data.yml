@@ -1,0 +1,32 @@
+name: Earnings gap daily data
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 0 * * 1-5'
+    - cron: '15 7 * * 1-5'
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: earnings-gap-data
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests
+      - name: Refresh financial candidates and paper trades
+        run: python strategies/earnings_gap/update_data.py
+      - name: Verify trading rules
+        run: |
+          python strategies/earnings_gap/test_strategy.py
+          node strategies/earnings_gap/test_signal.js
+      - name: Publish successful data snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python strategies/earnings_gap/publish.py --data-only
