@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+const core=require('../../tri-momentum-vol-control/signal.js');
+const quotes=Object.fromEntries(core.codes.map(code=>[code,{code,last:1,previous:1,bid:1,ask:1.001,timestamp:'20261016145010'}]));
+const live={status:'PASS',data_as_of:'2026-10-15',calendar_start:'2026-10-01',calendar_end:'2026-10-30',calendar:['2026-10-14','2026-10-15','2026-10-16','2026-10-19','2026-10-20','2026-10-21','2026-10-22','2026-10-23'],signal:{is_final:true,execution_date:'2026-10-16',information_date:'2026-10-15'}};
+let n=0;function check(value){assert.ok(value);n++;}
+check(core.evaluate(live,quotes,new Date('2026-10-16T14:50:20+08:00')).ready);
+check(!core.evaluate(live,quotes,new Date('2026-10-16T14:49:59+08:00')).ready);
+check(!core.evaluate(live,quotes,new Date('2026-10-16T15:00:00+08:00')).ready);
+check(!core.evaluate(live,quotes,new Date('2026-10-16T14:53:00+08:00')).ready);
+check(!core.evaluate(live,quotes,new Date('2026-10-16T14:50:20+08:00'),false).ready);
+check(!core.evaluate({...live,data_as_of:'2026-10-14'},quotes,new Date('2026-10-16T14:50:20+08:00')).ready);
+check(!core.evaluate({...live,calendar_end:'2026-10-15'},quotes,new Date('2026-10-16T14:50:20+08:00')).ready);
+check(!core.evaluate({...live,signal:{...live.signal,is_final:false}},quotes,new Date('2026-10-16T14:50:20+08:00')).ready);
+check(!core.evaluate(live,{...quotes,'513100.SH':{...quotes['513100.SH'],ask:.99}},new Date('2026-10-16T14:50:20+08:00')).ready);
+check(!core.evaluate(live,{...quotes,'513100.SH':{...quotes['513100.SH'],timestamp:'20261015145010'}},new Date('2026-10-16T14:50:20+08:00')).ready);
+check(!core.evaluate({...live,data_as_of:'2026-10-14'},quotes,new Date('2026-10-15T14:50:20+08:00')).ready);
+check(!core.evaluate({...live,data_as_of:'2026-10-16'},quotes,new Date('2026-10-17T14:50:20+08:00')).ready);
+const holiday={...live,data_as_of:'2026-09-29',calendar_start:'2026-09-01',calendar_end:'2026-10-30',calendar:['2026-09-28','2026-09-29','2026-09-30','2026-10-08','2026-10-09'],signal:{is_final:true,execution_date:'2026-09-30',information_date:'2026-09-29'}};
+const holidayQuotes=Object.fromEntries(Object.entries(quotes).map(([c,q])=>[c,{...q,timestamp:'20260930145010'}]));
+check(core.evaluate(holiday,holidayQuotes,new Date('2026-09-30T14:50:20+08:00')).ready);
+const fields=Array(40).fill('');fields[3]='1';fields[4]='1';fields[9]='.999';fields[19]='1';fields[30]='20261016145010';
+check(core.parseQuotes('v_sh513100="'+fields.join('~')+'";')['513100.SH'].bid===.999);
+check(Object.keys(core.parseQuotes('v_sh513100="bad";')).length===0);
+console.log(JSON.stringify({status:'PASS',quote_and_execution_tests:n}));

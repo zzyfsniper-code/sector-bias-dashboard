@@ -1,0 +1,27 @@
+/* Reuse the Strategy Lab paper, typography and dialog theme. */
+.signal-card{background:var(--card);border:1px solid var(--border);border-top:3px solid var(--accent);padding:22px;margin:8px 0 28px}
+.signal-heading,.section-heading,.chart-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h2{font:700 23px/1.4 "STSong","SimSun",serif;margin:0}
+.decision-grid{display:grid;grid-template-columns:repeat(4,1fr);margin-top:22px;gap:16px}
+.decision-grid>div+div{border-left:1px solid var(--border);padding-left:22px}
+.decision-grid span,.decision-grid small{display:block;color:var(--muted);font-size:11px}
+.decision-grid strong{display:block;font:700 27px/1.5 serif;margin:7px 0}
+.signal-card .footnote{margin:18px 0 10px}.model-current{padding-top:12px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+.section-heading{margin:28px 0 14px}.section-heading>span{color:var(--muted);font-size:11px}
+.asset-section .table-wrap table{min-width:900px}.history-section .table-wrap table{min-width:1110px}.history-section>.footnote{margin:0 0 16px}
+.asset-section tr.selected{background:#f6ecd8}.code{display:block;color:var(--muted);font-size:10px}
+.history-section .pill{font-size:10px}.history-section .pagination{margin-bottom:22px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 16px}
+.metric-grid>div{padding:15px;background:var(--card);border:1px solid var(--border)}
+.metric-grid span,.metric-grid small{display:block;color:var(--muted);font-size:11px}.metric-grid strong{display:block;font:700 27px/1.6 serif}
+.chart-toolbar h3{margin:12px 0}.chart-toolbar label{font-size:12px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin:12px 0}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+#chartStack{position:relative;background:var(--card);border:1px solid var(--border);padding:8px 0;touch-action:pan-y}
+.plot{position:relative}.plot svg{display:block;width:100%}.plot text{fill:var(--muted);font:11px Arial,sans-serif}.plot .grid{stroke:#e5ded3;stroke-width:1}
+.plot .crosshair{stroke:#8a918e;stroke-dasharray:3 3;pointer-events:none}
+.chart-tooltip{position:absolute;z-index:3;background:#fffdf8f5;border:1px solid var(--border);border-radius:4px;padding:10px 12px;box-shadow:0 8px 20px #17232b22;font-size:11px;pointer-events:none;white-space:nowrap;min-width:180px}
+.chart-tooltip strong{display:block;margin-bottom:4px}.chart-tooltip div{display:flex;justify-content:space-between;gap:20px}
+.range-controls{display:flex;gap:18px;margin:13px 0 0}.range-controls label{display:flex;align-items:center;gap:8px;flex:1;min-width:0;white-space:nowrap;color:var(--muted);font-size:11px}.range-controls input{width:100%;min-width:0;padding:0;accent-color:var(--accent)}
+#rangeLabel{margin:6px 0 20px}.detail-table table{min-width:650px}
+@media(max-width:900px){.decision-grid{grid-template-columns:repeat(2,1fr);row-gap:20px}.decision-grid>div:nth-child(3){border:0;padding-left:0}.metric-grid{grid-template-columns:repeat(2,1fr)}.signal-card{padding:17px}}
+@media(max-width:520px){h1{font-size:35px}.decision-grid{gap:16px 10px}.decision-grid strong{font-size:24px}.decision-grid>div+div{padding-left:12px}.decision-grid>div:nth-child(3){padding-left:0}.decision-grid small{font-size:10px}.chart-tooltip{font-size:10px;padding:8px;min-width:165px}.metric-grid>div{padding:11px}.metric-grid strong{font-size:24px}.section-heading h2{font-size:21px}}

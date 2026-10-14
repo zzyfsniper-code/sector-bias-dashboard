@@ -11,8 +11,9 @@
     fetch("../growth-value-five-dim/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
     fetch("../csi500-flow-leverage/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
     fetch("../all-weather-risk-parity/data/strategy.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
-    fetch("../earnings-gap/data/live.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
-  ]).then(([growth,csi,risk,earnings]) => {
+    fetch("../earnings-gap/data/live.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()}),
+    fetch("../tri-momentum-vol-control/data/live.json", {cache:"no-store"}).then(r => {if(!r.ok) throw new Error(r.status); return r.json()})
+  ]).then(([growth,csi,risk,earnings,tri]) => {
     if(growth.status === "fulfilled"){
       const d=growth.value, plan=d.tradingPlan || {}, current=d.current || {};
       const growthWeight=plan.targetGrowthWeight ?? current.desiredGrowthWeight ?? null;
@@ -45,9 +46,19 @@
       $("earnings-signal").textContent="收盘确认";
       mark("earnings",d.status === "PASS",d.financial_asof,"NO_TRADE");
     } else { mark("earnings",false); }
-    $("fresh-count").textContent=`${state.fresh} / 4`;
+    if(tri.status === "fulfilled"){
+      const d=tri.value, gate=window.TriMomentumCore.evaluate(d,{},new Date(),false);
+      const ok=d.status==="PASS" && !/前收数据待更新|日历过期|日历不足|模型更新异常/.test(gate.note);
+      $("tri-signal").textContent=d.signal?.selected_name || "—";
+      $("tri-target").textContent=pct(d.signal?.risk_weight);
+      $("tri-date").textContent=`数据 ${d.data_as_of || "—"}`;
+      $("tri-action").textContent=`动作 ${d.signal?.is_final?"待周度执行":"周度预览"}`;
+      mark("tri",ok,d.data_as_of,"NO_TRADE");
+      if(ok) $("tri-status").textContent=d.signal?.is_final?"前收信号已定":"数据正常 · 预览";
+    } else { mark("tri",false); }
+    $("fresh-count").textContent=`${state.fresh} / 5`;
     $("trade-count").textContent=String(state.trades);
     $("updated").textContent=state.dates.length?`最新数据 ${state.dates.sort().at(-1)}`:"策略状态读取失败";
-    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 4);
+    document.querySelector(".site-header .status-dot").classList.toggle("pass", state.fresh === 5);
   });
 })();
