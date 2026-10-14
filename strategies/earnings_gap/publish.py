@@ -11,10 +11,10 @@ ROOT=Path(__file__).resolve().parents[2]
 API='https://api.github.com/repos/zzyfsniper-code/sector-bias-dashboard'
 
 
-def publish(data_only=False):
-    files=['earnings-gap/data/live.json'] if data_only else ['earnings_gap.html','strategies/index.html','strategies/app.js',
+def publish(data_only=False,monitor_only=False):
+    files=['earnings-gap/data/monitor.json'] if monitor_only else ['earnings-gap/data/live.json','earnings-gap/data/monitor.json'] if data_only else ['earnings_gap.html','strategies/index.html','strategies/app.js',
         '.github/workflows/earnings-gap-data.yml']+[p.relative_to(ROOT).as_posix() for p in (ROOT/'earnings-gap').rglob('*') if p.is_file()]+[
-        'strategies/earnings_gap/'+n for n in ['strategy_core.py','update_data.py','publish.py','test_strategy.py','test_signal.js']]
+        'strategies/earnings_gap/'+n for n in ['strategy_core.py','update_data.py','monitoring.py','publish.py','test_strategy.py','test_signal.js','test_monitoring.py','test_monitor.js']]
     files=sorted(set(files));token=os.environ.get('GITHUB_TOKEN')
     if not token:raise RuntimeError('GITHUB_TOKEN is missing; nothing published')
     session=requests.Session();session.headers.update({'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','User-Agent':'earnings-gap-publisher'})
@@ -25,7 +25,7 @@ def publish(data_only=False):
     pages=call('GET','/pages')
     if pages.get('source')!={'branch':'main','path':'/'}:raise RuntimeError('Unexpected Pages source; no publication')
     parent=call('GET','/git/ref/heads/main')['object']['sha'];commit=call('GET','/git/commits/'+parent)
-    if not data_only:
+    if not data_only and not monitor_only:
         current={x['path']:x['sha'] for x in call('GET','/git/trees/'+commit['tree']['sha'],params={'recursive':1})['tree']}
         for name in ['strategies/index.html','strategies/app.js']:
             baseline=ROOT/'strategies/earnings_gap/logs'/('remote-'+Path(name).name)
@@ -45,7 +45,7 @@ def publish(data_only=False):
         sha=call('POST','/git/blobs',json={'content':base64.b64encode(blob).decode(),'encoding':'base64'})['sha']
         tree.append({'path':name,'mode':'100644','type':'blob','sha':sha})
     newtree=call('POST','/git/trees',json={'base_tree':commit['tree']['sha'],'tree':tree})['sha']
-    child=call('POST','/git/commits',json={'message':'Update earnings gap strategy data' if data_only else 'Publish frozen earnings gap strategy with live public quotes','tree':newtree,'parents':[parent]})['sha']
+    child=call('POST','/git/commits',json={'message':'Publish earnings gap update failure status' if monitor_only else 'Update earnings gap strategy data and monitoring' if data_only else 'Publish frozen earnings gap strategy with live public quotes','tree':newtree,'parents':[parent]})['sha']
     # No force updates or stale parent retries: preserve concurrent remote work.
     call('PATCH','/git/refs/heads/main',json={'sha':child,'force':False})
     build=call('POST','/pages/builds') if pages['build_type']=='legacy' else {}
@@ -57,4 +57,4 @@ def publish(data_only=False):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--data-only',action='store_true');a=p.parse_args();publish(a.data_only)
+    p=argparse.ArgumentParser();mode=p.add_mutually_exclusive_group();mode.add_argument('--data-only',action='store_true');mode.add_argument('--monitor-only',action='store_true');a=p.parse_args();publish(a.data_only,a.monitor_only)

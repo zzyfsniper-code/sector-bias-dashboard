@@ -35,7 +35,7 @@ return `<tr><td title="开盘涨幅 ${r.open_gap_pct?.toFixed(2)??'—'}%"><span
 }
 function warning(){const list=[...(live.issues||[])],today=core.chinaTime(new Date()).day;if(live.financial_asof&&live.financial_asof<today)list.unshift(`财务候选尚未更新至今天，上次为${live.financial_asof}；今日新财报可能遗漏。`);$('dataWarning').hidden=!list.length;$('dataWarning').textContent=list.slice(0,4).join('；');}
 async function refresh(){if(busy||document.hidden)return;busy=true;$('refreshButton').disabled=true;
-try{const fresh=await json('live');if(fresh.version!==backtest.version)throw Error('策略版本不一致');live=fresh;$('financialTime').textContent=live.updated_at?.replace('T',' ').slice(0,19)||'—';warning();
+try{const fresh=await json('live');if(fresh.version!==backtest.version)throw Error('策略版本不一致');live=fresh;$('financialTime').textContent=live.updated_at?.replace('T',' ').slice(0,19)||'—';warning();window.EarningsGapMonitoring.setLive(live);
 const watch=[...new Set(['sh000001',...live.records.filter(r=>!r.exit_date&&!['未入选','剔除'].includes(r.status)).map(r=>symbols(r.ts_code))])],chunks=[];for(let i=0;i<watch.length;i+=60)chunks.push(watch.slice(i,i+60));
 let found={};for(let i=0;i<chunks.length;i+=4){const result=await Promise.all(chunks.slice(i,i+4).map(async codes=>{const r=await fetchTimed(`https://qt.gtimg.cn/q=${codes.join(',')}&_=${Date.now()}`,12000);return core.parseQuotes(new TextDecoder('gbk').decode(await r.arrayBuffer()));}));result.forEach(x=>Object.assign(found,x));}
 quotes=found;networkOk=true;const valid=Object.values(quotes).filter(q=>core.freshness(q,new Date()).ok),stamp=valid.map(q=>q.timestamp).sort().at(-1);

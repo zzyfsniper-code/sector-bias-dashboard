@@ -21,12 +21,24 @@ jobs:
           python-version: '3.12'
       - run: pip install requests
       - name: Refresh financial candidates and paper trades
+        id: refresh
         run: python strategies/earnings_gap/update_data.py
       - name: Verify trading rules
+        id: verify
         run: |
           python strategies/earnings_gap/test_strategy.py
+          python strategies/earnings_gap/test_monitoring.py
           node strategies/earnings_gap/test_signal.js
+          node strategies/earnings_gap/test_monitor.js
+      - name: Record rule verification failure
+        if: failure() && steps.verify.outcome == 'failure'
+        run: python strategies/earnings_gap/monitoring.py --fail "规则或监控校验失败，新交易数据未发布"
       - name: Publish successful data snapshot
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python strategies/earnings_gap/publish.py --data-only
+      - name: Publish failed update status while preserving trading data
+        if: failure() && (steps.refresh.outcome == 'failure' || steps.verify.outcome == 'failure')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python strategies/earnings_gap/publish.py --monitor-only

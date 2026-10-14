@@ -98,3 +98,22 @@ dialog::backdrop{background:#17232b80}
  .dialog-head h2{font-size:23px}.dialog-head{gap:12px}.dialog-head button{white-space:nowrap}
  footer{flex-direction:column}
 }
+
+.monitor-panel{border:1px solid var(--border);background:var(--card);padding:20px;margin:4px 0 24px}
+.monitor-heading{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.monitor-heading>div{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.monitor-heading h2{font:700 21px/1.4 "STSong","SimSun",serif;margin:0}
+.monitor-status{padding:4px 9px;border-radius:3px;font-size:11px;background:#eee9e0;color:var(--muted)}
+.monitor-status.pass{color:var(--green);background:#e5f1eb}.monitor-status.warn,.monitor-status.running{color:#94611a;background:#f6ecd8}.monitor-status.bad{color:var(--red);background:#f4e5df}
+#monitorExplanation{font-size:12px;color:var(--muted);line-height:1.8;margin:12px 0}
+.monitor-metrics{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);margin:14px 0}
+.monitor-metrics>div{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.monitor-metrics>div+div{border-left:1px solid var(--border)}.monitor-metrics span{font-size:11px;color:var(--muted)}.monitor-metrics strong{font:700 23px/1 serif}
+.monitor-meta{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:11px;color:var(--muted)}
+#monitorDetails{margin-top:16px;border-top:1px solid var(--border);padding-top:13px}
+#monitorDetails summary{font-size:12px;color:var(--accent);cursor:pointer}#monitorScope{font-size:11px;color:var(--muted);line-height:1.8}
+.monitor-table{overflow:auto;border:1px solid var(--border);max-height:460px}.monitor-table .sub{white-space:normal;max-width:340px}.monitor-table th{position:sticky;top:0;z-index:1}
+.monitor-download{display:flex;justify-content:space-between;gap:12px;font-size:11px;margin-top:10px;color:var(--muted)}
+.monitor-footnote{font-size:10px;color:var(--muted);line-height:1.8;margin:14px 0 0}
+@media(max-width:650px){.monitor-panel{padding:14px}.monitor-heading h2{font-size:19px}.monitor-heading button{white-space:nowrap}.monitor-metrics{grid-template-columns:repeat(2,1fr)}.monitor-metrics>div{padding:11px}.monitor-metrics>div:nth-child(3){border-left:0}.monitor-metrics>div:nth-child(n+3){border-top:1px solid var(--border)}}
+#monitorExplanation.monitor-alert{padding:10px 12px;border-left:3px solid currentColor}#monitorExplanation.bad{color:var(--red);background:#f4e5df}#monitorExplanation.warn{color:#94611a;background:#f6ecd8}

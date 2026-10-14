@@ -154,6 +154,7 @@ def update():
     final_day=today if (now.hour,now.minute)>=(15,10) else yesterday
     market=[b for b in market if b['date']<=final_day]
     calendar=sorted(set(json.loads((DATA/'calendar.json').read_text('utf-8'))) | {x['date'] for x in market})
+    finance_rows=current
     current=newest_reports(current,calendar)
     # The financial source contains cumulative profits. Never use SJLTZ as quarter YoY.
     issues = []; fetched = {}; published = []
@@ -243,8 +244,22 @@ def update():
         calendar=calendar[-120:],records_count=len(records),financial_reports_checked=len(fetched))
     target=DATA/'live.json'; temp=target.with_suffix('.tmp');temp.write_text(json.dumps(payload,ensure_ascii=False,allow_nan=False,separators=(',',':')),'utf-8');temp.replace(target)
     print(json.dumps({k:payload[k] for k in ['status','updated_at','records_count','financial_reports_checked','issues']},ensure_ascii=False))
+    return payload,finance_rows,list(fetched.values())
+
+
+def monitored_update():
+    import monitoring
+    old,started_at=monitoring.begin()
+    try:
+        payload,finance_rows,selected=update()
+        meta=json.loads((DATA/'stock_metadata.json').read_text('utf-8'))
+        monitor=monitoring.finish(payload,finance_rows,selected,old,started_at,cninfo,financial_histories,meta)
+        print(json.dumps(dict(monitor_status=monitor['status'],counts=monitor['counts']),ensure_ascii=False))
+    except Exception as exc:
+        monitoring.failure(exc,started_at)
+        raise
 
 
 if __name__=='__main__':
     argparse.ArgumentParser(description=__doc__).parse_args()
-    update()
+    monitored_update()
