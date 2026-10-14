@@ -12,8 +12,9 @@ try {
  if (-not $locked) { throw 'A three-asset update is already running' }
  if ((Get-Date).DayOfWeek -in @([DayOfWeek]::Saturday,[DayOfWeek]::Sunday)) { $exitCode=0; 'SKIP weekend' | Out-File -LiteralPath $logFile -Encoding utf8 }
  else {
-  & $PythonPath -u (Join-Path $PSScriptRoot 'update.py') --publish *> $logFile
-  $exitCode=$LASTEXITCODE
+  $arguments='-u "{0}" --publish' -f (Join-Path $PSScriptRoot 'update.py')
+  $process=Start-Process -FilePath $PythonPath -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $logFile -RedirectStandardError ($logFile+'.stderr.log')
+  $exitCode=$process.ExitCode
  }
 } catch { $_.Exception.Message | Out-File -LiteralPath $logFile -Append -Encoding utf8 }
 finally { if ($locked) { $mutex.ReleaseMutex() }; $mutex.Dispose() }

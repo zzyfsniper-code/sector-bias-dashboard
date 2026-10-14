@@ -117,7 +117,9 @@ def publish(paths, message, release=False):
     # CDN may lag a completed build. Verify the complete changed public surface.
     public = [p for p in paths if p.startswith('tri-momentum-vol-control/')]
     if release:
-        public += ['strategies/index.html','strategies/app.js','earnings_gap.html']
+        public += [p for p in ['strategies/index.html','strategies/app.js','earnings_gap.html',
+                    'growth-value-five-dim/index.html','csi500-flow-leverage/index.html',
+                    'all-weather-risk-parity/index.html'] if p in paths]
     pending = set(public)
     verify_until = time.monotonic()+180
     while pending and time.monotonic()<verify_until:

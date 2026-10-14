@@ -70,7 +70,14 @@ with sync_playwright() as p:
     page.wait_for_function("document.querySelector('#quoteStatus').textContent.includes('更新失败')")
     assert page.locator('#signalStatus').inner_text()!='可执行参考'
     assert not errors,errors
+    center=url.replace('tri-momentum-vol-control/','strategies/')
+    page.goto(center,wait_until='domcontentloaded')
+    page.wait_for_function("document.querySelector('#tri-signal').textContent !== '—'",timeout=30000)
+    assert page.locator('#strategy-count').inner_text()=='5'
+    assert '三元动量波控策略' in page.locator('[data-id=tri]').inner_text()
+    assert page.locator('[data-id=tri] a').get_attribute('href')=='../tri-momentum-vol-control/'
+    assert not errors,errors
     result=dict(status='PASS',url=url,public_quote_status=status,page_errors=errors,desktop=True,mobile=True,
-                details=True,charts_and_hover=True,range_drag=True,downloads=True,history_filters=True,network_failure_gate=True)
+                details=True,charts_and_hover=True,range_drag=True,downloads=True,history_filters=True,network_failure_gate=True,strategy_center=True)
     (LOG/('browser_online.json' if online else 'browser_local.json')).write_text(json.dumps(result,ensure_ascii=False,indent=2),'utf-8')
     print(json.dumps(result,ensure_ascii=False));browser.close()
