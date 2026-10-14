@@ -10,10 +10,10 @@ LOG=Path(__file__).with_name('logs');LOG.mkdir(exist_ok=True)
 url=sys.argv[1] if len(sys.argv)>1 else 'http://127.0.0.1:8771/tri-momentum-vol-control/'
 online=url.startswith('https:')
 with sync_playwright() as p:
-    browser=p.chromium.launch(executable_path=r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',headless=True)
+    browser=p.chromium.launch(executable_path=r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',headless=True,args=['--no-proxy-server','--disable-quic'])
     page=browser.new_page(viewport={'width':1600,'height':1050})
     errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-    page.goto(url,wait_until='domcontentloaded')
+    page.goto(url,wait_until='domcontentloaded',timeout=60000)
     page.wait_for_function("document.querySelector('#assetRows tr.selected')",timeout=45000)
     status=page.locator('#quoteStatus').inner_text()
     assert '更新失败' not in status,status
