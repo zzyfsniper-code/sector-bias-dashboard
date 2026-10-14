@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'growth-value-five-dim/**'
+      - 'forty-five-degree-selection/**'
+      - 'core-etf-rotation/**'
+      - 'strategies/**'
       - 'index_dashboard.html'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -21,7 +24,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: custom-pages-deploy
   cancel-in-progress: true
 
 jobs:
@@ -33,15 +36,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Check Pages publishing mode
+        id: pages_mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mode=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.build_type')
+          echo "build_type=$mode" >> "$GITHUB_OUTPUT"
+          if [ "$mode" = "legacy" ]; then
+            echo "Pages is published from the branch; skip the duplicate Actions deployment."
+          fi
       
       - name: Setup Pages
+        if: steps.pages_mode.outputs.build_type == 'workflow'
         uses: actions/configure-pages@v4
       
       - name: Upload artifact
+        if: steps.pages_mode.outputs.build_type == 'workflow'
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
       
       - name: Deploy to GitHub Pages
+        if: steps.pages_mode.outputs.build_type == 'workflow'
         id: deployment
         uses: actions/deploy-pages@v4

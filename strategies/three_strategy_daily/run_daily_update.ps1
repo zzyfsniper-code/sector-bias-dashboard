@@ -175,6 +175,45 @@ function Test-OnlineStrategy {
     }
 }
 
+function Wait-GitHubPagesBuild {
+    param([string]$Commit, [int]$TimeoutSec = 600, [int]$PollSeconds = 15)
+    $apiRoot = 'https://api.github.com/repos/zzyfsniper-code/sector-bias-dashboard'
+    $headers = @{ Accept = 'application/vnd.github+json'; Authorization = "Bearer $env:GITHUB_TOKEN"; 'User-Agent' = 'three-strategy-pages-verifier' }
+    $started = [DateTimeOffset]::Now
+    $attempts = 0
+    try {
+        $settingsResponse = Invoke-WebRequest -Uri "$apiRoot/pages" -Headers $headers -UseBasicParsing -TimeoutSec 30
+        $settings = $settingsResponse.Content | ConvertFrom-Json
+        $buildType = [string]$settings.build_type
+        if ($buildType -notin @('legacy', 'workflow')) { throw "Unsupported Pages build type: $buildType" }
+        while ($true) {
+            $attempts++
+            if ($buildType -eq 'legacy') {
+                $response = Invoke-WebRequest -Uri "$apiRoot/pages/builds?per_page=30" -Headers $headers -UseBasicParsing -TimeoutSec 30
+                $allBuilds = $response.Content | ConvertFrom-Json
+                $builds = @($allBuilds | Where-Object { $_.commit -eq $Commit })
+                $completed = @($builds | Where-Object { $_.status -eq 'built' })
+                $failed = @($builds | Select-Object -First 1 | Where-Object { $_.status -eq 'errored' })
+            } else {
+                $response = Invoke-WebRequest -Uri "$apiRoot/actions/runs?head_sha=$Commit&per_page=30" -Headers $headers -UseBasicParsing -TimeoutSec 30
+                $runs = @(($response.Content | ConvertFrom-Json).workflow_runs | Where-Object { $_.name -eq 'Deploy to GitHub Pages' -and $_.head_sha -eq $Commit })
+                $completed = @($runs | Where-Object { $_.status -eq 'completed' -and $_.conclusion -eq 'success' })
+                $failed = @($runs | Select-Object -First 1 | Where-Object { $_.status -eq 'completed' -and $_.conclusion -in @('failure', 'cancelled', 'timed_out') })
+            }
+            if ($completed.Count -gt 0) {
+                return [ordered]@{ status = 'PASS'; commit = $Commit; build_type = $buildType; attempts = $attempts; elapsed_seconds = [int]([DateTimeOffset]::Now - $started).TotalSeconds }
+            }
+            if ($failed.Count -gt 0) { throw "GitHub Pages build failed for commit $Commit" }
+            if (([DateTimeOffset]::Now - $started).TotalSeconds -ge $TimeoutSec) {
+                return [ordered]@{ status = 'TIMEOUT'; commit = $Commit; build_type = $buildType; attempts = $attempts; error_summary = "GitHub Pages build did not complete within $TimeoutSec seconds." }
+            }
+            Start-Sleep -Seconds $PollSeconds
+        }
+    } catch {
+        return [ordered]@{ status = 'FAIL'; commit = $Commit; attempts = $attempts; error_summary = $_.Exception.Message }
+    }
+}
+
 function Get-FailureStage {
     param([string]$ErrorSummary, [string[]]$Failures)
     if ($ErrorSummary -match '余额不足|insufficient balance') { return 'data_provider_insufficient_balance' }
@@ -320,12 +359,19 @@ if (-not $ValidateOnly) {
 
             Start-Sleep -Seconds 60
             Start-Sleep -Seconds 60
+            $buildResult = Wait-GitHubPagesBuild ([string]$publishResult.commit)
+            $batchPublish['build'] = $buildResult
+            if ($buildResult.status -ne 'PASS') { throw $buildResult.error_summary }
+            # Allow the completed build to reach the Pages CDN before the single final check.
+            Start-Sleep -Seconds 30
             $centerOnline = $false
+            $centerError = $null
             try {
                 $centerResponse = Invoke-WebRequest -Uri ($centerUrl + '?run=' + [uri]::EscapeDataString($batchId)) -UseBasicParsing -TimeoutSec 30
                 $centerOnline = $centerResponse.StatusCode -eq 200
             } catch {
                 $centerOnline = $false
+                $centerError = $_.Exception.Message
             }
 
             $onlinePassed = 0
@@ -334,7 +380,8 @@ if (-not $ValidateOnly) {
                 $onlineVerified = $centerOnline -and (Test-OnlineStrategy $result['page_url'] $runId)
                 if ($onlineVerified) { $onlinePassed++ }
                 if (-not $onlineVerified) {
-                    Set-ResultFailure $result 'batch_online_verification' "online page did not expose $runId after the combined publish wait" 'The combined GitHub commit succeeded, but the one-time online verification did not match the new run_id.'
+                    $verificationError = if ($centerOnline) { "The Pages build completed, but the single online data check did not expose $runId." } else { "The strategy center check failed: $centerError" }
+                    Set-ResultFailure $result 'batch_online_verification' "online verification failed for $runId after the completed Pages build" $verificationError
                 }
                 try {
                     $strategy = $strategies | Where-Object { $_.key -eq $result['strategy'] } | Select-Object -First 1
@@ -357,7 +404,7 @@ if (-not $ValidateOnly) {
             $batchPublish['online_status'] = 'FAIL'
             $batchPublish['error_summary'] = $_.Exception.Message
             foreach ($result in $publishable) {
-                $stage = if ($null -eq $batchPublish['commit']) { 'batch_github_publish' } else { 'batch_finalization' }
+                $stage = if ($null -eq $batchPublish['commit']) { 'batch_github_publish' } elseif ($batchPublish.Contains('build') -and $batchPublish['build']['status'] -ne 'PASS') { 'batch_pages_build' } else { 'batch_finalization' }
                 Set-ResultFailure $result $stage 'combined publication flow did not complete' $_.Exception.Message
             }
         }
@@ -381,7 +428,7 @@ $batch = [ordered]@{
     requested_as_of = if ([string]::IsNullOrWhiteSpace($AsOf)) { $null } else { $AsOf }
     started_at = $startedAt.ToString('o')
     finished_at = [DateTimeOffset]::Now.ToString('o')
-    execution_contract = 'The orchestrator runs each child script once in fixed serial order, creates one combined GitHub commit, waits two minutes, and verifies all successful strategy pages once.'
+    execution_contract = 'The orchestrator runs each child script once in fixed serial order, creates one combined GitHub commit, waits at least two minutes plus the matching Pages build (up to ten additional minutes), allows thirty seconds for CDN propagation, and verifies all successful strategy pages once.'
     counts = [ordered]@{ total = $strategies.Count; passed = $passCount; failed = $strategies.Count - $passCount }
     publish = $batchPublish
     strategies = $results.ToArray()

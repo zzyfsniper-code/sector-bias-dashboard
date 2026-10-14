@@ -40,8 +40,21 @@ function Start-Sleep {
     Add-Content "$script:fixtureRoot/events.txt" "sleep-$Seconds"
 }
 function Invoke-WebRequest {
-    param($Uri, [switch]$UseBasicParsing, $TimeoutSec)
+    param($Uri, $Headers, [switch]$UseBasicParsing, $TimeoutSec)
+    if ($Uri -match 'api.github.com') {
+        Add-Content "$script:fixtureRoot/events.txt" 'build-status'
+        if ($Uri -match '/pages$') {
+            return [pscustomobject]@{StatusCode=200;Content='{"build_type":"legacy"}'}
+        }
+        $status = if ($script:scenario -eq 'build_fail') { 'errored' } else { 'built' }
+        if ($script:scenario -eq 'delayed_build' -and -not (Test-Path "$script:fixtureRoot/polled")) {
+            Set-Content "$script:fixtureRoot/polled" '1'
+            $status = 'building'
+        }
+        return [pscustomobject]@{StatusCode=200;Content="[{`"commit`":`"fixture-sha`",`"status`":`"$status`"}]"}
+    }
     Add-Content "$script:fixtureRoot/events.txt" 'online'
+    if ($script:scenario -eq 'center_fail' -and $Uri -match '/strategies/') { throw 'fixture HTTP 503' }
     $run = [uri]::UnescapeDataString(([string]$Uri -split 'run=')[1])
     if($script:scenario -eq 'stale' -and $Uri -match 'csi500-flow-leverage'){$run='old-run'}
     return [pscustomobject]@{StatusCode=200;Content=$run}
@@ -52,6 +65,28 @@ exit $LASTEXITCODE
 
 
 class ControllerTest(unittest.TestCase):
+    def test_unfinished_build_times_out_without_accepting_another_commit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            harness = Path(folder) / "check.ps1"
+            harness.write_text(r"""
+$ErrorActionPreference = 'Stop'
+$tokens=$null; $errors=$null
+$ast=[System.Management.Automation.Language.Parser]::ParseFile('__MASTER__',[ref]$tokens,[ref]$errors)
+$fn=$ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst]},$true) | Where-Object Name -eq 'Wait-GitHubPagesBuild'
+. ([scriptblock]::Create($fn.Extent.Text))
+function Invoke-WebRequest {
+  param($Uri, $Headers, [switch]$UseBasicParsing, $TimeoutSec)
+  if ($Uri -match '/pages$') { return [pscustomobject]@{Content='{"build_type":"legacy"}'} }
+  return [pscustomobject]@{Content='[{"commit":"other-commit","status":"built"},{"commit":"pending-commit","status":"building"}]'}
+}
+$result=Wait-GitHubPagesBuild 'pending-commit' -TimeoutSec 0
+if ($result.status -ne 'TIMEOUT') { throw 'Accepted a different commit or unfinished build' }
+""".replace("__MASTER__", str(ROOT / "run_daily_update.ps1")), encoding="utf-8-sig")
+            process = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
+                capture_output=True, timeout=30)
+            self.assertEqual(process.returncode, 0, process.stderr.decode(errors="replace"))
+
     def test_balance_error_is_readable_in_both_windows_encodings(self):
         with tempfile.TemporaryDirectory() as folder:
             directory = Path(folder)
@@ -104,7 +139,13 @@ if((Get-FailureStage $summary @()) -ne 'data_provider_insufficient_balance'){thr
             self.assertEqual(events.count("publish"), 1)
             if scenario != "publish_fail":
                 self.assertEqual(events[4:6], ["sleep-60", "sleep-60"])
-                self.assertEqual(events.count("online"), 4)
+                if scenario == "build_fail":
+                    self.assertEqual(events.count("online"), 0)
+                elif scenario == "center_fail":
+                    self.assertEqual(events.count("online"), 1)
+                else:
+                    self.assertEqual(events.count("online"), 4)
+                    self.assertIn("sleep-30", events)
             children = [json.loads((directory / f"child-{i}.json").read_text(encoding="utf-8-sig")) for i in range(3)]
             return process.returncode, result, children
 
@@ -135,6 +176,23 @@ if((Get-FailureStage $summary @()) -ne 'data_provider_insufficient_balance'){thr
         code, result, _ = self.exercise("publish_fail")
         self.assertEqual((code, result["status"]), (1, "FAIL"))
         self.assertEqual(result["strategies"][0]["failure_stage"], "batch_github_publish")
+
+    def test_delayed_build_waits_without_republishing_or_rechecking_pages(self):
+        code, result, children = self.exercise("delayed_build")
+        self.assertEqual((code, result["status"]), (0, "PASS"))
+        self.assertEqual(result["publish"]["build"]["attempts"], 2)
+        self.assertTrue(all(x["publish"]["online_status"] == "PASS" for x in children))
+
+    def test_build_failure_preserves_commit_and_skips_page_checks(self):
+        code, result, _ = self.exercise("build_fail")
+        self.assertEqual((code, result["status"]), (1, "FAIL"))
+        self.assertEqual(result["publish"]["status"], "PUSHED_SCOPED")
+        self.assertEqual(result["strategies"][0]["failure_stage"], "batch_pages_build")
+
+    def test_center_failure_records_actual_error(self):
+        code, result, _ = self.exercise("center_fail")
+        self.assertEqual((code, result["status"]), (1, "FAIL"))
+        self.assertIn("fixture HTTP 503", result["strategies"][0]["error_summary"])
 
 
 if __name__ == "__main__":
