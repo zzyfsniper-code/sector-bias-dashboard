@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {health,reportState,filterReports}=require('../../earnings-gap/monitor.js');
+const {health,reportState,filterReports,financialReport,reactionDay,marketState,dailyOverview}=require('../../earnings-gap/monitor.js');
 const now=new Date('2026-10-14T10:00:00+08:00');
 const monitor={version:'test',status:'PASS',source_status:'PASS',financial_asof:'2026-10-14',data_updated_at:'2026-10-14T08:30:00+08:00',counts:{announcements:0,processed:0,pending:0},attempt:{run_id:'1',started_at:'2026-10-14T08:25:00+08:00'}};
 const live={version:'test',updated_at:monitor.data_updated_at};
@@ -51,4 +51,45 @@ assert.deepEqual(filterReports(financeReports,'financial').map(x=>x.id),['eligib
 assert.equal(filterReports(financeReports,'all').length,3);
 assert.deepEqual(filterReports([],'financial'),[]);
 assert.equal(reportState({...report,profit_reason:{summary:'原文说明'}},[screened]).profit_reason.summary,'原文说明');
-console.log('MONITOR CHECKS PASS: 42 freshness, source, failure, loading, filter and live screening checks');
+const day='2026-10-15',stamp=day+'T08:30:00+08:00',end='2026-09-30';
+const first={id:'a',ts_code:'001359.SZ',name:'A',ann_date:day,end_date:end,complete:true,financial_eligible:true,result:'等待开盘',quarter_yoy:77};
+const previous={...first,id:'b',ts_code:'001207.SZ',name:'B',ann_date:'2026-10-14',reaction_date:day};
+const excluded={...first,id:'c',ts_code:'600000.SH',name:'C',financial_eligible:false,quarter_profit:-100,quarter_yoy:-50,reason:'单季净利润为负'};
+const dailyMonitor={version:'test',status:'PASS',source_status:'PASS',financial_asof:day,data_updated_at:stamp,reports:[first,{...first,id:'corrected',corrected:true},previous,excluded],financial_checks:{['live-'+first.ts_code+'-'+end+'-'+day]:{quarter_profit:1000000}}};
+const dailyLive={version:'test',status:'PASS',updated_at:stamp,financial_asof:day,calendar:['2026-10-14',day,'2026-10-16'],records:[]};
+const rejected={...first,status:'未入选',status_note:'高开不足2%',reaction_date:day,open_gap_pct:1.99,quote_fresh:true};
+const eligible={...previous,status:'观察',status_note:'当前满足买入条件',reaction_date:day,open_gap_pct:2.5,quote_fresh:true};
+const intraday=new Date(day+'T10:00:00+08:00');
+let overview=dailyOverview(dailyMonitor,dailyLive,[rejected,eligible],intraday);
+assert.equal(overview.announcements,2); // Company count, not duplicate notice count.
+assert.equal(overview.financial,1);
+assert.equal(overview.failures.length,1);
+assert.equal(overview.candidates.length,2); // Includes yesterday's notice reacting today.
+assert.equal(overview.market,1);
+assert.equal(overview.closing,null); // A pre-close snapshot cannot confirm closing trades.
+assert.equal(overview.candidates.find(r=>r.ts_code===first.ts_code).quarter_profit,1000000);
+assert.equal(overview.candidates.find(r=>r.ts_code===first.ts_code).market.failed,true);
+assert.equal(dailyOverview({...dailyMonitor,source_status:'FAILED'},dailyLive,[],intraday).announcements,null);
+assert.equal(dailyOverview({...dailyMonitor,financial_asof:'2026-10-14'},dailyLive,[],intraday).financial,null);
+assert.equal(dailyOverview(dailyMonitor,{...dailyLive,updated_at:'older'},[eligible],intraday).market,null);
+assert.equal(dailyOverview(dailyMonitor,dailyLive,[rejected,{...eligible,quote_fresh:false}],intraday).market,null);
+const filled={...first,reaction_date:day,result:'剔除',reason:'已补缺口'};
+assert.equal(marketState(filled,day).failed,true);
+assert.equal(marketState({...filled,complete:false},day).label,'待复核');
+assert.equal(marketState({...first,reaction_date:day,result:'观察',reason:'当前满足买入条件',quote_fresh:true},day).passed,true);
+assert.equal(marketState({...first,reaction_date:day,result:'观察',reason:'等待涨幅回落',quote_fresh:true},day).failed,true);
+assert.equal(marketState(filled,day,false).label,'待核验');
+assert.equal(reactionDay({...first,ann_date:'2026-10-17'},['2026-10-19'],'2026-10-17'),'2026-10-19');
+assert.equal(reactionDay({...first,ann_date:'2026-10-17'},[],'2026-10-17'),null);
+assert.equal(reactionDay(first,[],day),day);
+const checks={financial_checks:{['live-'+first.ts_code+'-'+end+'-2026-10-14']:{quarter_profit:10},['live-'+first.ts_code+'-'+end+'-2026-10-16']:{quarter_profit:999}}};
+assert.equal(financialReport(first,checks).quarter_profit,10); // Never use a future-dated check.
+const changedCorrection={...first,id:'corrected',corrected:true,financial_eligible:false,reason:'单季同比不足30%'};
+assert.equal(dailyOverview({...dailyMonitor,reports:[first,changedCorrection]},dailyLive,[],intraday).candidates.length,0);
+const closeStamp=day+'T15:20:00+08:00',closedLive={...dailyLive,updated_at:closeStamp,records:[{...eligible,entry_date:day}]};
+overview=dailyOverview({...dailyMonitor,data_updated_at:closeStamp},closedLive,[rejected,eligible],new Date(day+'T15:30:00+08:00'));
+assert.equal(overview.closing,1);
+assert.equal(overview.market,1);
+assert.equal(dailyOverview({...dailyMonitor,data_updated_at:closeStamp},closedLive,[],intraday).closing,null);
+assert.equal(dailyOverview({...dailyMonitor,data_updated_at:closeStamp,status:'PARTIAL'},closedLive,[],intraday).closing,null);
+console.log('MONITOR CHECKS PASS: health, daily date scopes, deduplication, corrections, missing data, gray states and closing confirmation');

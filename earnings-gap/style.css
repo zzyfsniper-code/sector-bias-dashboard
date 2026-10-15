@@ -100,21 +100,34 @@ dialog::backdrop{background:#17232b80}
 }
 
 .monitor-panel{border:1px solid var(--border);background:var(--card);padding:20px;margin:4px 0 24px}
-.monitor-heading{display:flex;align-items:center;justify-content:space-between;gap:14px}
-.monitor-heading>div{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
-.monitor-heading h2{font:700 21px/1.4 "STSong","SimSun",serif;margin:0}
-.monitor-status{padding:4px 9px;border-radius:3px;font-size:11px;background:#eee9e0;color:var(--muted)}
+.monitor-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:13px}
+.monitor-heading h2{font:700 21px/1.4 "STSong","SimSun",serif;margin:0}.monitor-today{font-size:12px;color:var(--muted)}
+.monitor-health{display:flex;align-items:center;flex-wrap:wrap;gap:7px 20px;padding:9px 12px;border:1px solid var(--border);font-size:11px;color:var(--muted)}
+.monitor-health strong{margin-left:5px;font-weight:600}.monitor-health-time{margin-left:auto}.monitor-health button{font-size:11px;padding:4px 10px}
+.monitor-status{padding:3px 8px;border-radius:3px;font-size:11px;background:#eee9e0;color:var(--muted)}
 .monitor-status.pass{color:var(--green);background:#e5f1eb}.monitor-status.warn{color:#94611a;background:#f6ecd8}.monitor-status.running{color:#59666c;background:#eee9e0}.monitor-status.bad{color:var(--red);background:#f4e5df}
-#monitorExplanation{font-size:12px;color:var(--muted);line-height:1.8;margin:12px 0}
-.monitor-metrics{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);margin:14px 0}
-.monitor-metrics>div{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.monitor-metrics>div+div{border-left:1px solid var(--border)}.monitor-metrics span{font-size:11px;color:var(--muted)}.monitor-metrics strong{font:700 23px/1 serif}
-.monitor-meta{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:11px;color:var(--muted)}
-#monitorDetails{margin-top:16px;border-top:1px solid var(--border);padding-top:13px}
-#monitorDetails summary{font-size:12px;color:var(--accent);cursor:pointer}#monitorScope{font-size:11px;color:var(--muted);line-height:1.8}
-.monitor-table{overflow:auto;border:1px solid var(--border);max-height:460px}.monitor-table .sub{white-space:normal;max-width:340px}.monitor-table th{position:sticky;top:0;z-index:1}
-.monitor-filter{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin:12px 0}.monitor-table .profit-reason{white-space:normal;min-width:240px;max-width:300px;line-height:1.8}.reason-evidence{font-size:11px;margin-top:5px}.reason-evidence summary{font-size:11px!important}.reason-evidence p{white-space:pre-line;color:var(--muted);margin:6px 0 0}
-.monitor-download{display:flex;justify-content:space-between;gap:12px;font-size:11px;margin-top:10px;color:var(--muted)}
-.monitor-footnote{font-size:10px;color:var(--muted);line-height:1.8;margin:14px 0 0}
-@media(max-width:650px){.monitor-panel{padding:14px}.monitor-heading h2{font-size:19px}.monitor-heading button{white-space:nowrap}.monitor-metrics{grid-template-columns:repeat(2,1fr)}.monitor-metrics>div{padding:11px}.monitor-metrics>div:nth-child(3){border-left:0}.monitor-metrics>div:nth-child(n+3){border-top:1px solid var(--border)}}
-#monitorExplanation.monitor-alert{padding:10px 12px;border-left:3px solid currentColor}#monitorExplanation.bad{color:var(--red);background:#f4e5df}#monitorExplanation.warn{color:#94611a;background:#f6ecd8}
+#monitorExplanation{font-size:11px;color:var(--muted);line-height:1.8;margin:10px 0}
+#monitorExplanation.monitor-alert{padding:8px 10px;border-left:3px solid currentColor}#monitorExplanation.bad{color:var(--red);background:#f4e5df}#monitorExplanation.warn{color:#94611a;background:#f6ecd8}
+.monitor-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--border);margin:16px 0 0;height:53px}
+.monitor-metrics>div{padding:0 15px;display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0}
+.monitor-metrics>div+div{border-left:1px solid var(--border)}.monitor-metrics>div.financial-pass{background:#f0f5f0;box-shadow:inset 0 2px var(--green)}
+.monitor-metrics span{font-size:12px;color:var(--muted);white-space:nowrap}.monitor-metrics small{font-size:9px;margin-left:5px;background:#eeeae3;border-radius:2px;padding:1px 4px;color:#8c9790}
+.monitor-metrics strong{font:500 25px/1 Georgia,serif;white-space:nowrap}.monitor-metrics .financial-pass strong{color:var(--green)}.monitor-metrics .text-value{font:500 13px/1.4 "Microsoft YaHei",sans-serif;color:#90998f}
+.monitor-footnote{font-size:10px;color:var(--muted);line-height:1.8;margin:13px 0 0}.daily-scope{margin:7px 0 17px}
+.daily-list,.daily-failures{border:1px solid var(--border)}.daily-failures{margin-top:15px}
+.daily-list-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:7px 13px;border-bottom:1px solid var(--border);font-size:10px;color:var(--muted)}
+.daily-list-heading h3{font-size:13px;font-weight:600;color:var(--ink);margin:0}.daily-list-heading h3 span{margin-left:7px;font-size:10px;font-weight:400;color:var(--green);background:#e5f1eb;padding:2px 6px;border-radius:3px}
+.daily-legend{color:#596b73}.daily-legend span{color:#9da3a0}.daily-list-footer{padding:9px 13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;background:#faf8f3;border-top:1px solid var(--border);font-size:10px;color:var(--muted)}.daily-list-footer button{font-size:10px}
+.monitor-table{overflow:auto;max-height:460px}.monitor-table table{min-width:680px}.daily-table table{min-width:1060px}
+.monitor-table th{position:sticky;top:0;z-index:1;font-size:10px;padding:6px 12px;line-height:1.6}
+.monitor-table td{height:48px;padding:5px 12px;font-size:11px;line-height:1.4}.monitor-table .stock{font-size:13px}.monitor-table .sub{font-size:10px;line-height:1.4;margin-top:1px}
+.monitor-table .empty{height:auto;padding:25px;text-align:center;white-space:normal}.monitor-table .pill{font-size:10px;padding:3px 7px}
+.candidate-rejected .stock,.candidate-rejected .sub{color:#9da3a0}.candidate-rejected .num .sub{color:var(--muted)}.candidate-pending .stock{color:var(--muted)}
+#monitorDetails{margin-top:17px;border:1px solid var(--border);background:#faf8f3;padding:0}
+#monitorDetails>summary{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:12px 13px;font-size:12px;color:var(--accent);cursor:pointer}
+#monitorDetails>summary::before{content:"▸";font-size:10px}#monitorDetails[open]>summary::before{content:"▾"}
+#monitorScope{font-size:11px;color:var(--muted)}#monitorDetails .monitor-table{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--card)}
+.monitor-filter{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;margin:0;padding:8px 13px}.monitor-filter select{font-size:11px;padding:3px 7px}
+.monitor-download{display:flex;justify-content:space-between;gap:12px;font-size:11px;padding:10px 13px;color:var(--muted)}
+.simulation-heading{display:flex;align-items:center;justify-content:space-between;margin:22px 0 13px}.simulation-heading h2{font:700 21px/1.4 "STSong","SimSun",serif;margin:0}.simulation-heading>span{font-size:12px;color:var(--muted)}.simulation-heading strong{font-size:18px;color:var(--ink);margin-left:8px}
+@media(max-width:650px){.monitor-panel{padding:14px}.monitor-heading h2{font-size:19px}.monitor-health{gap:8px 13px}.monitor-health-time{margin-left:0}.monitor-metrics{grid-template-columns:repeat(2,minmax(0,1fr));height:auto}.monitor-metrics>div{height:48px;padding:0 11px}.monitor-metrics small{display:none}.monitor-metrics>div:nth-child(3){border-left:0}.monitor-metrics>div:nth-child(n+3){border-top:1px solid var(--border)}.monitor-download{flex-wrap:wrap}.simulation-heading h2{font-size:18px}}

@@ -17,9 +17,8 @@ if(!record.entry_date&&row.quote_fresh&&row.reaction_date===day&&q.low<=q.previo
 if(!record.entry_date&&breaches[record.id]&&row.reaction_date===day)row={...row,status:'剔除',status_note:'已补缺口'};
 return row;});try{localStorage.setItem('eg-gap-breaches-v1',JSON.stringify({day,ids:breaches}));}catch{}
 window.EarningsGapMonitoring.setScreening(forward,screeningReady);return [...forward,...history];}
-function render(){rows=currentRows();const day=core.chinaTime(new Date()).day,today=rows.filter(r=>r.origin==='forward'&&(r.reaction_date||r.ann_date)===day&&r.open_gap_pct>=2);
-$('todayCount').textContent=today.length;$('readyCount').textContent=today.filter(r=>r.status==='买入'||r.status==='观察'&&r.status_note==='当前满足买入条件').length;
-$('rejectedCount').textContent=today.filter(r=>r.status==='剔除').length;$('holdingCount').textContent=rows.filter(r=>['持有','买入','卖出提示'].includes(r.status)).length;
+function render(){rows=currentRows();const day=core.chinaTime(new Date()).day;
+$('holdingCount').textContent=rows.filter(r=>['持有','买入','卖出提示'].includes(r.status)).length;
 const range=$('dateFilter').value,period=$('periodFilter').value,status=$('statusFilter').value,search=$('search').value.trim().toLowerCase(),cutoff=new Date(`${day}T00:00:00+08:00`).getTime()-30*86400000;
 let selected=rows.filter(r=>r.status!=='未入选'&&(!period||r.report_period===period)&&(!search||`${r.name} ${r.ts_code}`.toLowerCase().includes(search))&&(!status||(status==='卖出'?['卖出','已卖出','卖出提示'].includes(r.status):status==='待核验'?['待核验','待更新','等待开盘'].includes(r.status):r.status===status)));
 if(range==='today')selected=selected.filter(r=>(r.reaction_date||r.ann_date)===day);else if(range==='30')selected=selected.filter(r=>new Date(r.reaction_date||r.ann_date).getTime()>=cutoff);

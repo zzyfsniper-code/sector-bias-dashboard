@@ -46,22 +46,19 @@ class ProfitReasonsTest(unittest.TestCase):
             value = explanation('净利润_本报告期', '主要系销售价格上涨所致。', '', end, 2, 'table')
             self.assertEqual(value['scope'], expected)
 
-    def test_daily_monitor_finish_persists_causes_without_changing_signal_counts(self):
+    def test_daily_monitor_finish_keeps_counts_without_reading_profit_explanations(self):
         import json
         import tempfile
         from pathlib import Path
         import monitoring
         from test_monitoring import build, NOW
         snapshot = build(); expected = dict(snapshot['counts'])
-        def add_reasons(rows, previous):
-            rows[0]['profit_reason'] = {'status': 'FOUND', 'summary': '主要系销量增加所致。'}
-            return {'FOUND': 1}
-        with tempfile.TemporaryDirectory() as folder, patch.object(monitoring, 'DATA', Path(folder)), patch.object(monitoring, 'build', return_value=snapshot), patch('profit_reasons.enrich', side_effect=add_reasons):
+        with tempfile.TemporaryDirectory() as folder, patch.object(monitoring, 'DATA', Path(folder)), patch.object(monitoring, 'build', return_value=snapshot), patch('profit_reasons.enrich', side_effect=AssertionError('Profit explanations must not be fetched')):
             monitoring.finish({}, [], [], {}, NOW, None, None, {})
             saved = json.loads((Path(folder)/'monitor.json').read_text('utf-8'))
             self.assertEqual(saved['counts'], expected)
-            self.assertEqual(saved['profit_reason_counts'], {'FOUND': 1})
-            self.assertEqual(saved['reports'][0]['profit_reason']['status'], 'FOUND')
+            self.assertNotIn('profit_reason_counts',saved)
+            self.assertNotIn('profit_reason',saved['reports'][0])
 
     def test_cache_keeps_report_and_correction_separate(self):
         previous = [{'url': 'old', 'profit_reason': {'status': 'FOUND', 'summary': '已核验', 'extractor': EXTRACTOR}}]

@@ -24,6 +24,7 @@ class MonitoringTest(unittest.TestCase):
     def test_full_coverage_and_quarter_not_cumulative(self):
         result=build();self.assertEqual(result['status'],'PASS');self.assertEqual(result['counts']['processed'],1)
         self.assertEqual(result['reports'][0]['quarter_yoy'],100);self.assertEqual(result['counts']['financial_candidates'],1)
+        self.assertEqual(result['reports'][0]['quarter_profit'],40)
     def test_announcement_without_finance_is_not_zero_signals_success(self):
         result=build(finance=[]);self.assertEqual(result['status'],'PARTIAL');self.assertEqual(result['counts']['pending'],1)
         self.assertEqual(result['reports'][0]['result'],'待补数据')

@@ -108,7 +108,7 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
         by_period.setdefault((row['SECUCODE'], row['REPORTDATE'][:10]), row)
     records = {r['id']: r for r in payload['records']}; rows = []
     for notice in sorted(catalog.values(), key=lambda n: (n['ann_date'], n['id']), reverse=True):
-        item = dict(notice, complete=False, quarter_yoy=None, financial_eligible=False)
+        item = dict(notice, complete=False, quarter_profit=None, quarter_yoy=None, financial_eligible=False)
         row = by_period.get((notice['ts_code'], notice['end_date']))
         if notice['name'].upper().startswith(('ST', '*ST')):
             item.update(complete=True, result='已排除', reason='ST股票')
@@ -118,7 +118,7 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
             item.update(complete=True, result='已排除', reason='同日采用更新报告期')
         else:
             check = checks.get(report_id(row), {})
-            item.update(complete=check.get('complete', False), quarter_yoy=check.get('quarter_yoy'),
+            item.update(complete=check.get('complete', False), quarter_profit=check.get('quarter_profit'), quarter_yoy=check.get('quarter_yoy'),
                         financial_eligible=check.get('eligible', False), result='已筛选' if check.get('complete') else '待补数据',
                         reason=check.get('reason', '缺少可核验的单季财务数据'))
             if notice['corrected']:
@@ -156,8 +156,6 @@ def finish(payload, finance_rows, selected_rows, previous, started_at, fetch_not
     path = DATA / 'announcement_checks.json'
     verified = json.loads(path.read_text('utf-8')) if path.exists() else {}
     value = build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_histories, meta, verified)
-    from profit_reasons import enrich
-    value['profit_reason_counts'] = enrich(value['reports'], previous.get('reports', []))
     value['attempt'] = attempt('success', started_at)
     write_monitor(value)
     return value
