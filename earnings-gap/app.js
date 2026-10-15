@@ -16,7 +16,7 @@ const q=networkOk&&live.financial_asof===day?quotes[symbols(record.ts_code)]:nul
 if(!record.entry_date&&row.quote_fresh&&row.reaction_date===day&&q.low<=q.previous&&row.open_gap_pct>=2)breaches[record.id]=true;
 if(!record.entry_date&&breaches[record.id]&&row.reaction_date===day)row={...row,status:'剔除',status_note:'已补缺口'};
 return row;});try{localStorage.setItem('eg-gap-breaches-v1',JSON.stringify({day,ids:breaches}));}catch{}
-return [...forward,...history];}
+window.EarningsGapMonitoring.setScreening(forward);return [...forward,...history];}
 function render(){rows=currentRows();const day=core.chinaTime(new Date()).day,today=rows.filter(r=>r.origin==='forward'&&(r.reaction_date||r.ann_date)===day&&r.open_gap_pct>=2);
 $('todayCount').textContent=today.length;$('readyCount').textContent=today.filter(r=>r.status==='买入'||r.status==='观察'&&r.status_note==='当前满足买入条件').length;
 $('rejectedCount').textContent=today.filter(r=>r.status==='剔除').length;$('holdingCount').textContent=rows.filter(r=>['持有','买入','卖出提示'].includes(r.status)).length;
@@ -31,15 +31,15 @@ const kind=r.status==='买入'?'buy':r.status==='观察'?'watch':r.status==='持
 const url=safeUrl(r.announcement_url);
 const original=url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" title="${esc(r.announcement_title||'公告原文')}">原文 ↗</a>`:`<a href="https://www.cninfo.com.cn/new/fulltextSearch?notautospecific=&keyWord=${encodeURIComponent(r.ts_code.slice(0,6)+' '+r.end_date.slice(0,4)+'年'+periods[r.report_period]+'报告')}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" title="原文尚未精确匹配，前往巨潮检索">检索 ↗</a>`;
 return `<tr><td title="开盘涨幅 ${r.open_gap_pct?.toFixed(2)??'—'}%"><span class="stock">${esc(r.name)}</span><span class="sub">${esc(r.ts_code)}</span></td><td>${esc(r.industry||'—')}</td><td>${esc(r.end_date.slice(0,4))}${periods[r.report_period]}${r.report_period==='FY'?'<span class="sub">单季为第四季度</span>':''}</td><td>${esc(r.ann_date)}</td><td class="num">${pct(r.quarter_yoy)}</td><td class="num">${pct(r.signal_return_pct)}</td><td><span class="pill ${kind}">${esc(r.status)}</span><span class="sub">${esc(r.status_note||r.exit_reason||'')}</span></td><td>${esc(r.entry_date||'—')}${r.entry_date?`<span class="sub">${price(r.entry_price)}元</span>`:''}</td><td>${esc(r.exit_date||'—')}${r.exit_date?`<span class="sub">${price(r.exit_price)}元 · ${esc(r.exit_reason||'')}${r.status==='卖出提示'?' · 待收盘归档':''}</span>`:''}</td><td class="num">${pct(r.profit_pct)}</td><td>${original}</td></tr>`;
-}).join(''):'<tr><td colspan="11" class="empty">当前筛选下暂无记录。可切换“全部”查看历史信号。</td></tr>';
+}).join(''):'<tr><td colspan="11" class="empty">当前筛选下暂无断层信号。财务候选及行情筛选原因见上方监控记录；可切换“全部”查看历史信号。</td></tr>';
 }
 function warning(){const list=[...(live.issues||[])],today=core.chinaTime(new Date()).day;if(live.financial_asof&&live.financial_asof<today)list.unshift(`财务候选尚未更新至今天，上次为${live.financial_asof}；今日新财报可能遗漏。`);$('dataWarning').hidden=!list.length;$('dataWarning').textContent=list.slice(0,4).join('；');}
 async function refresh(){if(busy||document.hidden)return;busy=true;$('refreshButton').disabled=true;
 try{const fresh=await json('live');if(fresh.version!==backtest.version)throw Error('策略版本不一致');live=fresh;$('financialTime').textContent=live.updated_at?.replace('T',' ').slice(0,19)||'—';warning();window.EarningsGapMonitoring.setLive(live);
 const watch=[...new Set(['sh000001',...live.records.filter(r=>!r.exit_date&&!['未入选','剔除'].includes(r.status)).map(r=>symbols(r.ts_code))])],chunks=[];for(let i=0;i<watch.length;i+=60)chunks.push(watch.slice(i,i+60));
 let found={};for(let i=0;i<chunks.length;i+=4){const result=await Promise.all(chunks.slice(i,i+4).map(async codes=>{const r=await fetchTimed(`https://qt.gtimg.cn/q=${codes.join(',')}&_=${Date.now()}`,12000);return core.parseQuotes(new TextDecoder('gbk').decode(await r.arrayBuffer()));}));result.forEach(x=>Object.assign(found,x));}
-quotes=found;networkOk=true;const valid=Object.values(quotes).filter(q=>core.freshness(q,new Date()).ok),stamp=valid.map(q=>q.timestamp).sort().at(-1);
-$('quoteStatus').className=valid.length?'live':'offline';$('quoteStatus').textContent=stamp?`行情 ${stamp.slice(8,10)}:${stamp.slice(10,12)}:${stamp.slice(12,14)} · ${$('refreshInterval').value}秒刷新`:'当前无当天有效行情，暂停确认买卖';render();
+quotes=found;networkOk=true;const now=new Date(),valid=Object.values(quotes).filter(q=>core.freshness(q,now).ok),stamp=valid.map(q=>q.timestamp).sort().at(-1),missing=watch.filter(code=>code!=='sh000001'&&!core.freshness(quotes[code],now).ok);
+$('quoteStatus').className=valid.length&&!missing.length?'live':'offline';$('quoteStatus').textContent=missing.length?`${missing.length}只跟踪股票行情缺失或过期，暂停对应买卖确认`:stamp?`行情 ${stamp.slice(8,10)}:${stamp.slice(10,12)}:${stamp.slice(12,14)} · ${$('refreshInterval').value}秒刷新`:'当前无当天有效行情，暂停确认买卖';render();
 }catch(e){networkOk=false;$('quoteStatus').className='offline';$('quoteStatus').textContent=`更新失败，暂停确认买卖 · ${e.message}`;render();}finally{busy=false;$('refreshButton').disabled=false;}}
 function details(){
 const rules=[['报告来源','仅正式财报；一季报、中报、三季报、年报均保留。'],['财务条件','单季归母净利润≥0，单季同比≥30%。中报取第二季度，年报取第四季度。'],['断层条件','公告反应日高开≥2%；当日最低价严格高于前一交易日收盘价。'],['收盘涨幅','中报严格&lt;5%；其他报告期严格&lt;7%。'],['买入时点','断层当天收盘；盘中满足只作为观察提示，供临近收盘人工判断。'],['止盈／止损','相对买入价+10%止盈、−8%初始止损。'],['利润保护','某交易日收盘浮盈≥5%，从下一交易日起将止损上移至买入价+2%；触发后不回退。'],['时间离场','含买入日在内，第10个市场交易日收盘退出；停牌或跌停无法卖出时顺延。'],['基础限制','沪深A股，非ST，上市满90个自然日；可成交且执行T+1。'],['组合回测','最多5只持仓，每笔参考前一日净值的20%；整数100股及成交额约束，同股不重叠。'],['额外筛选','不加盈利金额、放量、行业、市值、公告前涨幅或市场状态门槛。']];

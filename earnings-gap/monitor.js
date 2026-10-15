@@ -1,7 +1,7 @@
 (function(root){
 'use strict';
 const china=now=>new Date(now.getTime()+8*3600000).toISOString();
-function health(monitor,live,job,now=new Date(),errors=[]){
+function health(monitor,live,job,now=new Date(),errors=[],screened=[]){
  const cn=china(now),day=cn.slice(0,10),minutes=Number(cn.slice(11,13))*60+Number(cn.slice(14,16)),weekday=new Date(day+'T00:00:00Z').getUTCDay(),messages=[];
  let severity=0;const add=(level,text)=>{severity=Math.max(severity,level);messages.push(text);};
  if(!monitor)return {severity:3,title:'监控数据待核验',messages:['未取得监控记录，无法确认公告是否完整处理。',...errors]};
@@ -21,18 +21,29 @@ function health(monitor,live,job,now=new Date(),errors=[]){
   if(job&&china(new Date(job.created_at)).slice(0,10)<day)add(3,'今天尚无线上任务执行记录');
   if(minutes>=945&&(!monitor.data_updated_at||Date.parse(monitor.data_updated_at)<Date.parse(day+'T15:10:00+08:00')))add(active?1:3,'今日收盘归档尚未完成');
  }
+ if(weekday>0&&weekday<6&&((minutes>=570&&minutes<=690)||(minutes>=780&&minutes<900))){
+  const missing=screened.filter(r=>r.quote_fresh===false&&!r.exit_date&&!['未入选','剔除'].includes(r.status));
+  if(missing.length)add(3,`${missing.length}只跟踪股票行情缺失或过期，暂停对应买卖确认`);
+ }
  errors.forEach(text=>add(2,text));
  return {severity,title:severity>=3?'监控异常':severity===2?'存在待核验事项':severity===1?'更新进行中':'公告与筛选正常',messages};
 }
-const api={health};root.EarningsGapMonitoring=api;if(typeof module!=='undefined')module.exports=api;
+function reportState(report,screened=[]){
+ if(!report.complete||!report.financial_eligible)return report;
+ const trade=screened.filter(r=>r.ts_code===report.ts_code&&r.end_date===report.end_date).sort((a,b)=>b.ann_date.localeCompare(a.ann_date))[0];
+ return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh}:report;
+}
+const api={health,reportState};root.EarningsGapMonitoring=api;if(typeof module!=='undefined')module.exports=api;
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const periods={'03':'一季报','06':'中报','09':'三季报','12':'年报'},format=value=>value?new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
-let monitor=null,live=null,job=null,errors=[],busy=false;
-api.setLive=value=>{live=value;render();};
+let monitor=null,live=null,job=null,errors=[],busy=false,screened=[];
+api.setLive=value=>{if(live?.updated_at!==value.updated_at)screened=[];live=value;render();};
+api.setScreening=value=>{screened=value;render();};
+const percent=value=>Number.isFinite(value)?`${value>0?'+':''}${value.toFixed(2)}%`:'—';
 function render(){
  if(!$('monitorStatus'))return;
- const state=health(monitor,live,job,new Date(),errors);
+ const state=health(monitor,live,job,new Date(),errors,screened);
  $('monitorStatus').textContent=state.title;$('monitorStatus').className='monitor-status '+(state.severity>=3?'bad':state.severity===2?'warn':state.severity===1?'running':'pass');
  $('monitorExplanation').textContent=state.messages.length?state.messages.join('；'):'公告清单已核对，筛选记录完整。符合财务条件后仍需通过反应日行情筛选。';
  $('monitorExplanation').className=state.severity>=3?'monitor-alert bad':state.severity===2?'monitor-alert warn':'';
@@ -43,8 +54,8 @@ function render(){
  $('monitorRun').textContent=job?`${job.status==='completed'?(job.conclusion==='success'?'成功':'失败'):'执行中'}（${job.event==='schedule'?'定时':'手动'}） · ${format(job.created_at)}`:'任务状态待核验';
  $('monitorRun').href=job?.html_url||monitor?.attempt?.run_url||'https://github.com/zzyfsniper-code/sector-bias-dashboard/actions/workflows/earnings-gap-data.yml';
  $('monitorScope').textContent=monitor?`核对范围 ${monitor.window_start} 至 ${monitor.financial_asof}；${monitor.counts?.companies??'—'}家公司；今日标注公告 ${monitor.counts?.today_announcements??'—'}条。更正报告单独记录。公告标注日用于确定行情反应日。`:'正在核对公告覆盖范围…';
- const reports=monitor?.reports||[];$('monitorDetailsLabel').textContent=`查看公告与筛选记录（${reports.length}条）`;
- $('monitorReports').innerHTML=reports.length?reports.slice(0,50).map(r=>`<tr><td>${esc(r.ann_date)}</td><td>${esc(r.name)}<span class="sub">${esc(r.ts_code)}</span></td><td>${esc(r.end_date.slice(0,4))}${periods[r.end_date.slice(5,7)]||''}${r.corrected?'（更正）':''}</td><td class="num">${r.quarter_yoy==null?'—':Number(r.quarter_yoy).toFixed(2)+'%'}</td><td>${esc(r.result)}<span class="sub">${esc(r.reason)}</span></td><td><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">原文 ↗</a></td></tr>`).join(''):`<tr><td colspan="6" class="empty">${confirmed?'核对范围内暂无正式公告。':'公告覆盖尚未核验，不能据此认定没有公告。'}</td></tr>`;
+ const reports=(monitor?.reports||[]).map(r=>reportState(r,screened));$('monitorDetailsLabel').textContent=`查看公告与筛选记录（${reports.length}条）`;
+ $('monitorReports').innerHTML=reports.length?reports.slice(0,50).map(r=>`<tr><td>${esc(r.ann_date)}</td><td>${esc(r.name)}<span class="sub">${esc(r.ts_code)}</span></td><td>${esc(r.end_date.slice(0,4))}${periods[r.end_date.slice(5,7)]||''}${r.corrected?'（更正）':''}</td><td class="num">${r.quarter_yoy==null?'—':Number(r.quarter_yoy).toFixed(2)+'%'}</td><td>${esc(r.result)}<span class="sub">${esc(r.reason)}</span>${Number.isFinite(r.open_gap_pct)?`<span class="sub">开盘 ${percent(r.open_gap_pct)} · 当日 ${percent(r.signal_return_pct)}</span>`:''}${r.quote_fresh&&r.quote_time?`<span class="sub">行情 ${esc(r.quote_time)}</span>`:''}</td><td><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">原文 ↗</a></td></tr>`).join(''):`<tr><td colspan="6" class="empty">${confirmed?'核对范围内暂无正式公告。':'公告覆盖尚未核验，不能据此认定没有公告。'}</td></tr>`;
  $('monitorRowsNote').textContent=reports.length>50?`显示最近50条，共${reports.length}条，可下载全部记录。`:'';
 }
 async function fetchJson(url){const c=new AbortController(),t=setTimeout(()=>c.abort(),15000);try{const r=await fetch(url,{cache:'no-store',signal:c.signal});if(!r.ok)throw Error(`HTTP ${r.status}`);return await r.json();}finally{clearTimeout(t);}}
