@@ -111,7 +111,7 @@ dialog::backdrop{background:#17232b80}
 .monitor-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--border);margin:16px 0 0;height:53px}
 .monitor-metrics>div{padding:0 15px;display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0}
 .monitor-metrics>div+div{border-left:1px solid var(--border)}.monitor-metrics>div.financial-pass{background:#f0f5f0;box-shadow:inset 0 2px var(--green)}
-.monitor-metrics span{font-size:12px;color:var(--muted);white-space:nowrap}.monitor-metrics small{font-size:9px;margin-left:5px;background:#eeeae3;border-radius:2px;padding:1px 4px;color:#8c9790}
+.monitor-metrics span{font-size:12px;color:var(--muted);white-space:nowrap}
 .monitor-metrics strong{font:500 25px/1 Georgia,serif;white-space:nowrap}.monitor-metrics .financial-pass strong{color:var(--green)}.monitor-metrics .text-value{font:500 13px/1.4 "Microsoft YaHei",sans-serif;color:#90998f}
 .monitor-footnote{font-size:10px;color:var(--muted);line-height:1.8;margin:13px 0 0}.daily-scope{margin:7px 0 17px}
 .daily-list,.daily-failures{border:1px solid var(--border)}.daily-failures{margin-top:15px}
@@ -130,4 +130,4 @@ dialog::backdrop{background:#17232b80}
 .monitor-filter{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;margin:0;padding:8px 13px}.monitor-filter select{font-size:11px;padding:3px 7px}
 .monitor-download{display:flex;justify-content:space-between;gap:12px;font-size:11px;padding:10px 13px;color:var(--muted)}
 .simulation-heading{display:flex;align-items:center;justify-content:space-between;margin:22px 0 13px}.simulation-heading h2{font:700 21px/1.4 "STSong","SimSun",serif;margin:0}.simulation-heading>span{font-size:12px;color:var(--muted)}.simulation-heading strong{font-size:18px;color:var(--ink);margin-left:8px}
-@media(max-width:650px){.monitor-panel{padding:14px}.monitor-heading h2{font-size:19px}.monitor-health{gap:8px 13px}.monitor-health-time{margin-left:0}.monitor-metrics{grid-template-columns:repeat(2,minmax(0,1fr));height:auto}.monitor-metrics>div{height:48px;padding:0 11px}.monitor-metrics small{display:none}.monitor-metrics>div:nth-child(3){border-left:0}.monitor-metrics>div:nth-child(n+3){border-top:1px solid var(--border)}.monitor-download{flex-wrap:wrap}.simulation-heading h2{font-size:18px}}
+@media(max-width:650px){.monitor-panel{padding:14px}.monitor-heading h2{font-size:19px}.monitor-health{gap:8px 13px}.monitor-health-time{margin-left:0}.monitor-metrics{grid-template-columns:repeat(2,minmax(0,1fr));height:auto}.monitor-metrics>div{height:48px;padding:0 11px}.monitor-metrics>div:nth-child(3){border-left:0}.monitor-metrics>div:nth-child(n+3){border-top:1px solid var(--border)}.monitor-download{flex-wrap:wrap}.simulation-heading h2{font-size:18px}}
