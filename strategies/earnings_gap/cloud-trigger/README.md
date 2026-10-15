@@ -1,6 +1,8 @@
 # 净利润断层独立云端触发
 
-这是 Cloudflare Workers Cron 的部署源码。2026年10月15日已完成账号授权、Worker 部署、Secret 配置及云端 cron 读回核对；截至10:30，首次常规定时执行仍待当日15:20验收。它只调用现有 GitHub 更新任务，不承担选股计算，不改变策略规则，也不替换 GitHub Pages。
+这是 Cloudflare Workers Cron 的部署源码。它只调用现有 GitHub 更新任务，不承担选股计算，不改变策略规则，也不替换 GitHub Pages。
+
+2026年10月15日15:20、15:30的真实定时事件暴露了请求参数兼容问题：当前 workerd 不接受 `redirect: 'error'`，请求发出前即报错。16:06已部署修复版本 `838e5714-31cf-465f-8c1e-d7392177358a`，改用 `manual`；现有 HTTP 状态检查继续拒绝重定向，不会跟随跳转传递凭据。原定时配置、去重和超时不立即重试的边界不变。当前状态为“已部署、运行内核回归通过，待下一次真实定时验收”；人工补跑不能代替定时验收。
 
 ## 运行方式
 
@@ -21,10 +23,10 @@ Worker 不开放公共访问地址。任务结果写入 Cloudflare 日志和调�
 
 在此目录使用 Node.js 22 或更高版本，先通过 `npm ci` 安装锁定版本的依赖。
 
-1. 执行 `npm test`，检查更新判断、早晚分离、任务去重、错误恢复、凭据隔离和超时边界。
+1. 执行 `npm test`，检查更新判断、早晚分离、任务去重、错误恢复、凭据隔离和超时边界。测试包含21项检查，其中5项使用锁定版本的真实 workerd 内核和原生 fetch；所有外发请求均在本地截获，使用测试凭据，不访问生产接口。旧请求参数会使这组运行内核测试失败。
 2. 执行 `npm exec -- wrangler deploy --dry-run --outdir .build`，验证 Worker 配置和打包；此步不会部署。
 3. 首次使用本机发布工具时，执行 `npm exec -- wrangler login --use-keyring` 完成浏览器授权，执行 `npm exec -- wrangler whoami` 确认账号。本机 Windows 已安装 Wrangler 要求的系统凭据库组件。若存在多个账号，先明确目标账号再部署。Cloudflare MCP 连接与发布工具分别授权。
-4. 执行 `npm run deploy` 部署此配置。GitHub 凭据必须保存为名为 `GITHUB_TOKEN` 的 Worker Secret。推荐只授权目标仓库、Actions 读写权限的独立细粒度令牌；不需要 Contents 写权限。不得放入源码、普通变量、前端或日志。通过工具配置时，从既有环境变量经标准输入传给 `wrangler secret put GITHUB_TOKEN`，不要将值拼进命令行或写入文件。新账号必须先初始化 Workers 的 workers.dev 子域，即使 Worker 不开放访问地址；本次已创建账号子域 `zzyfsniper-code.workers.dev`，未开放 Worker 公共地址。
+4. 执行 `npm run deploy` 部署此配置；`predeploy` 自动运行上述测试，失败时停止发布，不要绕过它直接部署。GitHub 凭据必须保存为名为 `GITHUB_TOKEN` 的 Worker Secret。推荐只授权目标仓库、Actions 读写权限的独立细粒度令牌；不需要 Contents 写权限。不得放入源码、普通变量、前端或日志。通过工具配置时，从既有环境变量经标准输入传给 `wrangler secret put GITHUB_TOKEN`，不要将值拼进命令行或写入文件。新账号必须先初始化 Workers 的 workers.dev 子域，即使 Worker 不开放访问地址；本次已创建账号子域 `zzyfsniper-code.workers.dev`，未开放 Worker 公共地址。
 5. 读取云端部署版本、Secret 名称和实际 cron 配置，逐项确认。Cloudflare cron 变更最多可能需要 15 分钟传播。检查云端日志中实际发生的 scheduled 事件；若快照已更新，应记录 fresh 并不新增 GitHub 任务。
 6. 补触发验收必须证明一次真实云端 scheduled 事件使 GitHub 创建任务，再核对任务成功、live.json/monitor.json 同步和线上页面正常。若当日快照已新，等待下一次常规定时；不得把本机手动 workflow_dispatch 或本地测试称为云端触发验收。
 

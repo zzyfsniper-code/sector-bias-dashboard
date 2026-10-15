@@ -16,7 +16,7 @@ function mock({ runs = [previous], data = live, status = monitor, pagesFail = fa
     calls.push({ url, options });
     if (url.includes('api.github.com')) {
       assert.equal(options.headers.Authorization, 'Bearer test-only');
-      assert.equal(options.redirect, 'error');
+      assert.equal(options.redirect, 'manual');
       if (url.includes('/runs?')) return new Response(JSON.stringify({ workflow_runs: runs }), { status: listFail ? 403 : 200 });
       assert.equal(url, 'https://api.github.com/repos/zzyfsniper-code/sector-bias-dashboard/actions/workflows/earnings-gap-data.yml/dispatches');
       assert.equal(options.method, 'POST');
@@ -25,7 +25,7 @@ function mock({ runs = [previous], data = live, status = monitor, pagesFail = fa
       return new Response(null, { status: dispatchStatus });
     }
     assert.equal(options.headers, undefined);
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     if (pagesFail) return new Response(null, { status: 503 });
     return new Response(JSON.stringify(url.includes('live.json') ? data : status));
   };

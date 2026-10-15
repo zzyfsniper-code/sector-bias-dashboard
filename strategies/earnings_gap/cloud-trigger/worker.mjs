@@ -13,7 +13,7 @@ export function phaseAt(now) {
 
 async function request(fetcher, url, options = {}) {
   try {
-    return await fetcher(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(15000) });
+    return await fetcher(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(15000) });
   } catch {
     throw Error('Request failed or timed out; no immediate retry');
   }

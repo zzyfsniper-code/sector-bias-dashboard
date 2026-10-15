@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test_worker.mjs",
+    "test": "node --test test_worker.mjs test_runtime.mjs",
+    "predeploy": "npm test",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "wrangler": "4.151.0"
+    "wrangler": "4.151.0",
+    "miniflare": "5.20261012.0-beta"
   }
 }
