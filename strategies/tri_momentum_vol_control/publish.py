@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 API = 'https://api.github.com/repos/zzyfsniper-code/sector-bias-dashboard'
 SITE = 'https://zzyfsniper-code.github.io/sector-bias-dashboard/'
 NIGHTLY = ['tri-momentum-vol-control/data/live.json', 'tri-momentum-vol-control/data/history.json',
-           'tri-momentum-vol-control/data/rebalances.csv']
+           'tri-momentum-vol-control/data/rebalances.csv', 'tri-momentum-vol-control/data/performance.json']
 
 
 def token():

@@ -12,7 +12,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-from export_research import LOCAL, WEB, save
+from export_research import LOCAL, WEB, build_performance, save
 from strategy import BACKTEST_END, CODES, FROZEN_ON, LISTING, NAME, VERSION, next_execution, signal, simulate
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -116,11 +116,15 @@ def main():
             raise ValueError('Frozen history version mismatch; release the matching backtest first')
         records = [r for r in frozen_history['records'] if r['execution_date'] <= BACKTEST_END] + history
         live['total_history_records'] = len(records)
+        frozen = json.loads((WEB/'backtest.json').read_text('utf-8'))
+        performance = build_performance(prices, sorted(set(snapshot['calendar']) | set(prices.index.strftime('%Y-%m-%d'))), model, live, frozen)
         # Immutable frozen curves remain separate from the nightly model ledger.
         prices.to_csv(run/'prices.csv', index_label='date')
         model.to_csv(run/'model_daily.csv', index_label='date')
         save(run/'live.json', live)
+        save(run/'performance.json', performance)
         save(WEB/'live.json', live)
+        save(WEB/'performance.json', performance)
         save(WEB/'history.json', dict(version=VERSION, backtest_end=BACKTEST_END, records=records, actual_fills_recorded=False))
         pd.DataFrame([{k: v for k, v in r.items() if not isinstance(v, dict)} for r in records]).to_csv(WEB/'rebalances.csv', index=False, encoding='utf-8-sig')
         report = dict(status='PASS', run_id=run_id, version=VERSION, data_as_of=live['data_as_of'],
@@ -128,7 +132,8 @@ def main():
         if args.publish:
             from publish import publish
             report['publish'] = publish(['tri-momentum-vol-control/data/live.json',
-                'tri-momentum-vol-control/data/history.json','tri-momentum-vol-control/data/rebalances.csv'],
+                'tri-momentum-vol-control/data/history.json','tri-momentum-vol-control/data/rebalances.csv',
+                'tri-momentum-vol-control/data/performance.json'],
                 'Update three-asset momentum volatility signal '+live['data_as_of'])
         save(LOCAL/'latest.json', report)
         print(json.dumps(report, ensure_ascii=False))

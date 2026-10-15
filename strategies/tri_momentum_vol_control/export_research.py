@@ -63,6 +63,35 @@ def attribution(frame, frequency):
     return rows
 
 
+def build_performance(prices, calendar, model, live, frozen):
+    """Daily full-path model performance; never reset positions at the freeze boundary."""
+    if live['version'] != VERSION or frozen['version'] != VERSION:
+        raise ValueError('Performance version mismatch')
+    dates = model.index.tolist()
+    if dates[0] != BACKTEST_START or dates[-1] != live['data_as_of']:
+        raise ValueError('Performance dates do not match the daily signal')
+    frames = {'cash_t14_v20': model, 'baseline_three': simulate(prices, calendar, target_vol=None)[0]}
+    for code in CODES:
+        returns = prices[code].pct_change(fill_method=None).loc[BACKTEST_START:dates[-1]].copy()
+        returns.iloc[0] = 1/1.001-1
+        nav = (1+returns).cumprod()
+        frames['hold_'+code] = pd.DataFrame({'nav':nav, 'drawdown':nav/nav.cummax().clip(lower=1)-1})
+    curves = {key:dict(nav=frame.nav.tolist(), drawdown=frame.drawdown.tolist()) for key, frame in frames.items()}
+    count = len(frozen['dates'])
+    if dates[:count] != frozen['dates']:
+        raise ValueError('Daily performance is missing frozen-history dates')
+    for key in curves:
+        for field in ['nav', 'drawdown']:
+            np.testing.assert_allclose(curves[key][field][:count], frozen['curves'][key][field],
+                                       atol=1e-8, rtol=0, err_msg='Frozen performance changed; review source differences')
+    np.testing.assert_allclose(model.risk_weight.iloc[:count], frozen['risk_exposure'], atol=1e-8, rtol=0)
+    return dict(version=VERSION, name=NAME, run_id=live['run_id'], status=live['status'],
+                updated_at=live['updated_at'], data_as_of=live['data_as_of'], start=dates[0], end=dates[-1],
+                frozen_end=frozen['end'], metrics=measure(model), dates=dates, curves=curves,
+                risk_exposure=model.risk_weight.tolist(), source=live['history_source'],
+                actual_fills_recorded=False, independent_out_of_sample=False)
+
+
 def independent_ledger(prices, records):
     units, cash, previous, values = np.zeros(3), 1., 1., []
     orders = {r['execution_date']: r for r in records}

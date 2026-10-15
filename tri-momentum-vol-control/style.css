@@ -16,12 +16,12 @@ h2{font:700 23px/1.4 "STSong","SimSun",serif;margin:0}
 .metric-grid span,.metric-grid small{display:block;color:var(--muted);font-size:11px}.metric-grid strong{display:block;font:700 27px/1.6 serif}
 .chart-toolbar h3{margin:12px 0}.chart-toolbar label{font-size:12px;color:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin:12px 0}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
-#chartStack{position:relative;background:var(--card);border:1px solid var(--border);padding:8px 0;touch-action:pan-y}
+.chart-stack{position:relative;background:var(--card);border:1px solid var(--border);padding:8px 0;touch-action:pan-y}
 .plot{position:relative}.plot svg{display:block;width:100%}.plot text{fill:var(--muted);font:11px Arial,sans-serif}.plot .grid{stroke:#e5ded3;stroke-width:1}
 .plot .crosshair{stroke:#8a918e;stroke-dasharray:3 3;pointer-events:none}
 .chart-tooltip{position:absolute;z-index:3;background:#fffdf8f5;border:1px solid var(--border);border-radius:4px;padding:10px 12px;box-shadow:0 8px 20px #17232b22;font-size:11px;pointer-events:none;white-space:nowrap;min-width:180px}
 .chart-tooltip strong{display:block;margin-bottom:4px}.chart-tooltip div{display:flex;justify-content:space-between;gap:20px}
 .range-controls{display:flex;gap:18px;margin:13px 0 0}.range-controls label{display:flex;align-items:center;gap:8px;flex:1;min-width:0;white-space:nowrap;color:var(--muted);font-size:11px}.range-controls input{width:100%;min-width:0;padding:0;accent-color:var(--accent)}
-#rangeLabel{margin:6px 0 20px}.detail-table table{min-width:650px}
+[id$="rangeLabel"]{margin:6px 0 20px}.detail-table table{min-width:650px}
 @media(max-width:900px){.decision-grid{grid-template-columns:repeat(2,1fr);row-gap:20px}.decision-grid>div:nth-child(3){border:0;padding-left:0}.metric-grid{grid-template-columns:repeat(2,1fr)}.signal-card{padding:17px}}
 @media(max-width:520px){h1{font-size:35px}.decision-grid{gap:16px 10px}.decision-grid strong{font-size:24px}.decision-grid>div+div{padding-left:12px}.decision-grid>div:nth-child(3){padding-left:0}.decision-grid small{font-size:10px}.chart-tooltip{font-size:10px;padding:8px;min-width:165px}.metric-grid>div{padding:11px}.metric-grid strong{font-size:24px}.section-heading h2{font-size:21px}}
