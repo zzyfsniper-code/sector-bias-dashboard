@@ -164,17 +164,6 @@ function Set-ResultFailure {
     $Result['error_summary'] = $ErrorSummary
 }
 
-function Test-OnlineStrategy {
-    param([string]$PageUrl, [string]$RunId)
-    try {
-        $dataUrl = $PageUrl + 'data/strategy-data.js?run=' + [uri]::EscapeDataString($RunId)
-        $response = Invoke-WebRequest -Uri $dataUrl -UseBasicParsing -TimeoutSec 30
-        return $response.StatusCode -eq 200 -and $response.Content.Contains($RunId)
-    } catch {
-        return $false
-    }
-}
-
 function Wait-GitHubPagesBuild {
     param([string]$Commit, [int]$TimeoutSec = 600, [int]$PollSeconds = 15)
     $apiRoot = 'https://api.github.com/repos/zzyfsniper-code/sector-bias-dashboard'
@@ -364,23 +353,38 @@ if (-not $ValidateOnly) {
             if ($buildResult.status -ne 'PASS') { throw $buildResult.error_summary }
             # Allow the completed build to reach the Pages CDN before the single final check.
             Start-Sleep -Seconds 30
-            $centerOnline = $false
-            $centerError = $null
-            try {
-                $centerResponse = Invoke-WebRequest -Uri ($centerUrl + '?run=' + [uri]::EscapeDataString($batchId)) -UseBasicParsing -TimeoutSec 30
-                $centerOnline = $centerResponse.StatusCode -eq 200
-            } catch {
-                $centerOnline = $false
-                $centerError = $_.Exception.Message
+            $verifyInput = Join-Path $logDir "$batchId.verify-input.json"
+            $verifyStdout = Join-Path $logDir "$batchId.verify.stdout.log"
+            $verifyStderr = Join-Path $logDir "$batchId.verify.stderr.log"
+            Write-JsonFile ([ordered]@{
+                run_id = $batchId
+                strategy_center = $centerUrl
+                strategies = @($publishable | ForEach-Object { [ordered]@{ strategy = $_['strategy']; run_id = $_['run_id']; page_url = $_['page_url'] } })
+            }) $verifyInput
+            $verifier = Join-Path $strategyDir 'verify_online.py'
+            $verifyProcess = Start-Process -FilePath 'py' -ArgumentList "-3 `"$verifier`" --batch-file `"$verifyInput`"" -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $verifyStdout -RedirectStandardError $verifyStderr
+            $verifyLines = @(Get-Content -LiteralPath $verifyStdout -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ([int]$verifyProcess.ExitCode -notin @(0, 1) -or $verifyLines.Count -eq 0) { throw 'The online verifier did not return a valid result. See verify stdout/stderr logs.' }
+            $verification = $verifyLines[-1] | ConvertFrom-Json
+            $batchPublish['verification'] = $verification
+            $batchPublish['verification_stdout_log'] = $verifyStdout
+            $batchPublish['verification_stderr_log'] = $verifyStderr
+            $centerOnline = $verification.center.status -eq 'PASS'
+            if (-not $centerOnline) {
+                $batchPublish['failure_stage'] = 'strategy_center_online_verification'
+                $batchPublish['error_summary'] = 'The strategy center check failed: ' + $verification.center.error_summary
             }
 
             $onlinePassed = 0
             foreach ($result in $publishable) {
                 $runId = [string]$result['run_id']
-                $onlineVerified = $centerOnline -and (Test-OnlineStrategy $result['page_url'] $runId)
+                $pageCheck = @($verification.strategies | Where-Object { $_.strategy -eq $result['strategy'] })
+                if ($pageCheck.Count -ne 1) { throw "Missing or duplicated verification result for $($result['strategy'])." }
+                $pageCheck = $pageCheck[0]
+                $onlineVerified = $pageCheck.status -eq 'PASS' -and $pageCheck.verified_run_id -eq $runId
                 if ($onlineVerified) { $onlinePassed++ }
                 if (-not $onlineVerified) {
-                    $verificationError = if ($centerOnline) { "The Pages build completed, but the single online data check did not expose $runId." } else { "The strategy center check failed: $centerError" }
+                    $verificationError = "$($pageCheck.error_type): $($pageCheck.error_summary)"
                     Set-ResultFailure $result 'batch_online_verification' "online verification failed for $runId after the completed Pages build" $verificationError
                 }
                 try {
@@ -398,7 +402,7 @@ if (-not $ValidateOnly) {
                     Set-ResultFailure $result 'result_persistence' 'failed to save the child publication result' $_.Exception.Message
                 }
             }
-            $batchPublish['online_status'] = if ($onlinePassed -eq $publishable.Count) { 'PASS' } else { 'FAIL' }
+            $batchPublish['online_status'] = if ($centerOnline -and $onlinePassed -eq $publishable.Count) { 'PASS' } else { 'FAIL' }
         } catch {
             if ($null -eq $batchPublish['commit']) { $batchPublish['status'] = 'FAIL' }
             $batchPublish['online_status'] = 'FAIL'
@@ -420,6 +424,7 @@ if (-not $ValidateOnly) {
 
 $passCount = @($results | Where-Object { $_.status -eq 'PASS' }).Count
 $overallStatus = if ($passCount -eq $strategies.Count) { 'PASS' } elseif ($passCount -eq 0) { 'FAIL' } else { 'PARTIAL' }
+if (-not $ValidateOnly -and $overallStatus -eq 'PASS' -and $batchPublish['online_status'] -ne 'PASS') { $overallStatus = 'PARTIAL' }
 $batch = [ordered]@{
     schema_version = '1.0'
     run_id = $batchId

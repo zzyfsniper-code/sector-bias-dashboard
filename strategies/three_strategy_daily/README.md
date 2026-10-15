@@ -18,6 +18,18 @@
 
 现有自动化仍只运行总控脚本一次；21点触发时间、三个策略的规则、参数、串行顺序、一次提交和一次最终页面核验均保持原设置。
 
+## 2026-10-15 HTTPS核验修复
+
+10月14日晚批次 `three_strategy_live_20261014_210142` 的数据更新和发布均成功，Pages构建检查也为PASS。最后访问策略中心时，PowerShell报告 `The SSL connection could not be established`，旧逻辑因此跳过全部策略页面检查，统一报为失败。
+
+公开页面核验改由 `verify_online.py` 一次执行：使用Python requests，`trust_env=False`，与已经成功的发布器使用相同的直连方式；证书验证保持开启，不重试、不降级HTTP。每个地址仍只请求一次，策略中心失败也继续检查全部策略数据文件。仅从JSON的实际 `run_id` 或 `meta.runId` 字段核对批次，避免在说明文字中包含同名字符串时误通过。
+
+结果存入 `publish.verification` 和本批次的 `*.verify.stdout.log`、`*.verify.stderr.log`，区分TLS、超时、HTTP错误、数据格式错误和批次不符。只有策略中心与全部成功策略页面都核验通过，整批才可PASS；中心单独失败而策略页面正常时，保留各策略PASS，整批报告PARTIAL（退出码2），中心错误写入 `publish.failure_stage` 和 `publish.error_summary`。
+
+保留原始10月14日失败日志；修复后的独立只读核验结果为 `logs/daily/repair_20261015.verify.stdout.log`。未重跑子策略、未重新拉取行情或修改信号、权重和触发时间。
+
+测试：`test_verify_online.py` 五项测试；`test_orchestrator.py` 九项测试，分别通过Windows PowerShell 5.1与PowerShell 7运行。
+
 正常运行：
 
 ```powershell

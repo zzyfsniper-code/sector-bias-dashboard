@@ -1,11 +1,13 @@
 """Run the actual PowerShell controller with isolated files and mocked external work."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parent
+POWERSHELL = os.environ.get("THREE_STRATEGY_TEST_POWERSHELL", "powershell.exe")
 SOURCES = [
     Path(r"D:\agent工作目录\A股趋势看板\交易策略回测\strategies\growth_value_five_dim\logs\daily\latest.json"),
     Path(r"D:\agent工作目录\A股趋势看板\交易策略回测\strategies\fund_flow_long_timing\logs\daily\latest.json"),
@@ -21,6 +23,19 @@ function Start-Process {
           $WindowStyle, $RedirectStandardOutput, $RedirectStandardError)
     Set-Content $RedirectStandardError '' -Encoding UTF8
     if ($FilePath -eq 'py') {
+        if ($ArgumentList -match 'verify_online.py') {
+            Add-Content "$script:fixtureRoot/events.txt" 'verify'
+            $inputPath=(Get-ChildItem "$script:fixtureRoot/logs/daily/*.verify-input.json" | Select-Object -First 1).FullName
+            $inputBatch=Get-Content $inputPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $centerStatus=if($script:scenario -eq 'center_fail'){'FAIL'}else{'PASS'}
+            $checks=@($inputBatch.strategies | ForEach-Object {
+                $status=if($script:scenario -eq 'stale' -and $_.strategy -eq 'csi500_flow_leverage'){'FAIL'}else{'PASS'}
+                [ordered]@{strategy=$_.strategy;status=$status;verified_run_id=$(if($status -eq 'PASS'){$_.run_id}else{$null});error_type=$(if($status -eq 'FAIL'){'run_id_mismatch'}else{$null});error_summary=$(if($status -eq 'FAIL'){'old-run'}else{$null})}
+            })
+            $verification=[ordered]@{center=[ordered]@{status=$centerStatus;error_summary=$(if($centerStatus -eq 'FAIL'){'fixture TLS failure'}else{$null})};strategies=$checks}
+            $verification | ConvertTo-Json -Depth 10 -Compress | Set-Content $RedirectStandardOutput -Encoding UTF8
+            return [pscustomobject]@{ExitCode=$(if($centerStatus -eq 'FAIL' -or @($checks | Where-Object {$_.status -eq 'FAIL'}).Count -gt 0){1}else{0})}
+        }
         Add-Content "$script:fixtureRoot/events.txt" 'publish'
         Set-Content $RedirectStandardOutput '{"status":"PASS","commit":"fixture-sha","files":19}' -Encoding UTF8
         return [pscustomobject]@{ExitCode=$(if($script:scenario -eq 'publish_fail'){1}else{0})}
@@ -53,11 +68,7 @@ function Invoke-WebRequest {
         }
         return [pscustomobject]@{StatusCode=200;Content="[{`"commit`":`"fixture-sha`",`"status`":`"$status`"}]"}
     }
-    Add-Content "$script:fixtureRoot/events.txt" 'online'
-    if ($script:scenario -eq 'center_fail' -and $Uri -match '/strategies/') { throw 'fixture HTTP 503' }
-    $run = [uri]::UnescapeDataString(([string]$Uri -split 'run=')[1])
-    if($script:scenario -eq 'stale' -and $Uri -match 'csi500-flow-leverage'){$run='old-run'}
-    return [pscustomobject]@{StatusCode=200;Content=$run}
+    throw 'Public page verification must use the direct HTTPS verifier, not Invoke-WebRequest'
 }
 . "$PSScriptRoot/controller.ps1"
 exit $LASTEXITCODE
@@ -83,7 +94,7 @@ $result=Wait-GitHubPagesBuild 'pending-commit' -TimeoutSec 0
 if ($result.status -ne 'TIMEOUT') { throw 'Accepted a different commit or unfinished build' }
 """.replace("__MASTER__", str(ROOT / "run_daily_update.ps1")), encoding="utf-8-sig")
             process = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
+                [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
                 capture_output=True, timeout=30)
             self.assertEqual(process.returncode, 0, process.stderr.decode(errors="replace"))
 
@@ -106,7 +117,7 @@ $summary=Get-ErrorSummary "$PSScriptRoot/missing-stdout.log" '__LOG__'
 if(-not $summary.Contains('余额不足，请先充值')){throw 'Message was corrupted'}
 if((Get-FailureStage $summary @()) -ne 'data_provider_insufficient_balance'){throw 'Wrong failure stage'}
 """.replace("__MASTER__", str(ROOT / "run_daily_update.ps1")).replace("__LOG__", str(log)), encoding="utf-8-sig")
-                process = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)], capture_output=True, timeout=30)
+                process = subprocess.run([POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)], capture_output=True, timeout=30)
                 self.assertEqual(process.returncode, 0, process.stderr.decode(errors="replace"))
 
     def exercise(self, scenario):
@@ -129,7 +140,7 @@ if((Get-FailureStage $summary @()) -ne 'data_provider_insufficient_balance'){thr
             harness = directory / "harness.ps1"
             harness.write_text(HARNESS.replace("__SCENARIO__", scenario), encoding="utf-8-sig")
             process = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
+                [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
                 capture_output=True, timeout=30)
             latest = directory / "logs/daily/latest.json"
             self.assertTrue(latest.exists(), process.stderr.decode(errors="replace"))
@@ -140,11 +151,9 @@ if((Get-FailureStage $summary @()) -ne 'data_provider_insufficient_balance'){thr
             if scenario != "publish_fail":
                 self.assertEqual(events[4:6], ["sleep-60", "sleep-60"])
                 if scenario == "build_fail":
-                    self.assertEqual(events.count("online"), 0)
-                elif scenario == "center_fail":
-                    self.assertEqual(events.count("online"), 1)
+                    self.assertEqual(events.count("verify"), 0)
                 else:
-                    self.assertEqual(events.count("online"), 4)
+                    self.assertEqual(events.count("verify"), 1)
                     self.assertIn("sleep-30", events)
             children = [json.loads((directory / f"child-{i}.json").read_text(encoding="utf-8-sig")) for i in range(3)]
             return process.returncode, result, children
@@ -191,8 +200,10 @@ if((Get-FailureStage $summary @()) -ne 'data_provider_insufficient_balance'){thr
 
     def test_center_failure_records_actual_error(self):
         code, result, _ = self.exercise("center_fail")
-        self.assertEqual((code, result["status"]), (1, "FAIL"))
-        self.assertIn("fixture HTTP 503", result["strategies"][0]["error_summary"])
+        self.assertEqual((code, result["status"]), (2, "PARTIAL"))
+        self.assertIn("fixture TLS failure", result["publish"]["error_summary"])
+        self.assertEqual(result["counts"]["passed"], 3)
+        self.assertTrue(all(item["publish"]["online_status"] == "PASS" for item in result["strategies"]))
 
 
 if __name__ == "__main__":
