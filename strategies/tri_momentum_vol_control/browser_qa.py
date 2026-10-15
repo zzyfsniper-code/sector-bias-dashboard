@@ -21,6 +21,8 @@ with sync_playwright() as p:
     assert page.locator('#signalStatus').inner_text()!='可执行参考'
     assert page.locator('#historyRows tr').count()==25
     assert page.locator('#assetRows tr').count()==3
+    assert '159696.SZ' in page.locator('#assetRows').inner_text()
+    assert '513100.SH' not in page.locator('main').inner_text()
     assert page.locator('.asset-section th').count()==6
     assert '买一' not in page.locator('.asset-section').inner_text()
     assert page.locator('#assetRows tr').first.locator('td').count()==6
@@ -38,8 +40,8 @@ with sync_playwright() as p:
     page.locator('#detailsButton').click()
     assert '19段收益' in page.locator('#rulesPanel').inner_text()
     page.locator('[data-tab=backtest]').click()
-    assert '25.38%' in page.locator('#backtestSummary').inner_text()
-    assert '18.87%' in page.locator('#backtestSummary').inner_text()
+    assert '38.64%' in page.locator('#backtestSummary').inner_text()
+    assert '14.25%' in page.locator('#backtestSummary').inner_text()
     assert page.locator('#navChart svg').count()==1
     for id in ['navChart','drawdownChart','riskChart']:
         page.locator('#'+id).scroll_into_view_if_needed()

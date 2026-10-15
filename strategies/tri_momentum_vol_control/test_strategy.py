@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from strategy import CODES, signal, simulate, trade_fee, weekly_last, next_execution
+from strategy import BACKTEST_START, CODES, LISTING, VERSION, signal, simulate, trade_fee, weekly_last, next_execution
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -60,11 +60,23 @@ class RulesTest(unittest.TestCase):
     def test_frozen_ledger_and_daily_weights(self):
         seed=Path(__file__).with_name('data')/'seed_prices.csv'
         p=pd.read_csv(seed,index_col=0,parse_dates=True)
-        actual,records=simulate(p,p.index)
+        snap=json.loads((Path(__file__).with_name('data')/'snapshot_159696_release.json').read_text('utf-8-sig'))
+        calendar=p.index.union(pd.to_datetime(snap['calendar']))
+        actual,records=simulate(p,calendar)
         expected=pd.read_csv(ROOT/'tri-momentum-vol-control/data/nav.csv',index_col=0)
         for col in actual.columns:
             np.testing.assert_allclose(actual[col],expected[col],atol=2e-12,rtol=0)
-        self.assertEqual(len(records),395)
+        self.assertEqual(len(records),156)
+        self.assertEqual(str(p.index[0].date()),LISTING)
+        self.assertEqual(actual.index[0],BACKTEST_START)
+        self.assertEqual(records[0]['information_date'],'2023-09-27')
+        self.assertNotIn('2026-10-14',[r['execution_date'] for r in records])
+        self.assertEqual(CODES[0],'159696.SZ')
+        self.assertTrue(all(set(r['target_weights'])==set(CODES) for r in records))
+        np.testing.assert_allclose(actual[['contrib_'+c for c in CODES]].sum(axis=1)+actual.fee_return,actual['return'],atol=2e-12,rtol=0)
+        backtest=json.loads((ROOT/'tri-momentum-vol-control/data/backtest.json').read_text('utf-8'))
+        self.assertEqual(backtest['version'],VERSION)
+        self.assertNotIn('hold_513100.SH',backtest['curves'])
         self.assertTrue(actual.risk_weight.between(0,1).all())
         self.assertTrue((actual.cash_weight>=-1e-12).all())
 
@@ -74,10 +86,10 @@ class RulesTest(unittest.TestCase):
         seed=Path(__file__).with_name('data')/'seed_prices.csv';p=pd.read_csv(seed,index_col=0,parse_dates=True)
         calendar=pd.bdate_range('2026-09-01','2026-10-30').strftime('%Y-%m-%d').tolist()
         snap=dict(calendar=calendar,calendar_start='2026-09-01',calendar_end='2026-10-30')
-        now=datetime(2026,9,18,18,10,tzinfo=timezone(timedelta(hours=8)))
+        now=datetime(2026,10,14,18,10,tzinfo=timezone(timedelta(hours=8)))
         live,_,_=build_live(p,snap,now)
         self.assertFalse(live['signal']['is_final'])
-        self.assertEqual(live['signal']['execution_date'],'2026-09-25')
+        self.assertEqual(live['signal']['execution_date'],'2026-10-16')
         np.testing.assert_allclose(live['signal']['risk_weight'],signal(p)['risk_weight'])
         with self.assertRaises(ValueError):build_live(p,snap,now+timedelta(days=3))
 

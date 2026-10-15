@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from export_research import LOCAL, WEB, save
-from strategy import CODES, NAME, VERSION, next_execution, signal, simulate
+from strategy import BACKTEST_END, CODES, FROZEN_ON, LISTING, NAME, VERSION, next_execution, signal, simulate
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'wind_excel'))
@@ -41,8 +41,8 @@ def build_live(prices, snapshot, now):
                      status='FINAL' if candidate['information_date'] == final_information else 'PREVIEW')
     history = []
     for r in records:
-        r['origin'] = 'backtest' if r['execution_date'] <= '2026-09-18' else 'historical_extension' if r['execution_date'] <= '2026-10-14' else 'frozen_model'
-        if r['execution_date'] > '2026-09-18':
+        r['origin'] = 'backtest' if r['execution_date'] <= BACKTEST_END else 'frozen_model'
+        if r['execution_date'] > BACKTEST_END:
             history.append(r)
     current = frame.iloc[-1]
     live = dict(status='PASS', version=VERSION, name=NAME, updated_at=now.isoformat(), data_as_of=expected,
@@ -52,7 +52,7 @@ def build_live(prices, snapshot, now):
                 signal=candidate, model_current=dict(as_of=expected, last_execution_date=records[-1]['execution_date'],
                   weights={c: float(current['weight_'+c]) for c in CODES}, cash_weight=float(current.cash_weight),
                   note='历史规则推演持仓，非用户实际持仓'),
-                frozen_on='2026-10-14', actual_fills_recorded=False, auto_order=False,
+                frozen_on=FROZEN_ON, actual_fills_recorded=False, auto_order=False,
                 execution_window='14:50:00-15:00:00 Asia/Shanghai',
                 schedule=dict(time='18:10', engine='Windows Task Scheduler; no Codex dependency'),
                 record_count=len(history), issues=[])
@@ -93,7 +93,7 @@ def main():
             frames = {q['code']: pd.read_csv(args.reuse_run/q['output_file']) for q in manifest['queries']}
         else:
             manifest, named = run_wsd_batch([dict(name='etf_'+c[:6], code=c, fields=['close'],
-                start_date='2018-07-01', end_date=end, options='PriceAdj=F') for c in CODES],
+                start_date=LISTING, end_date=end, options='PriceAdj=F') for c in CODES],
                 output_root=LOCAL/'wind', timeout_seconds=90)
             frames = {c: named['etf_'+c[:6]] for c in CODES}
         series = {}
@@ -105,21 +105,23 @@ def main():
             if not f.code.eq(c).all() or f.date.duplicated().any():
                 raise ValueError('History identity/duplicates invalid')
             series[c] = pd.Series(pd.to_numeric(f.close, errors='raise').to_numpy(), index=pd.to_datetime(f.date)).sort_index()
-        prices = pd.DataFrame({c: series[c] for c in CODES}).loc[:end]
+        prices = pd.DataFrame({c: series[c] for c in CODES}).loc[LISTING:end]
         # No forward filling, partial rows, or substitution of old latest.json.
         live, history, model = build_live(prices, snapshot, now)
         live['run_id'] = run_id
         live['wind_run_id'] = manifest['run_id']
         live['price_sha256'] = hashlib.sha256(prices.to_csv().encode()).hexdigest()
         frozen_history = json.loads((WEB/'history.json').read_text('utf-8'))
-        records = [r for r in frozen_history['records'] if r['execution_date'] <= '2026-09-18'] + history
+        if frozen_history['version'] != VERSION or frozen_history['backtest_end'] != BACKTEST_END:
+            raise ValueError('Frozen history version mismatch; release the matching backtest first')
+        records = [r for r in frozen_history['records'] if r['execution_date'] <= BACKTEST_END] + history
         live['total_history_records'] = len(records)
         # Immutable frozen curves remain separate from the nightly model ledger.
         prices.to_csv(run/'prices.csv', index_label='date')
         model.to_csv(run/'model_daily.csv', index_label='date')
         save(run/'live.json', live)
         save(WEB/'live.json', live)
-        save(WEB/'history.json', dict(version=VERSION, backtest_end='2026-09-18', records=records, actual_fills_recorded=False))
+        save(WEB/'history.json', dict(version=VERSION, backtest_end=BACKTEST_END, records=records, actual_fills_recorded=False))
         pd.DataFrame([{k: v for k, v in r.items() if not isinstance(v, dict)} for r in records]).to_csv(WEB/'rebalances.csv', index=False, encoding='utf-8-sig')
         report = dict(status='PASS', run_id=run_id, version=VERSION, data_as_of=live['data_as_of'],
                       calendar_end=live['calendar_end'], signal=live['signal'], publish='NOT_REQUESTED')

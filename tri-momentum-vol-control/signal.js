@@ -1,7 +1,7 @@
 /* Pure validation shared by the page and tests. Quotes never change model targets. */
 (function(root){
 'use strict';
-const codes=['513100.SH','510300.SH','518880.SH'];
+const codes=['159696.SZ','510300.SH','518880.SH'];
 function chinaTime(now){const s=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(now).split(' ');return {day:s[0],time:s[1]};}
 function parseQuotes(text){const out={};for(const m of text.matchAll(/v_([a-z]+\d+)="([^"]*)"/g)){const f=m[2].split('~');if(f.length<35||!/^\d{14}$/.test(f[30]))continue;const code=m[1].slice(2)+'.'+m[1].slice(0,2).toUpperCase();if(!codes.includes(code))continue;const q={code,last:Number(f[3]),previous:Number(f[4]),bid:Number(f[9]),ask:Number(f[19]),timestamp:f[30]};if([q.last,q.previous].every(x=>Number.isFinite(x)&&x>0))out[code]=q;}return out;}
 function quoteCheck(q,now){if(!q)return {ok:false,note:'报价缺失'};const cn=chinaTime(now),stamp=q.timestamp;const day=`${stamp.slice(0,4)}-${stamp.slice(4,6)}-${stamp.slice(6,8)}`,time=`${stamp.slice(8,10)}:${stamp.slice(10,12)}:${stamp.slice(12,14)}`;if(day!==cn.day)return {ok:false,note:'非当日报价',day,time};const age=(now.getTime()-Date.parse(`${day}T${time}+08:00`))/1000;if(!Number.isFinite(age)||age < -30||age>120)return {ok:false,note:'报价过期',day,time};if(!Number.isFinite(q.bid)||!Number.isFinite(q.ask)||q.bid<=0||q.ask<q.bid||q.ask/q.bid-1>.01)return {ok:false,note:'盘口异常',day,time};return {ok:true,note:'时效通过',day,time};}

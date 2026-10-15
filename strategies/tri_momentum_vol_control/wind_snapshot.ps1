@@ -9,7 +9,7 @@ public static class TriWindNative {
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 }
 "@
-$codes = @('513100.SH','510300.SH','518880.SH')
+$codes = @('159696.SZ','510300.SH','518880.SH')
 $fields = @('RT_LAST','RT_PRE_CLOSE','RT_DATE','RT_TIME','RT_BID1','RT_ASK1','RT_VOL','RT_AMT')
 $existing = @(Get-Process EXCEL -ErrorAction SilentlyContinue | ForEach-Object Id)
 $excel=$null; $book=$null; $sheet=$null; $calSheet=$null; $addin=$null

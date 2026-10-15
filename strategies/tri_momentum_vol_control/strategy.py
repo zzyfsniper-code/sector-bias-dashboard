@@ -4,10 +4,15 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-VERSION = 'tri-momentum-vol-v1.0-20261014'
+VERSION = 'tri-momentum-vol-v1.1-20261015'
 NAME = '三元动量波控策略'
-CODES = ['513100.SH', '510300.SH', '518880.SH']
-NAMES = dict(zip(CODES, ['纳指ETF', '沪深300ETF', '黄金ETF']))
+CODES = ['159696.SZ', '510300.SH', '518880.SH']
+NAMES = dict(zip(CODES, ['纳指ETF易方达', '沪深300ETF', '黄金ETF']))
+INCEPTION = '2023-08-17'
+LISTING = '2023-08-25'
+BACKTEST_START = '2023-09-28'
+BACKTEST_END = '2026-10-14'
+FROZEN_ON = '2026-10-15'
 TARGET = .14
 COST = .001
 
@@ -50,7 +55,7 @@ def trade_fee(assets, equity, target, cost=COST):
     return fee
 
 
-def simulate(prices, calendar, start='2019-01-02'):
+def simulate(prices, calendar, start=BACKTEST_START, target_vol=TARGET, cost=COST):
     validate_prices(prices)
     weekly = weekly_last(calendar)
     changes = prices.pct_change(fill_method=None).fillna(0.)
@@ -71,10 +76,10 @@ def simulate(prices, calendar, start='2019-01-02'):
             sigma = float(vols.iloc[i-1, winner])
             if not np.isfinite(sigma):
                 raise ValueError('Incomplete volatility warmup')
-            weight = min(1., TARGET / sigma) if sigma > 0 else 1.
+            weight = min(1., target_vol / sigma) if target_vol is not None and sigma > 0 else 1.
             target = np.zeros(3)
             target[winner] = weight
-            fee = trade_fee(assets, equity, target)
+            fee = trade_fee(assets, equity, target, cost)
             turnover = float(np.abs(target * (equity-fee)-assets).sum() / equity)
             before = assets / equity
             records.append(dict(execution_date=str(day.date()), information_date=str(prices.index[i-1].date()),
@@ -89,6 +94,7 @@ def simulate(prices, calendar, start='2019-01-02'):
             rows.append(dict(date=str(day.date()), **{'return': float(equity-fee-1)},
                              fee_return=-float(fee), turnover=turnover, risk_weight=float(weights.sum()),
                              cash_weight=float(1-weights.sum()),
+                             **{f'contrib_{c}': float(contribution[j]) for j, c in enumerate(CODES)},
                              **{f'weight_{c}': float(weights[j]) for j, c in enumerate(CODES)}))
     frame = pd.DataFrame(rows).set_index('date')
     frame['nav'] = (1+frame['return']).cumprod()
