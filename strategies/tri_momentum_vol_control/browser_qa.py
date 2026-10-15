@@ -21,6 +21,17 @@ with sync_playwright() as p:
     assert page.locator('#signalStatus').inner_text()!='可执行参考'
     assert page.locator('#historyRows tr').count()==25
     assert page.locator('#assetRows tr').count()==3
+    assert page.locator('.asset-section th').count()==6
+    assert '买一' not in page.locator('.asset-section').inner_text()
+    assert page.locator('#assetRows tr').first.locator('td').count()==6
+    for cell in page.locator('#assetRows td:nth-child(2), #assetRows td:nth-child(5)').all():
+        value=cell.inner_text()
+        if value.startswith('+'):
+            assert cell.locator('.up').count()==1
+            assert cell.locator('.up').evaluate('e=>getComputedStyle(e).color')=='rgb(139, 46, 36)'
+        elif value.startswith('-'):
+            assert cell.locator('.down').count()==1
+            assert cell.locator('.down').evaluate('e=>getComputedStyle(e).color')=='rgb(31, 107, 84)'
     assert page.locator('#assetRows').inner_text().count('2026-')==3
     assert not page.evaluate('document.documentElement.scrollWidth>innerWidth+1')
     page.screenshot(path=str(LOG/('online-desktop.png' if online else 'desktop.png')),full_page=True)
