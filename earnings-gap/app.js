@@ -3,7 +3,7 @@
 'use strict';
 const core=window.EarningsGapCore,$=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const periods={Q1:'一季报',H1:'中报',Q3:'三季报',FY:'年报'},symbols=code=>code.slice(-2).toLowerCase()+code.slice(0,6);
-let history=[],live={records:[],calendar:[]},backtest,quotes={},networkOk=false,rows=[],page=0,sortKey='reaction_date',sortDir=-1,busy=false,timer;
+let history=[],live={records:[],calendar:[]},backtest,quotes={},networkOk=false,screeningReady=false,rows=[],page=0,sortKey='reaction_date',sortDir=-1,busy=false,timer;
 let breaches={};try{const saved=JSON.parse(localStorage.getItem('eg-gap-breaches-v1')||'{}');if(saved.day===core.chinaTime(new Date()).day)breaches=saved.ids||{};}catch{}
 const pct=x=>x===null||x===undefined||!Number.isFinite(Number(x))?'—':`<span class="${x>0?'up':x<0?'down':''}">${x>0?'+':''}${Number(x).toFixed(2)}%</span>`;
 const price=x=>x===null||x===undefined?'—':Number(x).toFixed(2);
@@ -16,7 +16,7 @@ const q=networkOk&&live.financial_asof===day?quotes[symbols(record.ts_code)]:nul
 if(!record.entry_date&&row.quote_fresh&&row.reaction_date===day&&q.low<=q.previous&&row.open_gap_pct>=2)breaches[record.id]=true;
 if(!record.entry_date&&breaches[record.id]&&row.reaction_date===day)row={...row,status:'剔除',status_note:'已补缺口'};
 return row;});try{localStorage.setItem('eg-gap-breaches-v1',JSON.stringify({day,ids:breaches}));}catch{}
-window.EarningsGapMonitoring.setScreening(forward);return [...forward,...history];}
+window.EarningsGapMonitoring.setScreening(forward,screeningReady);return [...forward,...history];}
 function render(){rows=currentRows();const day=core.chinaTime(new Date()).day,today=rows.filter(r=>r.origin==='forward'&&(r.reaction_date||r.ann_date)===day&&r.open_gap_pct>=2);
 $('todayCount').textContent=today.length;$('readyCount').textContent=today.filter(r=>r.status==='买入'||r.status==='观察'&&r.status_note==='当前满足买入条件').length;
 $('rejectedCount').textContent=today.filter(r=>r.status==='剔除').length;$('holdingCount').textContent=rows.filter(r=>['持有','买入','卖出提示'].includes(r.status)).length;
@@ -34,13 +34,13 @@ return `<tr><td title="开盘涨幅 ${r.open_gap_pct?.toFixed(2)??'—'}%"><span
 }).join(''):'<tr><td colspan="11" class="empty">当前筛选下暂无断层信号。财务候选及行情筛选原因见上方监控记录；可切换“全部”查看历史信号。</td></tr>';
 }
 function warning(){const list=[...(live.issues||[])],today=core.chinaTime(new Date()).day;if(live.financial_asof&&live.financial_asof<today)list.unshift(`财务候选尚未更新至今天，上次为${live.financial_asof}；今日新财报可能遗漏。`);$('dataWarning').hidden=!list.length;$('dataWarning').textContent=list.slice(0,4).join('；');}
-async function refresh(){if(busy||document.hidden)return;busy=true;$('refreshButton').disabled=true;
-try{const fresh=await json('live');if(fresh.version!==backtest.version)throw Error('策略版本不一致');live=fresh;$('financialTime').textContent=live.updated_at?.replace('T',' ').slice(0,19)||'—';warning();window.EarningsGapMonitoring.setLive(live);
+async function refresh(){if(busy||document.hidden)return;busy=true;$('refreshButton').disabled=true;let liveLoaded=false;
+try{const fresh=await json('live');if(fresh.version!==backtest.version)throw Error('策略版本不一致');live=fresh;liveLoaded=true;$('financialTime').textContent=live.updated_at?.replace('T',' ').slice(0,19)||'—';warning();window.EarningsGapMonitoring.setLive(live);
 const watch=[...new Set(['sh000001',...live.records.filter(r=>!r.exit_date&&!['未入选','剔除'].includes(r.status)).map(r=>symbols(r.ts_code))])],chunks=[];for(let i=0;i<watch.length;i+=60)chunks.push(watch.slice(i,i+60));
 let found={};for(let i=0;i<chunks.length;i+=4){const result=await Promise.all(chunks.slice(i,i+4).map(async codes=>{const r=await fetchTimed(`https://qt.gtimg.cn/q=${codes.join(',')}&_=${Date.now()}`,12000);return core.parseQuotes(new TextDecoder('gbk').decode(await r.arrayBuffer()));}));result.forEach(x=>Object.assign(found,x));}
-quotes=found;networkOk=true;const now=new Date(),valid=Object.values(quotes).filter(q=>core.freshness(q,now).ok),stamp=valid.map(q=>q.timestamp).sort().at(-1),missing=watch.filter(code=>code!=='sh000001'&&!core.freshness(quotes[code],now).ok);
+quotes=found;networkOk=true;screeningReady=true;const now=new Date(),valid=Object.values(quotes).filter(q=>core.freshness(q,now).ok),stamp=valid.map(q=>q.timestamp).sort().at(-1),missing=watch.filter(code=>code!=='sh000001'&&!core.freshness(quotes[code],now).ok);
 $('quoteStatus').className=valid.length&&!missing.length?'live':'offline';$('quoteStatus').textContent=missing.length?`${missing.length}只跟踪股票行情缺失或过期，暂停对应买卖确认`:stamp?`行情 ${stamp.slice(8,10)}:${stamp.slice(10,12)}:${stamp.slice(12,14)} · ${$('refreshInterval').value}秒刷新`:'当前无当天有效行情，暂停确认买卖';render();
-}catch(e){networkOk=false;$('quoteStatus').className='offline';$('quoteStatus').textContent=`更新失败，暂停确认买卖 · ${e.message}`;render();}finally{busy=false;$('refreshButton').disabled=false;}}
+}catch(e){networkOk=false;screeningReady=true;if(!liveLoaded)window.EarningsGapMonitoring.setLiveError(e.message);$('quoteStatus').className='offline';$('quoteStatus').textContent=`更新失败，暂停确认买卖 · ${e.message}`;render();}finally{busy=false;$('refreshButton').disabled=false;}}
 function details(){
 const rules=[['报告来源','仅正式财报；一季报、中报、三季报、年报均保留。'],['财务条件','单季归母净利润≥0，单季同比≥30%。中报取第二季度，年报取第四季度。'],['断层条件','公告反应日高开≥2%；当日最低价严格高于前一交易日收盘价。'],['收盘涨幅','中报严格&lt;5%；其他报告期严格&lt;7%。'],['买入时点','断层当天收盘；盘中满足只作为观察提示，供临近收盘人工判断。'],['止盈／止损','相对买入价+10%止盈、−8%初始止损。'],['利润保护','某交易日收盘浮盈≥5%，从下一交易日起将止损上移至买入价+2%；触发后不回退。'],['时间离场','含买入日在内，第10个市场交易日收盘退出；停牌或跌停无法卖出时顺延。'],['基础限制','沪深A股，非ST，上市满90个自然日；可成交且执行T+1。'],['组合回测','最多5只持仓，每笔参考前一日净值的20%；整数100股及成交额约束，同股不重叠。'],['额外筛选','不加盈利金额、放量、行业、市值、公告前涨幅或市场状态门槛。']];
 $('rulesPanel').innerHTML='<div class="rules-grid">'+rules.map(r=>`<div>${r[0]}</div><div>${r[1]}</div>`).join('')+'</div><div class="note">盈利为独立信号的策略模拟，买卖每边计0.3%综合成本；持有中按当前报价估算卖出后的净收益。止盈、止损和保护线按扣费前价格计算。页面不记录真实成交，也不自动下单。盘中退出先显示卖出提示，收盘按日线保守规则归档。盘中止盈止损使用公开行情当日高低价判断；无法分辨同日触及先后时采用保守顺序，开盘触发先处理。</div><div class="note">公告日期按披露显示日或其后首个市场交易日对齐，不额外后移一天。未来财务候选采用东财定期报表累计金额还原单季，原文采用巨潮及东财公告接口预先匹配；旧回测采用Tushare缓存。未取得盈利基数、上市日期或对应日线时暂停确认。Wind后续接入。</div>';
@@ -53,5 +53,5 @@ document.querySelectorAll('[data-sort]').forEach(th=>th.addEventListener('click'
 $('detailsButton').onclick=()=>{$('detailsDialog').showModal();drawChart();};$('closeDetails').onclick=()=>$('detailsDialog').close();$('detailsDialog').onclick=e=>{if(e.target===$('detailsDialog'))$('detailsDialog').close();};
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('rulesPanel').hidden=b.dataset.tab!=='rules';$('backtestPanel').hidden=b.dataset.tab!=='backtest';}));
 function schedule(){clearInterval(timer);timer=setInterval(refresh,Number($('refreshInterval').value)*1000);}$('refreshInterval').onchange=()=>{schedule();refresh();};$('refreshButton').onclick=refresh;document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
-(async()=>{try{const data=await Promise.all([json('history'),json('backtest'),json('year_report')]);[history,backtest]=data;backtest.cross=data[2];details();render();await refresh();schedule();}catch(e){$('tableBody').innerHTML='<tr><td colspan="11" class="empty">策略数据加载失败，请稍后刷新页面。</td></tr>';$('quoteStatus').textContent=e.message;}})();
+(async()=>{try{const data=await Promise.all([json('history'),json('backtest'),json('year_report')]);[history,backtest]=data;backtest.cross=data[2];details();render();await refresh();schedule();}catch(e){window.EarningsGapMonitoring.setLiveError(e.message);$('tableBody').innerHTML='<tr><td colspan="11" class="empty">策略数据加载失败，请稍后刷新页面。</td></tr>';$('quoteStatus').textContent=e.message;}})();
 })();

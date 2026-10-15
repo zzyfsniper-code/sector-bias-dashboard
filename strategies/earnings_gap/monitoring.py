@@ -156,6 +156,8 @@ def finish(payload, finance_rows, selected_rows, previous, started_at, fetch_not
     path = DATA / 'announcement_checks.json'
     verified = json.loads(path.read_text('utf-8')) if path.exists() else {}
     value = build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_histories, meta, verified)
+    from profit_reasons import enrich
+    value['profit_reason_counts'] = enrich(value['reports'], previous.get('reports', []))
     value['attempt'] = attempt('success', started_at)
     write_monitor(value)
     return value

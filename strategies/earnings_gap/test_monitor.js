@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {health,reportState}=require('../../earnings-gap/monitor.js');
+const {health,reportState,filterReports}=require('../../earnings-gap/monitor.js');
 const now=new Date('2026-10-14T10:00:00+08:00');
 const monitor={version:'test',status:'PASS',source_status:'PASS',financial_asof:'2026-10-14',data_updated_at:'2026-10-14T08:30:00+08:00',counts:{announcements:0,processed:0,pending:0},attempt:{run_id:'1',started_at:'2026-10-14T08:25:00+08:00'}};
 const live={version:'test',updated_at:monitor.data_updated_at};
@@ -37,4 +37,18 @@ assert.equal(reportState(report,[{...screened,ts_code:'001359.SZ'}]).result,'等
 assert.equal(reportState(report,[{...screened,end_date:'2026-06-30'}]).result,'等待开盘');
 assert.equal(reportState(report,[{...screened,...missing,status_note:'行情待更新'}]).reason,'行情待更新');
 assert.equal(reportState(report,[screened,{...screened,ann_date:'2026-10-15',status:'观察'}]).result,'观察');
-console.log('MONITOR CHECKS PASS: 30 freshness, source, failure, publication and live screening checks');
+const initial=health(monitor,null,null,now,[],[],{live:true,job:true,quotes:true});
+assert.equal(initial.severity,1);
+assert.equal(initial.title,'正在核验');
+assert.ok(!initial.messages.some(x=>x.includes('尚未同步')||x.includes('无法核验')));
+assert.equal(health(null,null,null,now,[],[],{monitor:true}).severity,1);
+assert.equal(health({...monitor,status:'FAILED'},null,null,now,[],[],{live:true,job:true}).severity,3);
+assert.equal(health(monitor,{...live,updated_at:'older'},job,now,[],[],{quotes:true}).severity,2);
+assert.equal(health(monitor,live,job,now,[],[],{quotes:true}).title,'正在核验');
+assert.equal(health(monitor,null,job,now,['交易数据读取失败：HTTP 503']).severity,2);
+const financeReports=[{id:'eligible',financial_eligible:true},{id:'excluded',financial_eligible:false},{id:'pending',complete:false}];
+assert.deepEqual(filterReports(financeReports,'financial').map(x=>x.id),['eligible']);
+assert.equal(filterReports(financeReports,'all').length,3);
+assert.deepEqual(filterReports([],'financial'),[]);
+assert.equal(reportState({...report,profit_reason:{summary:'原文说明'}},[screened]).profit_reason.summary,'原文说明');
+console.log('MONITOR CHECKS PASS: 42 freshness, source, failure, loading, filter and live screening checks');
