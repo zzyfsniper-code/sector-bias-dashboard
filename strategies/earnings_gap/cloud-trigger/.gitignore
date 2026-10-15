@@ -1,0 +1,7 @@
+/.build/
+/.wrangler/
+/node_modules/
+/.dev.vars*
+/.env*
+!package.json
+!package-lock.json

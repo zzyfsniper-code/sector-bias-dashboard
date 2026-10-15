@@ -1,0 +1,16 @@
+name = "earnings-gap-scheduler"
+main = "worker.mjs"
+compatibility_date = "2026-10-15"
+workers_dev = false
+preview_urls = false
+
+# UTC; Beijing weekdays 08:30/08:40/08:50 and 15:20/15:30/15:40.
+[triggers]
+crons = ["30,40,50 0 * * MON-FRI", "20,30,40 7 * * MON-FRI"]
+
+[observability]
+enabled = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
