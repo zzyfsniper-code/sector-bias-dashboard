@@ -123,6 +123,8 @@ dialog::backdrop{background:#17232b80}
 .monitor-table td{height:48px;padding:5px 12px;font-size:11px;line-height:1.4}.monitor-table .stock{font-size:13px}.monitor-table .sub{font-size:10px;line-height:1.4;margin-top:1px}
 .monitor-table .empty{height:auto;padding:25px;text-align:center;white-space:normal}.monitor-table .pill{font-size:10px;padding:3px 7px}
 .candidate-rejected .stock,.candidate-rejected .sub{color:#9da3a0}.candidate-rejected .num .sub{color:var(--muted)}.candidate-pending .stock{color:var(--muted)}
+.candidate-selected td{background:#fff1ed}.candidate-selected td:first-child{box-shadow:inset 3px 0 #9c3027}.candidate-selected .stock{font-weight:700;color:var(--red)}
+.candidate-selected .pill.watch{color:var(--red);background:#f6ded7;font-weight:600}.candidate-selected:hover td{background:#fce8e1}.daily-legend .selected-key{color:var(--red);font-weight:600}
 #monitorDetails{margin-top:17px;border:1px solid var(--border);background:#faf8f3;padding:0}
 #monitorDetails>summary{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:12px 13px;font-size:12px;color:var(--accent);cursor:pointer}
 #monitorDetails>summary::before{content:"▸";font-size:10px}#monitorDetails[open]>summary::before{content:"▾"}
