@@ -25,7 +25,16 @@ SESSION.headers.update({'User-Agent': 'Mozilla/5.0', 'Referer': 'https://data.ea
 
 
 def get_json(url, **kwargs):
-    r = SESSION.get(url, timeout=25, **kwargs); r.raise_for_status()
+    for attempt in range(3):
+        try:
+            r = SESSION.get(url, timeout=25, **kwargs)
+            break
+        except (requests.Timeout, requests.ConnectionError):
+            if attempt == 2: raise
+            delay = 2 ** (attempt + 1)
+            print(f'公开数据请求暂时失败，{delay}秒后进行第{attempt + 2}/3次尝试', flush=True)
+            time.sleep(delay)
+    r.raise_for_status()
     return r.json()
 
 

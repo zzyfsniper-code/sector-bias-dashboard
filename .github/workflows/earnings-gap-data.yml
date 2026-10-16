@@ -27,6 +27,7 @@ jobs:
         id: verify
         run: |
           python strategies/earnings_gap/test_strategy.py
+          python strategies/earnings_gap/test_update_data.py
           python strategies/earnings_gap/test_monitoring.py
           python strategies/earnings_gap/test_profit_reasons.py
           node strategies/earnings_gap/test_signal.js
