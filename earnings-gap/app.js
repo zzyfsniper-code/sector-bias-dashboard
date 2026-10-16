@@ -18,9 +18,9 @@ if(!record.entry_date&&breaches[record.id]&&row.reaction_date===day)row={...row,
 return row;});try{localStorage.setItem('eg-gap-breaches-v1',JSON.stringify({day,ids:breaches}));}catch{}
 window.EarningsGapMonitoring.setScreening(forward,screeningReady);return [...forward,...history];}
 function render(){rows=currentRows();const day=core.chinaTime(new Date()).day;
-$('holdingCount').textContent=rows.filter(r=>['持有','买入','卖出提示'].includes(r.status)).length;
+$('holdingCount').textContent=rows.filter(r=>r.entry_date&&['持有','买入','卖出提示'].includes(r.status)).length;
 const range=$('dateFilter').value,period=$('periodFilter').value,status=$('statusFilter').value,search=$('search').value.trim().toLowerCase(),cutoff=new Date(`${day}T00:00:00+08:00`).getTime()-30*86400000;
-let selected=rows.filter(r=>r.status!=='未入选'&&(!period||r.report_period===period)&&(!search||`${r.name} ${r.ts_code}`.toLowerCase().includes(search))&&(!status||(status==='卖出'?['卖出','已卖出','卖出提示'].includes(r.status):status==='待核验'?['待核验','待更新','等待开盘'].includes(r.status):r.status===status)));
+let selected=rows.filter(r=>r.entry_date&&(!period||r.report_period===period)&&(!search||`${r.name} ${r.ts_code}`.toLowerCase().includes(search))&&(!status||(status==='卖出'?['卖出','已卖出','卖出提示'].includes(r.status):status==='待核验'?['待核验','待更新'].includes(r.status):r.status===status)));
 if(range==='today')selected=selected.filter(r=>(r.reaction_date||r.ann_date)===day);else if(range==='30')selected=selected.filter(r=>new Date(r.reaction_date||r.ann_date).getTime()>=cutoff);
 selected.sort((a,b)=>{const va=a[sortKey],vb=b[sortKey];if(va===null||va===undefined)return vb===null||vb===undefined?0:1;if(vb===null||vb===undefined)return -1;return (typeof va==='number'&&typeof vb==='number'?va-vb:String(va).localeCompare(String(vb),'zh'))*sortDir;});
 page=Math.min(page,Math.max(0,Math.ceil(selected.length/50)-1));const visible=selected.slice(page*50,page*50+50);
@@ -30,7 +30,7 @@ const kind=r.status==='买入'?'buy':r.status==='观察'?'watch':r.status==='持
 const url=safeUrl(r.announcement_url);
 const original=url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" title="${esc(r.announcement_title||'公告原文')}">原文 ↗</a>`:`<a href="https://www.cninfo.com.cn/new/fulltextSearch?notautospecific=&keyWord=${encodeURIComponent(r.ts_code.slice(0,6)+' '+r.end_date.slice(0,4)+'年'+periods[r.report_period]+'报告')}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" title="原文尚未精确匹配，前往巨潮检索">检索 ↗</a>`;
 return `<tr><td title="开盘涨幅 ${r.open_gap_pct?.toFixed(2)??'—'}%"><span class="stock">${esc(r.name)}</span><span class="sub">${esc(r.ts_code)}</span></td><td>${esc(r.industry||'—')}</td><td>${esc(r.end_date.slice(0,4))}${periods[r.report_period]}${r.report_period==='FY'?'<span class="sub">单季为第四季度</span>':''}</td><td>${esc(r.ann_date)}</td><td class="num">${pct(r.quarter_yoy)}</td><td class="num">${pct(r.signal_return_pct)}</td><td><span class="pill ${kind}">${esc(r.status)}</span><span class="sub">${esc(r.status_note||r.exit_reason||'')}</span></td><td>${esc(r.entry_date||'—')}${r.entry_date?`<span class="sub">${price(r.entry_price)}元</span>`:''}</td><td>${esc(r.exit_date||'—')}${r.exit_date?`<span class="sub">${price(r.exit_price)}元 · ${esc(r.exit_reason||'')}${r.status==='卖出提示'?' · 待收盘归档':''}</span>`:''}</td><td class="num">${pct(r.profit_pct)}</td><td>${original}</td></tr>`;
-}).join(''):'<tr><td colspan="11" class="empty">当前筛选下暂无断层信号。财务候选及行情筛选原因见上方监控记录；可切换“全部”查看历史信号。</td></tr>';
+}).join(''):'<tr><td colspan="11" class="empty">当前筛选下暂无已模拟买入记录。未成交候选及筛选原因见上方公告与筛选监控。</td></tr>';
 }
 function warning(){const list=[...(live.issues||[])],today=core.chinaTime(new Date()).day;if(live.financial_asof&&live.financial_asof<today)list.unshift(`公告信息于每个工作日早上08:25（北京时间）开始更新；财务候选尚未更新至今天，上次为${live.financial_asof}；今日新财报可能遗漏。`);$('dataWarning').hidden=!list.length;$('dataWarning').textContent=list.slice(0,4).join('；');}
 async function refresh(){if(busy||document.hidden)return;busy=true;$('refreshButton').disabled=true;let liveLoaded=false;

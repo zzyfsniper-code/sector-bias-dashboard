@@ -10,7 +10,11 @@ assert.equal(core.evaluate(record,{...quote,timestamp:'20261013144000'},now).sta
 assert.equal(core.evaluate(record,{...quote,timestamp:'20261012145000'},now).status,'待更新');
 assert.notEqual(core.evaluate(record,quote,new Date('2026-10-13T15:01:00+08:00')).status,'买入');
 const final={...quote,timestamp:'20261013150000'};const close=new Date('2026-10-13T15:01:00+08:00');
-assert.equal(core.evaluate(record,final,close).status,'买入');
+const bought=core.evaluate(record,final,close);
+assert.equal(bought.status,'买入');
+assert.equal(bought.entry_price,final.last);
+assert.ok(Math.abs(bought.profit_pct-(-0.5982053838484491))<1e-10);
+assert.ok(Math.abs(core.evaluate(bought,final,close).profit_pct-bought.profit_pct)<1e-10);
 assert.equal(core.evaluate(record,{...final,last:107},close).status,'剔除');
 assert.equal(core.evaluate({...record,report_period:'H1'},{...final,last:105},close).status,'剔除');
 assert.equal(core.evaluate({...record,quarter_yoy:null},final,close).status,'待核验');
@@ -25,4 +29,4 @@ assert.equal(core.evaluate(eod,{...final,low:100},close,['2026-10-12','2026-10-1
 assert.equal(core.evaluate({...held,basis_date:'2026-10-09'},quote,now,['2026-10-09','2026-10-12']).profit_pct,null);
 assert.equal(core.evaluate({...record,status:'剔除',status_note:'同日采用更新报告期'},final,close).status,'剔除');
 assert.equal(core.evaluate(held,{...quote,open:111,last:105,high:111,low:90},now,['2026-10-12']).status,'卖出提示');
-console.log('FRONTEND SIGNAL CHECKS PASS: 19 trading/timing checks');
+console.log('FRONTEND SIGNAL CHECKS PASS: trading/timing and unchanged-price round-trip cost checks');
