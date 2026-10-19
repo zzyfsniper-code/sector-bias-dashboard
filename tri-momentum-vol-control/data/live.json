@@ -1,16 +1,12 @@
 {
-  "status": "DATA_UPDATE_BLOCKED",
+  "status": "PASS",
   "version": "tri-momentum-vol-v1.1-20261015",
   "name": "三元动量波控策略",
-  "updated_at": "2026-10-15T16:02:16.826404+08:00",
-  "data_as_of": "2026-10-14",
-  "history_source": "Verified release cache: 159696 Tushare adjusted close; 510300/518880 Wind Excel",
+  "updated_at": "2026-10-19T18:10:02.304976+08:00",
+  "data_as_of": "2026-10-19",
+  "history_source": "Wind Excel WDF.Addin WSD PriceAdj=F",
   "intraday_source": "腾讯公开报价（浏览器直连，不进入信号计算）",
   "calendar": [
-    "2026-08-31",
-    "2026-09-01",
-    "2026-09-02",
-    "2026-09-03",
     "2026-09-04",
     "2026-09-07",
     "2026-09-08",
@@ -114,42 +110,44 @@
     "2027-02-02",
     "2027-02-03",
     "2027-02-04",
-    "2027-02-12"
+    "2027-02-12",
+    "2027-02-15",
+    "2027-02-16"
   ],
-  "calendar_start": "2026-08-31",
-  "calendar_end": "2027-02-12",
+  "calendar_start": "2026-09-04",
+  "calendar_end": "2027-02-16",
   "signal": {
-    "information_date": "2026-10-14",
+    "information_date": "2026-10-19",
     "selected_code": "159696.SZ",
     "selected_name": "纳指ETF易方达",
-    "selected_score": 0.07794117647058818,
-    "estimated_volatility": 0.15408921799211153,
-    "risk_weight": 0.9085645434787475,
-    "cash_weight": 0.09143545652125251,
+    "selected_score": 0.07153576788394189,
+    "estimated_volatility": 0.21435492797109656,
+    "risk_weight": 0.6531223766354347,
+    "cash_weight": 0.3468776233645653,
     "scores": {
-      "159696.SZ": 0.07794117647058818,
-      "510300.SH": -0.07397023937890879,
-      "518880.SH": -0.05972790620506596
+      "159696.SZ": 0.07153576788394189,
+      "510300.SH": -0.06854130052724061,
+      "518880.SH": -0.036281690140844924
     },
     "volatilities": {
-      "159696.SZ": 0.15408921799211153,
-      "510300.SH": 0.12405950660523288,
-      "518880.SH": 0.18132764707181379
+      "159696.SZ": 0.21435492797109656,
+      "510300.SH": 0.1258642874461352,
+      "518880.SH": 0.1790226767125376
     },
-    "execution_date": "2026-10-16",
-    "required_information_date": "2026-10-15",
+    "execution_date": "2026-10-23",
+    "required_information_date": "2026-10-22",
     "is_final": false,
     "status": "PREVIEW"
   },
   "model_current": {
-    "as_of": "2026-10-14",
-    "last_execution_date": "2026-10-09",
+    "as_of": "2026-10-19",
+    "last_execution_date": "2026-10-16",
     "weights": {
-      "159696.SZ": 0.9281803347108374,
+      "159696.SZ": 0.6850117732560791,
       "510300.SH": 0.0,
       "518880.SH": 0.0
     },
-    "cash_weight": 0.07181966528916262,
+    "cash_weight": 0.3149882267439209,
     "note": "历史规则推演持仓，非用户实际持仓"
   },
   "frozen_on": "2026-10-15",
@@ -160,11 +158,10 @@
     "time": "18:10",
     "engine": "Windows Task Scheduler; no Codex dependency"
   },
-  "record_count": 0,
-  "issues": [
-    "Wind Excel历史行情返回：提取数据超限，请联系Wind客服。已停止请求；本版使用已核验历史缓存，截至2026-10-14。18:10任务仍使用Wind Excel，额度恢复前更新可能失败；暂停可执行提示。"
-  ],
-  "run_id": "release_159696_20261015",
-  "observed_at": "2026-10-15T15:53:21.2652574+08:00",
-  "total_history_records": 156
+  "record_count": 1,
+  "issues": [],
+  "run_id": "tri_20261019_181002",
+  "wind_run_id": "wind_excel_20261019_181014_ef7ae1d1",
+  "price_sha256": "6ffc872e3cf51b675c5e2906622f5b5a7af42c015aeb3cb990ee5de6df30a848",
+  "total_history_records": 157
 }
