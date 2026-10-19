@@ -41,5 +41,31 @@ const within=c*100<p*cap,closed=cn.minutes>=900&&f.mins>=900;
 if(closed)return within?{...out,status:'买入',status_note:'收盘确认',entry_date:day,entry_price:q.last,entry_basis:q.last,profit_pct:(.997/1.003-1)*100}:{...out,status:'剔除',status_note:'收盘涨幅不符'};
 return {...out,status:'观察',status_note:within?'当前满足买入条件':'等待涨幅回落'};
 }
-root.EarningsGapCore={chinaTime,parseQuotes,freshness,reactionDay,evaluate};if(typeof module!=='undefined')module.exports=root.EarningsGapCore;
+function positionDetails(record,q,now,live={},day=chinaTime(now).day){
+const out={target_price:null,stop_price:null,stop_label:'止损',price_note:'目标价格待核验',holding_days:null,holding_note:'交易日历覆盖不足'};
+if(!record.entry_date||record.entry_date>day)return out;
+const closed=!!record.exit_date,end=closed?record.exit_date:day,schedule=live.reaction_calendar||[],calendar=live.calendar||[];
+if(closed&&Number.isInteger(record.hold_days)&&record.hold_days>0){out.holding_days=record.hold_days;out.holding_note='已结束，含买入日及卖出日';}
+else if(schedule.includes(record.entry_date)&&live.reaction_calendar_start<=record.entry_date&&live.reaction_calendar_end>=end){
+ out.holding_days=new Set(schedule.filter(d=>d>=record.entry_date&&d<=end)).size;out.holding_note='含买入日，周末及节假日不计';
+}else if(record.basis_date<=end&&Number.isInteger(record.hold_days)&&record.hold_days>0){out.holding_days=record.hold_days;out.holding_note=`截至${record.basis_date}；后续交易日历待更新`;}
+if(!Number.isFinite(record.entry_price)||record.entry_price<=0)return out;
+if(closed||!Number.isFinite(record.entry_basis)||record.entry_basis<=0){
+ out.target_price=record.entry_price*1.10;out.stop_price=record.entry_price*.92;out.stop_label='初始止损';
+ out.price_note='按买入日原始价格展示初始目标（止盈+10%、止损−8%），不还原后续除权或保护线；非实际成交价';return out;
+}
+let scale=1;const f=freshness(q,now),asof=record.basis_date||record.entry_date;
+out.price_note=`截至${asof}的日线目标；未核验当天行情时不调整价格`;
+if(f.ok&&f.day>=record.entry_date){
+ if(f.day===record.basis_date||f.day===record.entry_date)out.price_note=`${f.day}已核验行情；价格为扣费前触发线，非保证成交价`;
+ else if(record.basis_date===calendar.filter(d=>d<f.day).at(-1)){
+  scale=q.previous/(record.basis_last_close||q.previous);out.price_note=`${f.day}已核验行情，已对齐当前报价口径；价格为扣费前触发线，非保证成交价`;
+ }
+}
+out.target_price=record.entry_basis*1.10*scale;
+out.stop_price=(Number.isFinite(record.stop_basis)&&record.stop_basis>0?record.stop_basis:record.entry_basis*.92)*scale;
+if(out.stop_price>record.entry_basis*scale)out.stop_label='保护止损';
+return out;
+}
+root.EarningsGapCore={chinaTime,parseQuotes,freshness,reactionDay,evaluate,positionDetails};if(typeof module!=='undefined')module.exports=root.EarningsGapCore;
 })(typeof globalThis!=='undefined'?globalThis:this);
