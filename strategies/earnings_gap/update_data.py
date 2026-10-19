@@ -240,6 +240,9 @@ def update(sources=None):
     def replay(record):
         if record.get('exit_date') or record.get('status') in ['未入选','剔除']:
             return record
+        # Today's confirmed close entry cannot exit under T+1. An incomplete
+        # daily-bar response must not erase an already persisted entry.
+        if record.get('entry_date')==today:return record
         reaction=reaction_day(record['ann_date'],reaction_calendar,record.get('available_at'))
         if reaction is None:return dict(record,status='等待开盘',reaction_date=None)
         if not record.get('entry_date') and (datetime.fromisoformat(reaction)-datetime.fromisoformat(record['list_date'])).days<90:
@@ -258,6 +261,9 @@ def update(sources=None):
             begin=(datetime.fromisoformat(record['ann_date'])-timedelta(days=14)).date().isoformat()
             adjusted=daily(record['ts_code'],begin,today); raw=daily(record['ts_code'],begin,today,False)
             adjusted=[b for b in adjusted if b['date']<=final_day];raw=[b for b in raw if b['date']<=final_day]
+            if record.get('entry_date') and (not any(b['date']==record['entry_date'] for b in adjusted) or not any(b['date']==record['entry_date'] for b in raw)):
+                issues.append(record['ts_code']+'：买入日行情尚未齐备，保留已有成交记录')
+                return dict(record,data_pending=True)
             return simulate(record,adjusted,raw,calendar,reaction_calendar)
         except Exception:
             issues.append(record['ts_code']+'：日线暂不可用，保留记录但暂停确认信号')

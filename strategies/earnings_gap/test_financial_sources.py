@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from datetime import datetime
 from unittest.mock import Mock,patch
 import financial_sources as f
 
@@ -110,6 +111,23 @@ class SourcesTest(unittest.TestCase):
             self.assertEqual(result['status'],'PASS');self.assertEqual(result['counts']['pending'],0)
             self.assertEqual(result['reports'][0]['quarter_profit'],40);self.assertEqual(result['reports'][0]['quarter_yoy'],100)
             self.assertEqual(result['reports'][0]['financial_source'],'Tushare合并利润表')
+
+    def test_existing_close_entry_survives_incomplete_same_day_bars(self):
+        import update_data as u
+        schedule=json.loads((u.DATA/'trading_calendar.json').read_text('utf-8'))
+        record=dict(id='test',ts_code='601059.SH',name='测试',ann_date='2026-10-17',end_date='2026-09-30',
+                    entry_date='2026-10-19',entry_price=17.17,status='持有',profit_pct=-.5982053838484491,announcement_url='https://example.invalid/report')
+        class Closing(datetime):
+            @classmethod
+            def now(cls,tz=None):return cls(2026,10,19,15,30,tzinfo=u.TZ)
+        with tempfile.TemporaryDirectory() as folder:
+            data=Path(folder)
+            for name,value in [('live.json',dict(records=[record])),('stock_metadata.json',{}),('calendar.json',['2026-10-16']),('trading_calendar.json',schedule)]:
+                (data/name).write_text(json.dumps(value),'utf-8')
+            with patch.object(u,'DATA',data),patch.object(u,'datetime',Closing),patch.object(u,'finance',return_value=[]), \
+                 patch.object(u,'daily',return_value=[dict(date='2026-10-16',close=100)]),patch.object(u,'closing_quotes',return_value={}),patch.object(u,'simulate') as simulate:
+                result,_,_=u.update()
+            simulate.assert_not_called();self.assertEqual(result['records'][0],record)
 
 
 if __name__=='__main__':unittest.main()
