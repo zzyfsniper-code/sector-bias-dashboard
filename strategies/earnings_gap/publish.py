@@ -14,7 +14,7 @@ API='https://api.github.com/repos/zzyfsniper-code/sector-bias-dashboard'
 def publish(data_only=False,monitor_only=False):
     files=['earnings-gap/data/monitor.json'] if monitor_only else ['earnings-gap/data/live.json','earnings-gap/data/monitor.json'] if data_only else ['earnings_gap.html','strategies/index.html','strategies/app.js',
         '.github/workflows/earnings-gap-data.yml']+[p.relative_to(ROOT).as_posix() for p in (ROOT/'earnings-gap').rglob('*') if p.is_file()]+[
-        'strategies/earnings_gap/'+n for n in ['strategy_core.py','update_data.py','monitoring.py','profit_reasons.py','publish.py','test_strategy.py','test_signal.js','test_monitoring.py','test_profit_reasons.py','test_monitor.js']]
+        'strategies/earnings_gap/'+n for n in ['strategy_core.py','update_data.py','monitoring.py','financial_sources.py','profit_reasons.py','publish.py','test_strategy.py','test_signal.js','test_monitoring.py','test_profit_reasons.py','test_monitor.js','test_financial_sources.py']]
     files=sorted(set(files));token=os.environ.get('GITHUB_TOKEN')
     if not token:raise RuntimeError('GITHUB_TOKEN is missing; nothing published')
     session=requests.Session();session.headers.update({'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','User-Agent':'earnings-gap-publisher'})

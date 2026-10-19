@@ -22,12 +22,15 @@ jobs:
       - run: pip install requests pdfplumber==0.11.9
       - name: Refresh financial candidates and paper trades
         id: refresh
+        env:
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
         run: python strategies/earnings_gap/update_data.py
       - name: Verify trading rules
         id: verify
         run: |
           python strategies/earnings_gap/test_strategy.py
           python strategies/earnings_gap/test_update_data.py
+          python strategies/earnings_gap/test_financial_sources.py
           python strategies/earnings_gap/test_monitoring.py
           python strategies/earnings_gap/test_profit_reasons.py
           node strategies/earnings_gap/test_signal.js

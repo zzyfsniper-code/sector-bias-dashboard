@@ -77,6 +77,9 @@ def financial_check(row, history, meta, checked_at):
     ready = profit is not None and yoy is not None and bool(meta.get(code, {}).get('list_date'))
     reason = '单季还原或上市资料不足' if not ready else '单季净利润为负' if profit < 0 else '单季同比不足30%' if yoy < 30 else '财务条件符合'
     return dict(cumulative_profit=row['PARENT_NETPROFIT'], quarter_profit=profit, quarter_yoy=yoy,
+                financial_source=row.get('FINANCIAL_SOURCE','东方财富定期财报'),
+                financial_components=[dict(report_period=x['REPORTDATE'][:10],notice_date=x['NOTICE_DATE'][:10],
+                    source=x.get('FINANCIAL_SOURCE','东方财富定期财报')) for x in history if x['NOTICE_DATE'][:10]<=ann],
                 complete=ready, eligible=ready and profit >= 0 and yoy >= 30, reason=reason, checked_at=checked_at)
 
 
@@ -114,12 +117,15 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
         if notice['name'].upper().startswith(('ST', '*ST')):
             item.update(complete=True, result='已排除', reason='ST股票')
         elif row is None:
-            item.update(result='待补数据', reason='巨潮已有正式公告，财务接口尚未覆盖')
+            reason='巨潮已有正式公告，东财/Tushare未补齐，待本机Wind Excel补数' if payload.get('financial_source_order') else '巨潮已有正式公告，财务接口尚未覆盖'
+            item.update(result='待补数据', reason=reason)
         elif report_id(row) not in selected_ids:
             item.update(complete=True, result='已排除', reason='同日采用更新报告期')
         else:
             check = checks.get(report_id(row), {})
             item.update(complete=check.get('complete', False), quarter_profit=check.get('quarter_profit'), quarter_yoy=check.get('quarter_yoy'),
+                        financial_source=check.get('financial_source',row.get('FINANCIAL_SOURCE','东方财富定期财报')),
+                        financial_components=check.get('financial_components',[]),
                         financial_eligible=check.get('eligible', False), result='已筛选' if check.get('complete') else '待补数据',
                         reason=check.get('reason', '缺少可核验的单季财务数据'))
             if notice['corrected']:

@@ -1,7 +1,8 @@
 """Daily public-source financial discovery and persistent independent paper ledger.
 
 Quotes refresh in the browser. This script runs before the open and after the close;
-it does not call Tushare/Wind or place orders. A failed critical fetch preserves live.json.
+Financial gaps use Tushare, then validated local Wind Excel data; no orders are placed.
+A failed critical fetch preserves live.json.
 """
 from __future__ import annotations
 
@@ -163,14 +164,14 @@ def closing_quotes(rows,today):
     return quotes
 
 
-def update():
+def update(sources=None):
     now = datetime.now(TZ); today = now.date().isoformat(); yesterday = (now.date() - timedelta(days=1)).isoformat()
     old = json.loads((DATA/'live.json').read_text('utf-8')) if (DATA/'live.json').exists() else {}
     meta = json.loads((DATA/'stock_metadata.json').read_text('utf-8'))
     existing = {x['id']: x for x in old.get('records', [])}
     processed=set(old.get('checked_financial_ids',[]))|set(existing)
     start = max('2026-10-10', (now.date()-timedelta(days=40)).isoformat())
-    current = finance(f"(NOTICE_DATE>='{start}')(NOTICE_DATE<='{today}')")
+    current = sources.discover(start,today) if sources else finance(f"(NOTICE_DATE>='{start}')(NOTICE_DATE<='{today}')")
     market=daily('000001.SH',start,today,False)
     final_day=today if (now.hour,now.minute)>=(15,10) else yesterday
     market=[b for b in market if b['date']<=final_day]
@@ -189,7 +190,7 @@ def update():
         if key in fetched: continue
         fetched[key] = r
         if f'live-{code}-{end}-{ann}' not in processed: published.append(r)
-    historical=financial_histories(published)
+    historical=sources.histories(published) if sources else financial_histories(published)
     for r in published:
         code = r['SECUCODE']; end = r['REPORTDATE'][:10]; ann = r['NOTICE_DATE'][:10]
         if code not in meta or not meta[code].get('list_date'):
@@ -209,8 +210,11 @@ def update():
             industry=meta[code].get('industry') or r.get('BOARD_NAME') or '—',
             list_date=meta[code]['list_date'],ann_date=ann,end_date=end,report_period=report_kind(end),
             quarter_profit=profit,quarter_yoy=yoy,origin='forward',status='等待开盘',
-            financial_source='东方财富定期财报累计金额还原单季',financial_observed_at=now.isoformat(),
-            financial_notice_date=ann,announcement_url=None)
+            financial_source=r.get('FINANCIAL_SOURCE','东方财富定期财报')+'累计金额还原单季',financial_observed_at=now.isoformat(),
+            financial_notice_date=ann,announcement_url=r.get('ANNOUNCEMENT_URL'))
+        record['financial_components']=[dict(report_period=x['REPORTDATE'][:10],notice_date=x['NOTICE_DATE'][:10],
+            source=x.get('FINANCIAL_SOURCE','东方财富定期财报')) for x in history if x['REPORTDATE'][:10] in
+            [end,f'{y}-{prev}',f'{y-1}-{end[5:]}',f'{y-1}-{prev}']]
         existing[record['id']] = record
     for record in existing.values():
         if record.get('entry_date'):continue
@@ -267,6 +271,9 @@ def update():
         calendar=calendar[-120:],records_count=len(records),financial_reports_checked=len(fetched))
     payload.update(reaction_calendar=schedule['open_dates'],reaction_calendar_start=schedule['coverage_start'],
                    reaction_calendar_end=schedule['coverage_end'],reaction_calendar_source=schedule['source'])
+    if sources:payload.update(financial_source='东财优先；Tushare备选1；Wind Excel本机补数备选2',
+        financial_source_order=['Eastmoney','Tushare','Wind Excel'],financial_fallback_audit=sources.audit,
+        wind_financial_pending=sources.pending_wind)
     target=DATA/'live.json'; temp=target.with_suffix('.tmp');temp.write_text(json.dumps(payload,ensure_ascii=False,allow_nan=False,separators=(',',':')),'utf-8');temp.replace(target)
     print(json.dumps({k:payload[k] for k in ['status','updated_at','records_count','financial_reports_checked','issues']},ensure_ascii=False))
     return payload,finance_rows,list(fetched.values())
@@ -274,11 +281,13 @@ def update():
 
 def monitored_update():
     import monitoring
+    from financial_sources import FinancialSources
     old,started_at=monitoring.begin()
     try:
-        payload,finance_rows,selected=update()
+        sources=FinancialSources(DATA,finance,financial_histories,cninfo)
+        payload,finance_rows,selected=update(sources)
         meta=json.loads((DATA/'stock_metadata.json').read_text('utf-8'))
-        monitor=monitoring.finish(payload,finance_rows,selected,old,started_at,cninfo,financial_histories,meta)
+        monitor=monitoring.finish(payload,finance_rows,selected,old,started_at,sources.notices,sources.histories,meta)
         print(json.dumps(dict(monitor_status=monitor['status'],counts=monitor['counts']),ensure_ascii=False))
     except Exception as exc:
         monitoring.failure(exc,started_at)
