@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
-from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return
+from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / 'earnings-gap/data'
@@ -99,9 +99,21 @@ def newest_reports(rows,calendar):
     # Same company/reaction day: select the newest period BEFORE the YoY filter.
     chosen={}
     for row in sorted(rows,key=lambda x:(x['REPORTDATE'],x['NOTICE_DATE']),reverse=True):
-        reaction=next((d for d in calendar if d>=row['NOTICE_DATE'][:10]),'pending')
+        reaction=reaction_day(row['NOTICE_DATE'][:10],calendar) or 'pending'
         chosen.setdefault((row['SECUCODE'],reaction),row)
     return list(chosen.values())
+
+
+def load_trading_calendar(today, completed):
+    value=json.loads((DATA/'trading_calendar.json').read_text('utf-8'))
+    if not value['coverage_start']<=today<=value['coverage_end']:
+        raise RuntimeError('交易日历未覆盖今天，保留上次数据并暂停反应日确认；请更新交易日历')
+    opened=value['open_dates']
+    if opened!=sorted(set(opened)) or any(not value['coverage_start']<=d<=value['coverage_end'] for d in opened):
+        raise RuntimeError('交易日历结构异常')
+    if any(value['coverage_start']<=d<=value['coverage_end'] and d not in opened for d in completed):
+        raise RuntimeError('交易日历与已完成行情日期冲突')
+    return value
 
 
 def financial_histories(rows):
@@ -163,8 +175,10 @@ def update():
     final_day=today if (now.hour,now.minute)>=(15,10) else yesterday
     market=[b for b in market if b['date']<=final_day]
     calendar=sorted(set(json.loads((DATA/'calendar.json').read_text('utf-8'))) | {x['date'] for x in market})
+    schedule=load_trading_calendar(today,calendar)
+    reaction_calendar=sorted(set(calendar)|set(schedule['open_dates']))
     finance_rows=current
-    current=newest_reports(current,calendar)
+    current=newest_reports(current,reaction_calendar)
     # The financial source contains cumulative profits. Never use SJLTZ as quarter YoY.
     issues = []; fetched = {}; published = []
     for r in current:
@@ -200,8 +214,8 @@ def update():
         existing[record['id']] = record
     for record in existing.values():
         if record.get('entry_date'):continue
-        key=(record['ts_code'],next((d for d in calendar if d>=record['ann_date']),'pending'))
-        newer=[r for r in current if (r['SECUCODE'],next((d for d in calendar if d>=r['NOTICE_DATE'][:10]),'pending'))==key and r['REPORTDATE'][:10]>record['end_date']]
+        key=(record['ts_code'],reaction_day(record['ann_date'],reaction_calendar,record.get('available_at')) or 'pending')
+        newer=[r for r in current if (r['SECUCODE'],reaction_day(r['NOTICE_DATE'][:10],reaction_calendar) or 'pending')==key and r['REPORTDATE'][:10]>record['end_date']]
         if newer:record.update(status='剔除',status_note='同日采用更新报告期')
     needs=[r for r in existing.values() if not r.get('announcement_url') and not r.get('exit_date')]
     notices=[]
@@ -217,12 +231,12 @@ def update():
     except Exception:issues.append('部分原文暂缺，保留已有链接并提供巨潮检索')
     final_quotes={}
     if final_day==today:
-        try:final_quotes=closing_quotes([r for r in existing.values() if not r.get('entry_date') and next((d for d in calendar if d>=r['ann_date']),None)==today],today)
+        try:final_quotes=closing_quotes([r for r in existing.values() if not r.get('entry_date') and reaction_day(r['ann_date'],reaction_calendar,r.get('available_at'))==today],today)
         except Exception:issues.append('收盘快照暂不可用，改用日线核验')
     def replay(record):
         if record.get('exit_date') or record.get('status') in ['未入选','剔除']:
             return record
-        reaction=next((d for d in calendar if d>=record['ann_date']),None)
+        reaction=reaction_day(record['ann_date'],reaction_calendar,record.get('available_at'))
         if reaction is None:return dict(record,status='等待开盘',reaction_date=None)
         if not record.get('entry_date') and (datetime.fromisoformat(reaction)-datetime.fromisoformat(record['list_date'])).days<90:
             return dict(record,status='剔除',status_note='上市不足90日',reaction_date=reaction)
@@ -240,7 +254,7 @@ def update():
             begin=(datetime.fromisoformat(record['ann_date'])-timedelta(days=14)).date().isoformat()
             adjusted=daily(record['ts_code'],begin,today); raw=daily(record['ts_code'],begin,today,False)
             adjusted=[b for b in adjusted if b['date']<=final_day];raw=[b for b in raw if b['date']<=final_day]
-            return simulate(record,adjusted,raw,calendar)
+            return simulate(record,adjusted,raw,calendar,reaction_calendar)
         except Exception:
             issues.append(record['ts_code']+'：日线暂不可用，保留记录但暂停确认信号')
             return dict(record,data_pending=True)
@@ -251,6 +265,8 @@ def update():
         status='PARTIAL' if issues else 'PASS',issues=issues,records=records,
         checked_financial_ids=sorted(processed),
         calendar=calendar[-120:],records_count=len(records),financial_reports_checked=len(fetched))
+    payload.update(reaction_calendar=schedule['open_dates'],reaction_calendar_start=schedule['coverage_start'],
+                   reaction_calendar_end=schedule['coverage_end'],reaction_calendar_source=schedule['source'])
     target=DATA/'live.json'; temp=target.with_suffix('.tmp');temp.write_text(json.dumps(payload,ensure_ascii=False,allow_nan=False,separators=(',',':')),'utf-8');temp.replace(target)
     print(json.dumps({k:payload[k] for k in ['status','updated_at','records_count','financial_reports_checked','issues']},ensure_ascii=False))
     return payload,finance_rows,list(fetched.values())

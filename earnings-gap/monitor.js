@@ -1,6 +1,7 @@
 (function(root){
 'use strict';
 const china=now=>new Date(now.getTime()+8*3600000).toISOString();
+const core=root.EarningsGapCore||(typeof require==='function'?require('./signal.js'):null);
 function health(monitor,live,job,now=new Date(),errors=[],screened=[],loading={}){
  const cn=china(now),day=cn.slice(0,10),minutes=Number(cn.slice(11,13))*60+Number(cn.slice(14,16)),weekday=new Date(day+'T00:00:00Z').getUTCDay(),messages=[];
  let severity=0;const add=(level,text)=>{severity=Math.max(severity,level);messages.push(text);};
@@ -19,12 +20,15 @@ function health(monitor,live,job,now=new Date(),errors=[],screened=[],loading={}
  if(loading.job)add(1,'正在读取线上任务状态');
  else if(!job)add(2,'线上任务状态暂无法核验');
  if(loading.quotes)add(1,'正在获取行情，暂不确认买卖');
- if(weekday>0&&weekday<6&&minutes>=540){
+ const calendarCovered=live?.reaction_calendar_start<=day&&day<=live?.reaction_calendar_end;
+ const tradingDay=calendarCovered?live.reaction_calendar.includes(day):weekday>0&&weekday<6;
+ if(live?.reaction_calendar_end&&!calendarCovered)add(3,'交易日历未覆盖今天，暂停反应日确认');
+ if(tradingDay&&minutes>=540){
   if(monitor.financial_asof<day)add(active?1:3,'今天的公告与筛选尚未完成更新');
   if(job&&china(new Date(job.created_at)).slice(0,10)<day)add(3,'今天尚无线上任务执行记录');
   if(minutes>=945&&(!monitor.data_updated_at||Date.parse(monitor.data_updated_at)<Date.parse(day+'T15:10:00+08:00')))add(active?1:3,'今日收盘归档尚未完成');
  }
- if(weekday>0&&weekday<6&&((minutes>=570&&minutes<=690)||(minutes>=780&&minutes<900))){
+ if(tradingDay&&((minutes>=570&&minutes<=690)||(minutes>=780&&minutes<900))){
   const missing=screened.filter(r=>r.quote_fresh===false&&!r.exit_date&&!['未入选','剔除'].includes(r.status));
   if(missing.length)add(3,`${missing.length}只跟踪股票行情缺失或过期，暂停对应买卖确认`);
  }
@@ -43,10 +47,7 @@ function financialReport(report,monitor){
  return {...report,quarter_profit:report.quarter_profit??checks[key]?.quarter_profit};
 }
 function reactionDay(report,calendar,day){
- if(report.reaction_date)return report.reaction_date;
- const known=calendar.find(d=>d>=report.ann_date);if(known)return known;
- const weekday=new Date(day+'T00:00:00Z').getUTCDay();
- return report.ann_date===day&&weekday>0&&weekday<6?day:null;
+ return core.reactionDay(report,calendar);
 }
 function latestReports(reports,key){
  const sorted=[...reports].sort((a,b)=>b.end_date.localeCompare(a.end_date)||b.ann_date.localeCompare(a.ann_date)||Number(!!b.corrected)-Number(!!a.corrected));
@@ -67,16 +68,18 @@ function marketState(row,day,synced=true,quotesReady=true){
 function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true){
  const day=china(now).slice(0,10),confirmed=monitor?.source_status==='PASS'&&monitor.financial_asof===day;
  const synced=confirmed&&live?.updated_at===monitor.data_updated_at&&live?.version===monitor.version;
- const archived=synced&&monitor.status==='PASS'&&live.status==='PASS'&&live.financial_asof===day&&now.getTime()>=Date.parse(day+'T15:10:00+08:00')&&Date.parse(live.updated_at)>=Date.parse(day+'T15:10:00+08:00');
+ const tradingDay=live?.reaction_calendar?live.reaction_calendar.includes(day):null;
+ const archived=tradingDay!==false&&synced&&monitor.status==='PASS'&&live.status==='PASS'&&live.financial_asof===day&&now.getTime()>=Date.parse(day+'T15:10:00+08:00')&&Date.parse(live.updated_at)>=Date.parse(day+'T15:10:00+08:00');
  const raw=(monitor?.reports||[]).map(r=>financialReport(reportState(r,screened),monitor));
- const all=latestReports(raw,r=>r.ts_code+'|'+r.end_date),calendar=live?.calendar||[];
- const today=latestReports(all.filter(r=>r.ann_date===day),r=>r.ts_code);
- const candidates=latestReports(all.filter(r=>r.financial_eligible).map(r=>({...r,reaction_date:reactionDay(r,calendar,day)})).filter(r=>r.ann_date===day||r.reaction_date===day),r=>r.ts_code).map(r=>{
+ const all=latestReports(raw,r=>r.ts_code+'|'+r.end_date),calendar=live?.reaction_calendar||live?.calendar||[];
+ const aligned=all.map(r=>({...r,reaction_date:reactionDay(r,calendar,day)}));
+ const today=latestReports(aligned.filter(r=>r.reaction_date===day),r=>r.ts_code);
+ const candidates=latestReports(today.filter(r=>r.financial_eligible),r=>r.ts_code).map(r=>{
   const closed=archived&&(live.records||[]).some(t=>t.ts_code===r.ts_code&&t.end_date===r.end_date&&t.entry_date===day&&!t.data_pending);
   const row={...r,closing_confirmed:closed};return {...row,market:marketState(row,day,synced,quotesReady)};
  });
  const market=candidates.filter(r=>r.reaction_date===day);
- return {day,confirmed,synced,archived,all:raw,today,candidates,failures:today.filter(r=>r.complete&&!r.financial_eligible),
+ return {day,confirmed,synced,archived,tradingDay,all:raw,today,candidates,failures:today.filter(r=>r.complete&&!r.financial_eligible),
   announcements:confirmed?today.length:null,financial:confirmed?today.filter(r=>r.complete&&r.financial_eligible).length:null,
   market:synced&&market.every(r=>r.market.known)?market.filter(r=>r.market.passed).length:null,
   closing:archived?(live.records||[]).filter(r=>r.entry_date===day&&!r.data_pending).length:null};
@@ -117,7 +120,7 @@ function render(){
  $('monitorToday').textContent=daily.day;
  for(const [id,value] of [['dailyAnnouncements',daily.announcements],['dailyFinancial',daily.financial],['dailyMarket',daily.market]])$(id).textContent=value==null?'—':value+' 家';
  const closing=daily.closing==null?(china(now).slice(11,16)<'15:00'?'待收盘':'待归档'):daily.closing+' 家';
- $('dailyClosing').textContent=daily.confirmed?closing:'待核验';$('dailyClosing').className=daily.closing==null?'text-value':'';
+ $('dailyClosing').textContent=daily.tradingDay===false?'休市':daily.confirmed?closing:'待核验';$('dailyClosing').className=daily.closing==null?'text-value':'';
  $('dailyCandidateCount').textContent=daily.confirmed?daily.candidates.length+' 家':'待核验';
  $('dailyCandidates').innerHTML=daily.confirmed&&daily.candidates.length?daily.candidates.map(r=>{
   const gap=r.reason?.includes('已补缺口')?'已补缺口':r.open_gap_pct>=2&&r.market.known?'未补缺口':'—';

@@ -1,7 +1,7 @@
 """Frozen earnings gap rules; daily bars are adjusted, displayed entry prices are raw."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time, timedelta, timezone
 import math
 
 COST = .003
@@ -41,10 +41,23 @@ def qualifies(open_price, low, close, previous, period):
     return p > 0 and o * 100 >= p * 102 and l > p and c * 100 < p * cap
 
 
-def simulate(record, bars, raw, calendar):
+def reaction_day(ann_date, calendar, available_at=None):
+    """Date-only labels align inclusively; verified timestamps must precede the open."""
+    after_open = False
+    if available_at:
+        moment = datetime.fromisoformat(available_at)
+        if moment.tzinfo is None:
+            raise ValueError('公告披露时刻缺少时区')
+        moment = moment.astimezone(timezone(timedelta(hours=8)))
+        ann_date = max(ann_date, moment.date().isoformat())
+        after_open = moment.date().isoformat() == ann_date and moment.time() >= time(9, 30)
+    return next((d for d in calendar if d > ann_date or d == ann_date and not after_open), None)
+
+
+def simulate(record, bars, raw, calendar, reaction_calendar=None):
     """Rebuild one independent paper trade, including T+1 and prior-close protection."""
     byday = {b['date']: b for b in bars}; rawday = {b['date']: b for b in raw}
-    reaction = next((d for d in calendar if d >= record['ann_date']), None)
+    reaction = reaction_day(record['ann_date'], reaction_calendar if reaction_calendar is not None else calendar, record.get('available_at'))
     out = dict(record, reaction_date=reaction, origin='forward', status='等待开盘', entry_date=None,
                entry_price=None, exit_date=None, exit_price=None, profit_pct=None, exit_reason=None)
     if not reaction or reaction not in byday:

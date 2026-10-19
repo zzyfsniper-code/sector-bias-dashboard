@@ -61,8 +61,8 @@ const rejected={...first,status:'未入选',status_note:'高开不足2%',reactio
 const eligible={...previous,status:'观察',status_note:'当前满足买入条件',reaction_date:day,open_gap_pct:2.5,quote_fresh:true};
 const intraday=new Date(day+'T10:00:00+08:00');
 let overview=dailyOverview(dailyMonitor,dailyLive,[rejected,eligible],intraday);
-assert.equal(overview.announcements,2); // Company count, not duplicate notice count.
-assert.equal(overview.financial,1);
+assert.equal(overview.announcements,3); // Reaction-day company count, including older announcements.
+assert.equal(overview.financial,2);
 assert.equal(overview.failures.length,1);
 assert.equal(overview.candidates.length,2); // Includes yesterday's notice reacting today.
 assert.equal(overview.market,1);
@@ -81,7 +81,7 @@ assert.equal(marketState({...first,reaction_date:day,result:'观察',reason:'等
 assert.equal(marketState(filled,day,false).label,'待核验');
 assert.equal(reactionDay({...first,ann_date:'2026-10-17'},['2026-10-19'],'2026-10-17'),'2026-10-19');
 assert.equal(reactionDay({...first,ann_date:'2026-10-17'},[],'2026-10-17'),null);
-assert.equal(reactionDay(first,[],day),day);
+assert.equal(reactionDay(first,[],day),null); // Missing calendar must not guess a weekday.
 const checks={financial_checks:{['live-'+first.ts_code+'-'+end+'-2026-10-14']:{quarter_profit:10},['live-'+first.ts_code+'-'+end+'-2026-10-16']:{quarter_profit:999}}};
 assert.equal(financialReport(first,checks).quarter_profit,10); // Never use a future-dated check.
 const changedCorrection={...first,id:'corrected',corrected:true,financial_eligible:false,reason:'单季同比不足30%'};
@@ -92,4 +92,18 @@ assert.equal(overview.closing,1);
 assert.equal(overview.market,1);
 assert.equal(dailyOverview({...dailyMonitor,data_updated_at:closeStamp},closedLive,[],intraday).closing,null);
 assert.equal(dailyOverview({...dailyMonitor,data_updated_at:closeStamp,status:'PARTIAL'},closedLive,[],intraday).closing,null);
+const monday='2026-10-19',mondayTime=new Date(monday+'T10:00:00+08:00');
+const weekend={...first,ann_date:'2026-10-17',reaction_date:null};
+const mondayLive={...dailyLive,financial_asof:monday,reaction_calendar:['2026-10-16',monday,'2026-10-20'],reaction_calendar_start:'2026-01-01',reaction_calendar_end:'2026-12-31'};
+const mondayMonitor={...dailyMonitor,financial_asof:monday,reports:[weekend,{...weekend,id:'duplicate',corrected:true}]};
+overview=dailyOverview(mondayMonitor,mondayLive,[],mondayTime);
+assert.equal(overview.announcements,1);assert.equal(overview.financial,1);assert.equal(overview.candidates.length,1);
+assert.equal(overview.candidates[0].ann_date,'2026-10-17');assert.equal(overview.candidates[0].reaction_date,monday);
+assert.equal(reactionDay({...weekend,ann_date:'2026-10-16',available_at:'2026-10-16T18:00:00+08:00'},mondayLive.reaction_calendar,monday),monday);
+const holiday='2026-10-05',holidayLive={...live,reaction_calendar:['2026-09-30','2026-10-08'],reaction_calendar_start:'2026-01-01',reaction_calendar_end:'2026-12-31'};
+assert.equal(health(monitor,holidayLive,job,new Date(holiday+'T15:50:00+08:00')).severity,0); // No holiday missing-close false alarm.
+assert.equal(reactionDay({...first,ann_date:holiday},holidayLive.reaction_calendar,holiday),'2026-10-08');
+assert.equal(dailyOverview(monitor,holidayLive,[],new Date(holiday+'T15:50:00+08:00')).tradingDay,false);
+assert.equal(health(monitor,mondayLive,job,new Date('2027-01-04T10:00:00+08:00')).severity,3);
+assert.equal(dailyOverview({...mondayMonitor,reports:[{...weekend,ann_date:'2026-10-20'}]},mondayLive,[],mondayTime).candidates.length,0);
 console.log('MONITOR CHECKS PASS: health, daily date scopes, deduplication, corrections, missing data, gray states and closing confirmation');

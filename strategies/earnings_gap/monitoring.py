@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import re
 
-from strategy_core import quarter_profit
+from strategy_core import quarter_profit, reaction_day
 
 DATA = Path(__file__).resolve().parents[2] / 'earnings-gap/data'
 TZ = timezone(timedelta(hours=8))
@@ -108,7 +108,8 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
         by_period.setdefault((row['SECUCODE'], row['REPORTDATE'][:10]), row)
     records = {r['id']: r for r in payload['records']}; rows = []
     for notice in sorted(catalog.values(), key=lambda n: (n['ann_date'], n['id']), reverse=True):
-        item = dict(notice, complete=False, quarter_profit=None, quarter_yoy=None, financial_eligible=False)
+        item = dict(notice, complete=False, quarter_profit=None, quarter_yoy=None, financial_eligible=False,
+                    reaction_date=reaction_day(notice['ann_date'], payload.get('reaction_calendar', payload.get('calendar', [])), notice.get('available_at')))
         row = by_period.get((notice['ts_code'], notice['end_date']))
         if notice['name'].upper().startswith(('ST', '*ST')):
             item.update(complete=True, result='已排除', reason='ST股票')

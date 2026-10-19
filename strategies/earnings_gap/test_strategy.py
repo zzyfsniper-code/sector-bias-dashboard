@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from strategy_core import qualifies, quarter_profit, simulate, net_return
+from strategy_core import qualifies, quarter_profit, simulate, net_return, reaction_day
 
 CAL=['2026-10-08','2026-10-09','2026-10-12','2026-10-13','2026-10-14','2026-10-15','2026-10-16','2026-10-19','2026-10-20','2026-10-21','2026-10-22']
 RECORD=dict(id='test',ts_code='600000.SH',name='测试公司',list_date='2000-01-01',ann_date='2026-10-09',end_date='2026-09-30',report_period='Q3')
@@ -65,6 +65,39 @@ class RulesTest(unittest.TestCase):
         selected=newest_reports([a,b],['2026-04-24','2026-04-27'])
         self.assertEqual(selected,[b])
         self.assertEqual(newest_reports([a,b],['2026-04-24']),[b])
+
+    def test_weekend_and_national_holiday_reaction_days(self):
+        calendar=['2026-09-30','2026-10-08','2026-10-09','2026-10-12','2026-10-16','2026-10-19']
+        for day in ['2026-10-17','2026-10-18']:
+            self.assertEqual(reaction_day(day,calendar),'2026-10-19')
+        for day in ['2026-10-01','2026-10-02','2026-10-07']:
+            self.assertEqual(reaction_day(day,calendar),'2026-10-08')
+        self.assertEqual(reaction_day('2026-10-10',calendar),'2026-10-12')
+        self.assertEqual(reaction_day('2026-10-19',calendar),'2026-10-19')
+
+    def test_verified_post_close_and_open_time_boundary(self):
+        calendar=['2026-09-30','2026-10-08','2026-10-16','2026-10-19']
+        self.assertEqual(reaction_day('2026-10-16',calendar,'2026-10-16T18:00:00+08:00'),'2026-10-19')
+        self.assertEqual(reaction_day('2026-10-16',calendar,'2026-10-16T09:29:59+08:00'),'2026-10-16')
+        self.assertEqual(reaction_day('2026-10-16',calendar,'2026-10-16T09:30:00+08:00'),'2026-10-19')
+        self.assertEqual(reaction_day('2026-09-30',calendar,'2026-09-30T15:01:00+08:00'),'2026-10-08')
+        self.assertEqual(reaction_day('2026-10-17',calendar,'2026-10-16T18:00:00+08:00'),'2026-10-19')
+        self.assertEqual(reaction_day('2026-10-16',calendar,'2026-10-16T10:00:00Z'),'2026-10-19')
+        with self.assertRaises(ValueError):reaction_day('2026-10-16',calendar,'2026-10-16T18:00:00')
+
+    def test_unknown_next_session_is_not_guessed(self):
+        self.assertIsNone(reaction_day('2026-10-17',['2026-10-16']))
+        self.assertIsNone(reaction_day('2026-10-19',[]))
+
+    def test_scheduled_sessions_do_not_inflate_holding_days(self):
+        bars=base()
+        full=CAL+['2026-10-23','2026-10-26']
+        old=simulate(RECORD,bars,bars,CAL[:2])
+        new=simulate(RECORD,bars,bars,CAL[:2],full)
+        self.assertEqual(new,old);self.assertEqual(new['hold_days'],1)
+        pending=simulate(dict(RECORD,ann_date='2026-10-17'),bars,bars,CAL[:2],full)
+        self.assertEqual(pending['reaction_date'],'2026-10-19')
+        self.assertEqual(pending['status'],'等待开盘');self.assertIsNone(pending['entry_date'])
 
 
 if __name__=='__main__':unittest.main()

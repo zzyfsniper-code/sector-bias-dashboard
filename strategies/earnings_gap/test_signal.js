@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 const core=require('../../earnings-gap/signal.js');
-const record={id:'test',origin:'forward',ts_code:'600000.SH',name:'测试',list_date:'2000-01-01',ann_date:'2026-10-13',end_date:'2026-09-30',report_period:'Q3',quarter_yoy:30,quarter_profit:1};
+const record={id:'test',origin:'forward',ts_code:'600000.SH',name:'测试',list_date:'2000-01-01',ann_date:'2026-10-13',reaction_date:'2026-10-13',end_date:'2026-09-30',report_period:'Q3',quarter_yoy:30,quarter_profit:1};
 const quote={name:'测试',last:106,previous:100,open:102,high:106,low:101,timestamp:'20261013145000'};
 const now=new Date('2026-10-13T14:50:10+08:00');
 assert.equal(core.evaluate(record,quote,now).status,'观察');
@@ -29,4 +29,15 @@ assert.equal(core.evaluate(eod,{...final,low:100},close,['2026-10-12','2026-10-1
 assert.equal(core.evaluate({...held,basis_date:'2026-10-09'},quote,now,['2026-10-09','2026-10-12']).profit_pct,null);
 assert.equal(core.evaluate({...record,status:'剔除',status_note:'同日采用更新报告期'},final,close).status,'剔除');
 assert.equal(core.evaluate(held,{...quote,open:111,last:105,high:111,low:90},now,['2026-10-12']).status,'卖出提示');
+const weekend={...record,ann_date:'2026-10-17',reaction_date:null};
+const mondayQuote={...quote,timestamp:'20261019100000'},monday=new Date('2026-10-19T10:00:10+08:00');
+const completed=['2026-10-15','2026-10-16'],scheduled=['2026-10-16','2026-10-19','2026-10-20'];
+const candidate=core.evaluate(weekend,mondayQuote,monday,completed,scheduled);
+assert.equal(candidate.status,'观察');assert.equal(candidate.reaction_date,'2026-10-19');
+assert.equal(core.evaluate(weekend,mondayQuote,monday,completed).status,'待核验');
+assert.equal(core.reactionDay({...weekend,ann_date:'2026-10-16',available_at:'2026-10-16T18:00:00+08:00'},scheduled),'2026-10-19');
+assert.equal(core.reactionDay({...weekend,ann_date:'2026-10-16',available_at:'2026-10-16T09:29:59+08:00'},scheduled),'2026-10-16');
+assert.equal(core.reactionDay({...weekend,ann_date:'2026-10-16',available_at:'2026-10-16T09:30:00+08:00'},scheduled),'2026-10-19');
+assert.equal(core.reactionDay({...weekend,ann_date:'2026-10-16',available_at:'2026-10-16T18:00:00'},scheduled),null);
+assert.equal(core.reactionDay({...weekend,ann_date:'2026-10-05'},['2026-09-30','2026-10-08']),'2026-10-08');
 console.log('FRONTEND SIGNAL CHECKS PASS: trading/timing and unchanged-price round-trip cost checks');

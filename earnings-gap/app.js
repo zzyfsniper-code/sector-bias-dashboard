@@ -12,7 +12,7 @@ async function fetchTimed(url,ms=18000){const controller=new AbortController(),t
 async function json(name){return (await fetchTimed(`earnings-gap/data/${name}.json?t=${Math.floor(Date.now()/60000)}`)).json();}
 function safeUrl(url){try{const u=new URL(url);return /^https?:$/.test(u.protocol)&&['static.cninfo.com.cn','pdf.dfcfw.com','data.eastmoney.com'].includes(u.hostname)?u.href:null;}catch{return null;}}
 function currentRows(){const now=new Date(),day=core.chinaTime(now).day;const forward=live.records.map(record=>{
-const q=networkOk&&live.financial_asof===day?quotes[symbols(record.ts_code)]:null;let row=core.evaluate(record,q,now,live.calendar);
+const q=networkOk&&live.financial_asof===day&&(!live.reaction_calendar||live.reaction_calendar.includes(day))?quotes[symbols(record.ts_code)]:null;let row=core.evaluate(record,q,now,live.calendar,live.reaction_calendar||live.calendar);
 if(!record.entry_date&&row.quote_fresh&&row.reaction_date===day&&q.low<=q.previous&&row.open_gap_pct>=2)breaches[record.id]=true;
 if(!record.entry_date&&breaches[record.id]&&row.reaction_date===day)row={...row,status:'剔除',status_note:'已补缺口'};
 return row;});try{localStorage.setItem('eg-gap-breaches-v1',JSON.stringify({day,ids:breaches}));}catch{}
