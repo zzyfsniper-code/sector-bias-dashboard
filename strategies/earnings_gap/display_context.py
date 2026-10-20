@@ -153,6 +153,51 @@ def ledger_check(trade, stamp, end, cutoff):
     return dict(ann_date=stamp, reaction_date=reaction, state=state, reason='线上首次反应日已归档')
 
 
+def financial_detail(code, end, stamp, trade, monitor, previous, row=None, history=None):
+    """Exact first-disclosure values only; never borrow a later correction."""
+    key = f'live-{code}-{end}-{stamp}'
+    check = monitor.get('financial_checks', {}).get(key, {})
+    reports = [r for r in monitor.get('reports', []) if r['ts_code'] == code and r['end_date'] == end
+               and r['ann_date'] == stamp and r.get('complete')]
+    exact_trade = trade if trade and trade.get('ann_date') == stamp and trade.get('end_date') == end else {}
+    candidates = [exact_trade, previous if previous.get('ann_date') == stamp else {},
+                  check if check.get('complete') else {}] + reports
+    for candidate in candidates:
+        profit, growth = number(candidate.get('quarter_profit')), number(candidate.get('quarter_yoy'))
+        if profit is not None and growth is not None:
+            return dict(quarter_profit=profit, quarter_yoy=growth,
+                        financial_result='通过' if profit >= 0 and growth >= 30 else '未通过',
+                        financial_source=candidate.get('financial_source') or '已有单季财务核验')
+    if row and row['NOTICE_DATE'][:10] == stamp and history is not None:
+        profit, growth = amounts(row, history)
+        return dict(quarter_profit=profit, quarter_yoy=growth,
+                    financial_result='待核验' if profit is None or growth is None else
+                    '通过' if profit >= 0 and growth >= 30 else '未通过',
+                    financial_source=row.get('FINANCIAL_SOURCE', '东财优先，既有备用源补缺'))
+    return dict(quarter_profit=None, quarter_yoy=None, financial_result='待核验', financial_source=None)
+
+
+def industry_companies(disclosures, checks, details, members, cutoff, end, first, ledger, monitor, catalog, meta, calendar):
+    result = []
+    notices = list(catalog) + monitor.get('reports', [])
+    for code, stamp in disclosures.items():
+        trade = ledger.get((code,end,stamp), {})
+        row = first.get(code, {})
+        exact = row if row.get('NOTICE_DATE', '')[:10] == stamp else {}
+        choices = [r for r in notices if r['ts_code'] == code and r['end_date'] == end and r['ann_date'] == stamp]
+        choices.sort(key=lambda r: bool(r.get('corrected')))
+        notice = choices[0] if choices else {}
+        check = checks.get(code, {})
+        result.append(dict(ts_code=code, name=notice.get('name') or trade.get('name') or
+            exact.get('SECURITY_NAME_ABBR') or meta.get(code, {}).get('name') or code,
+            end_date=end, ann_date=stamp, reaction_date=check.get('reaction_date') or reaction_day(stamp, calendar),
+            state=check.get('state', 'pending'), reason=check.get('reason', '待核验'),
+            announcement_url=notice.get('url') or trade.get('announcement_url') or exact.get('ANNOUNCEMENT_URL'),
+            **details.get(code, dict(quarter_profit=None, quarter_yoy=None, financial_result='待核验', financial_source=None)),
+            **industry_at(members, code, cutoff)))
+    return sorted(result, key=lambda r:(r['state']!='confirmed',r['financial_result']!='通过',r['ann_date'],r['ts_code']))
+
+
 def season_check(row, history, meta, calendar, cutoff, fetch_daily):
     code, ann, end = row['SECUCODE'], row['NOTICE_DATE'][:10], row['REPORTDATE'][:10]
     reaction = reaction_day(ann, calendar)
@@ -261,10 +306,16 @@ def refresh(input_dir=None):
         previous = cache.get('seasons', {}).get(end, {})
         checks = {}
         missing = []
+        details = {}
+        detail_missing = []
         ledger = {(r['ts_code'],r['end_date'],r['ann_date']):r for r in live.get('records', [])}
         for code, stamp in disclosures.items():
             row, prior = first.get(code), previous.get(code, {})
-            archived = ledger_check(ledger.get((code,end,stamp)),stamp,end,closed)
+            trade = ledger.get((code,end,stamp))
+            details[code] = financial_detail(code,end,stamp,trade,monitor,prior)
+            if details[code]['financial_result'] == '待核验' and row and row['NOTICE_DATE'][:10] == stamp:
+                detail_missing.append(row)
+            archived = ledger_check(trade,stamp,end,closed)
             if archived:
                 checks[code] = archived
             elif row and row['NOTICE_DATE'][:10] == stamp:
@@ -274,11 +325,24 @@ def refresh(input_dir=None):
                     missing.append(row)
             else:
                 checks[code] = dict(ann_date=stamp, state='pending', reason='首次披露版本待核验')
-        histories = sources.histories(missing)
+        required_rows = {u_row['SECUCODE']:u_row for u_row in missing + detail_missing}
+        histories = sources.histories(list(required_rows.values()))
         print(json.dumps(dict(stage='season_financial_ready', end_date=end, disclosed=len(disclosures), check=len(missing))), flush=True)
         for row in missing:
             checks[row['SECUCODE']] = season_check(row, histories.get(row['SECUCODE'], []), meta, calendar, closed, u.daily)
+        for row in detail_missing:
+            code = row['SECUCODE']
+            details[code] = financial_detail(code,end,disclosures[code],ledger.get((code,end,disclosures[code])),
+                monitor,previous.get(code,{}),row,histories.get(code,[]))
+        for code in disclosures:
+            checks[code].update(details[code])
+        companies = industry_companies(disclosures,checks,details,members,today,end,first,ledger,monitor,
+            sources.catalog.values(),meta,calendar)
         rows = industry_summary(disclosures, checks, members, today)
+        for group in rows:
+            group['companies'] = [r for r in companies if r['industry_code'] == group['industry_code']]
+            assert len(group['companies']) == group['disclosed'], '行业明细与分母不一致'
+            assert sum(r['state']=='confirmed' for r in group['companies']) == group['confirmed'], '行业明细与分子不一致'
         pending = sum(r['pending'] for r in rows)
         waiting = sum(r['waiting_close'] for r in rows)
         unknown = sum(r['disclosed'] for r in rows if r['industry_code'] is None)
@@ -296,7 +360,8 @@ def refresh(input_dir=None):
     if old.get('history_import'):
         result['history_import'] = old['history_import']
     write('display_context.json', result)
-    print(json.dumps(dict(status='PASS',features=len(features),seasons=seasons,calls=client.calls), ensure_ascii=False), flush=True)
+    print(json.dumps(dict(status='PASS',features=len(features),seasons=[{k:v for k,v in s.items() if k!='rows'}
+        for s in seasons],calls=client.calls), ensure_ascii=False), flush=True)
 
 
 if __name__ == '__main__':

@@ -66,6 +66,42 @@ class DisplayTest(unittest.TestCase):
         self.assertIsNone(check(ann_date='2026-10-20'))
         self.assertIsNone(check(reaction_date='2026-10-20'))
 
+    def test_financial_detail_does_not_borrow_later_correction(self):
+        monitor=dict(financial_checks={},reports=[dict(ts_code='X',end_date='2026-09-30',ann_date='2026-10-20',
+            complete=True,quarter_profit=100,quarter_yoy=50)])
+        previous=dict(ann_date='2026-10-20',quarter_profit=100,quarter_yoy=50)
+        value=d.financial_detail('X','2026-09-30','2026-10-17',None,monitor,previous)
+        self.assertIsNone(value['quarter_profit'])
+        self.assertEqual(value['financial_result'],'待核验')
+
+    def test_exact_monitor_check_and_zero_profit_preserved(self):
+        monitor=dict(financial_checks={'live-X-2026-09-30-2026-10-17':dict(complete=True,quarter_profit=0,quarter_yoy=30)},reports=[])
+        value=d.financial_detail('X','2026-09-30','2026-10-17',None,monitor,{})
+        self.assertEqual(value['quarter_profit'],0)
+        self.assertEqual(value['financial_result'],'通过')
+
+    def test_detail_financials_are_quarter_not_cumulative(self):
+        row=dict(SECUCODE='X',NOTICE_DATE='2026-10-17',REPORTDATE='2026-09-30',PARENT_NETPROFIT=300)
+        history=[row]+[dict(NOTICE_DATE=ann,REPORTDATE=end,PARENT_NETPROFIT=profit) for ann,end,profit in
+            [('2026-08-01','2026-06-30',200),('2025-10-01','2025-09-30',150),('2025-08-01','2025-06-30',100)]]
+        value=d.financial_detail('X','2026-09-30','2026-10-17',None,{}, {},row,history)
+        self.assertEqual(value['quarter_profit'],100)
+        self.assertEqual(value['quarter_yoy'],100)
+
+    def test_industry_details_include_failures_unknown_and_one_company_once(self):
+        disclosures={'X':'2026-10-17','Y':'2026-10-17','Z':'2026-10-17'}
+        members=[dict(ts_code=c,l1_code='A',l1_name='甲',in_date='20200101') for c in ['X','Y']]
+        checks={'X':dict(state='confirmed'),'Y':dict(state='rejected'),'Z':dict(state='pending')}
+        details={'X':dict(quarter_profit=50,quarter_yoy=100,financial_result='通过'),
+                 'Y':dict(quarter_profit=-10,quarter_yoy=-50,financial_result='未通过')}
+        companies=d.industry_companies(disclosures,checks,details,members,'2026-10-20','2026-09-30',{}, {},{},[],{},['2026-10-16','2026-10-19'])
+        self.assertEqual(len(companies),3)
+        self.assertEqual(len({r['ts_code'] for r in companies}),3)
+        self.assertEqual(companies[0]['state'],'confirmed')
+        self.assertTrue(any(r['financial_result']=='未通过' for r in companies))
+        self.assertTrue(any(r['industry_code'] is None for r in companies))
+        self.assertTrue(all(r['reaction_date']=='2026-10-19' for r in companies))
+
 
 if __name__ == '__main__':
     unittest.main()
