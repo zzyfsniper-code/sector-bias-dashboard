@@ -41,6 +41,7 @@ jobs:
         run: python strategies/earnings_gap/monitoring.py --fail "规则或监控校验失败，新交易数据未发布"
       - name: Refresh display-only PB and industry statistics
         continue-on-error: true
+        timeout-minutes: 8
         env:
           TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
         run: python strategies/earnings_gap/display_context.py

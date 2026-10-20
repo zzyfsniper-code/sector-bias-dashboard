@@ -15,12 +15,12 @@ function render(){
  if(!$('industryRows'))return;
  const period=$('industryPeriod').value,seasons=data?.seasons||[],season=seasons.find(r=>r.end_date===period)||seasons[0];
  if(!season){$('industryRows').innerHTML='<tr><td colspan="5" class="empty">'+esc(error||'行业统计正在读取，暂不能判断发生率。')+'</td></tr>';$('industryMeta').textContent='统计数据待核验';return;}
- const day=new Date(Date.now()+8*3600000).toISOString().slice(0,10),stale=data.asof<day;
+ const cn=new Date(Date.now()+8*3600000).toISOString(),day=cn.slice(0,10),stale=data.asof<day,lateClose=cn.slice(11,16)>='15:45'&&data.asof===day&&season.waiting_close>0&&season.close_asof<day,waitingLabel=cn.slice(11,16)>='15:00'?'待收盘归档':'待收盘';
  $('industryMeta').textContent='披露截至 '+season.disclosure_asof+' · 收盘确认截至 '+season.close_asof+' · 申万一级 SW2021（归属日 '+season.industry_date+'）';
- const notices=[error,data.refresh_status==='FAILED'?'本次展示数据更新失败，保留上次快照。':'',stale?'尚未更新至今天。':'',season.waiting_close?season.waiting_close+' 家待收盘。':'',season.missing?season.missing+' 家数据待核验。':'',season.pending?'发生率及排名为暂定值。':'',season.unknown_industry?'行业待核验 '+season.unknown_industry+' 家，单列且不参与排名。':''].filter(Boolean);
+ const notices=[error,data.refresh_status==='FAILED'?'本次展示数据更新失败，保留上次快照。':'',stale?'尚未更新至今天。':'',lateClose?'今日收盘行业统计尚未归档，请核验更新任务。':'',season.waiting_close?season.waiting_close+' 家'+waitingLabel+'。':'',season.missing?season.missing+' 家数据待核验。':'',season.pending?'发生率及排名为暂定值。':'',season.unknown_industry?'行业待核验 '+season.unknown_industry+' 家，单列且不参与排名。':''].filter(Boolean);
  $('industryStatus').textContent=notices.join(' ');$('industryStatus').hidden=!notices.length;
  const ranked=season.rows.filter(r=>r.industry_code),rows=expanded?season.rows:ranked.filter(r=>r.disclosed>0).slice(0,5);
- $('industryRows').innerHTML=rows.length?rows.map(r=>'<tr><td>'+esc(r.industry)+'</td><td class="num">'+(r.ratio_pct==null?'—':(r.pending?'≥':'')+r.ratio_pct.toFixed(2)+'%')+'</td><td class="num">'+r.confirmed+' 家</td><td class="num">'+r.disclosed+' 家</td><td>'+(!r.industry_code?'行业待核验':!r.disclosed?'尚无已披露':r.pending?[r.waiting_close?r.waiting_close+' 家待收盘':'',r.pending-r.waiting_close?r.pending-r.waiting_close+' 家待核验':''].filter(Boolean).join(' · '):r.disclosed<10?'小样本':'已核验')+'</td></tr>').join(''):'<tr><td colspan="5" class="empty">本报告期尚无可核验的行业披露记录。</td></tr>';
+ $('industryRows').innerHTML=rows.length?rows.map(r=>'<tr><td>'+esc(r.industry)+'</td><td class="num">'+(r.ratio_pct==null?'—':(r.pending?'≥':'')+r.ratio_pct.toFixed(2)+'%')+'</td><td class="num">'+r.confirmed+' 家</td><td class="num">'+r.disclosed+' 家</td><td>'+(!r.industry_code?'行业待核验':!r.disclosed?'尚无已披露':r.pending?[r.waiting_close?r.waiting_close+' 家'+waitingLabel:'',r.pending-r.waiting_close?r.pending-r.waiting_close+' 家待核验':''].filter(Boolean).join(' · '):r.disclosed<10?'小样本':'已核验')+'</td></tr>').join(''):'<tr><td colspan="5" class="empty">本报告期尚无可核验的行业披露记录。</td></tr>';
  $('industryToggle').textContent=expanded?'收起全部行业 ↑':'展开全部 '+ranked.length+' 个行业 →';
  $('industryToggle').setAttribute('aria-expanded',String(expanded));
 }

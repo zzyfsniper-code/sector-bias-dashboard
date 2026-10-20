@@ -61,6 +61,9 @@ def main():
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
         page.locator('.industry-panel').screenshot(path=str(LOG/('display-online-mobile.png' if online else 'display-mobile.png')))
         if not online:
+            page.clock.set_fixed_time(datetime.fromisoformat('2026-10-20T15:50:10+08:00'))
+            page.reload(wait_until='domcontentloaded')
+            page.wait_for_function("document.querySelector('#industryStatus').textContent.includes('今日收盘行业统计尚未归档')")
             page.route('**/earnings-gap/data/display_context.json?*',lambda route:route.fulfill(status=500,body='error'))
             page.reload(wait_until='domcontentloaded')
             page.wait_for_function("document.querySelector('#industryRows').textContent.includes('展示数据读取失败')")
