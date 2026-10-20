@@ -5,6 +5,7 @@ from datetime import date, datetime, time, timedelta, timezone
 import math
 
 COST = .003
+VERSION = 'eg-20261020-v2-no-fy'
 REASONS = {'target': '止盈', 'stop': '止损', 'time': '10日到期'}
 
 
@@ -35,6 +36,8 @@ def quarter_profit(current, previous, prior, prior_previous, end):
 
 
 def qualifies(open_price, low, close, previous, period):
+    if period == 'FY':
+        return False
     # Yuan-cent integer checks preserve strict <5/<7 and the gap boundary.
     o, l, c, p = [round(float(x) * 100) for x in [open_price, low, close, previous]]
     cap = 105 if period == 'H1' else 107
@@ -60,6 +63,8 @@ def simulate(record, bars, raw, calendar, reaction_calendar=None):
     reaction = reaction_day(record['ann_date'], reaction_calendar if reaction_calendar is not None else calendar, record.get('available_at'))
     out = dict(record, reaction_date=reaction, origin='forward', status='等待开盘', entry_date=None,
                entry_price=None, exit_date=None, exit_price=None, profit_pct=None, exit_reason=None)
+    if record['report_period'] == 'FY' and not record.get('entry_date'):
+        return dict(out, status='剔除', status_note='年报不参与策略')
     if not reaction or reaction not in byday:
         return out
     index = calendar.index(reaction); bar = byday[reaction]; r = rawday.get(reaction, bar)
@@ -73,7 +78,8 @@ def simulate(record, bars, raw, calendar, reaction_calendar=None):
         return dict(out, status='未入选', status_note='高开不足2%')
     if bar['low'] <= previous + 1e-8:
         return dict(out, status='剔除', status_note='已补缺口')
-    if not qualifies(r['open'], r['low'], r['close'], previous * r['close'] / bar['close'], record['report_period']):
+    period = 'Q3' if record['report_period'] == 'FY' and record.get('entry_date') else record['report_period']
+    if not qualifies(r['open'], r['low'], r['close'], previous * r['close'] / bar['close'], period):
         return dict(out, status='剔除', status_note='收盘涨幅不符')
     if record['name'].upper().startswith(('ST', '*ST')):
         return dict(out, status='剔除', status_note='ST股票')

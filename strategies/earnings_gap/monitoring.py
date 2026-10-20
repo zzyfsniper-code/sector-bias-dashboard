@@ -67,6 +67,9 @@ def report_id(row):
 
 def financial_check(row, history, meta, checked_at):
     code = row['SECUCODE']; end = row['REPORTDATE'][:10]; ann = row['NOTICE_DATE'][:10]
+    if end[5:7] == '12':
+        return dict(cumulative_profit=row['PARENT_NETPROFIT'], quarter_profit=None, quarter_yoy=None,
+                    complete=True, eligible=False, strategy_excluded=True, reason='年报不参与策略', checked_at=checked_at)
     lookup = {}
     for item in history:
         if item['NOTICE_DATE'][:10] <= ann:
@@ -97,6 +100,9 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
         issues.append('巨潮公告清单未完成核对：' + str(exc)[:180])
     selected_ids = {report_id(r) for r in selected_rows}
     checks = {k: v for k, v in previous.get('financial_checks', {}).items() if k in selected_ids}
+    for row in selected_rows:
+        if row['REPORTDATE'][5:7] == '12':
+            checks[report_id(row)] = financial_check(row, [], meta, payload['updated_at'])
     missing = [r for r in selected_rows if report_id(r) not in checks or checks[report_id(r)].get('cumulative_profit') != r['PARENT_NETPROFIT'] or not checks[report_id(r)].get('complete')]
     try:
         histories = fetch_histories(missing)
@@ -114,7 +120,9 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
         item = dict(notice, complete=False, quarter_profit=None, quarter_yoy=None, financial_eligible=False,
                     reaction_date=reaction_day(notice['ann_date'], payload.get('reaction_calendar', payload.get('calendar', [])), notice.get('available_at')))
         row = by_period.get((notice['ts_code'], notice['end_date']))
-        if notice['name'].upper().startswith(('ST', '*ST')):
+        if notice['end_date'][5:7] == '12':
+            item.update(complete=True, financial_eligible=False, strategy_excluded=True, result='已排除', reason='年报不参与策略')
+        elif notice['name'].upper().startswith(('ST', '*ST')):
             item.update(complete=True, result='已排除', reason='ST股票')
         elif row is None:
             reason='巨潮已有正式公告，东财/Tushare未补齐，待本机Wind Excel补数' if payload.get('financial_source_order') else '巨潮已有正式公告，财务接口尚未覆盖'
@@ -140,7 +148,7 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
                     item.update(complete=False, result='待复核', reason='行情数据待补或财务值已变化，信号记录需核验')
             elif item['complete'] and item['financial_eligible']:
                 item.update(complete=False, result='待复核', reason='财务条件符合，但尚未建立行情跟踪记录')
-        if notice['corrected'] and item['complete'] and '更正原文已核验' not in item['reason']:
+        if notice['corrected'] and item['complete'] and not item.get('strategy_excluded') and '更正原文已核验' not in item['reason']:
             item['reason'] += '；更正原文已核验'
         rows.append(item)
     covered = {(n['ts_code'], n['end_date']) for n in catalog.values()}

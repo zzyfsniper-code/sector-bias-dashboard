@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
-from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day
+from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day, VERSION
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / 'earnings-gap/data'
@@ -189,6 +189,9 @@ def update(sources=None):
         key = (code,end,ann)
         if key in fetched: continue
         fetched[key] = r
+        if report_kind(end) == 'FY':
+            processed.add(f'live-{code}-{end}-{ann}')
+            continue
         if f'live-{code}-{end}-{ann}' not in processed: published.append(r)
     historical=sources.histories(published) if sources else financial_histories(published)
     for r in published:
@@ -218,6 +221,9 @@ def update(sources=None):
         existing[record['id']] = record
     for record in existing.values():
         if record.get('entry_date'):continue
+        if record.get('report_period') == 'FY':
+            record.update(status='剔除',status_note='年报不参与策略')
+            continue
         key=(record['ts_code'],reaction_day(record['ann_date'],reaction_calendar,record.get('available_at')) or 'pending')
         newer=[r for r in current if (r['SECUCODE'],reaction_day(r['NOTICE_DATE'][:10],reaction_calendar) or 'pending')==key and r['REPORTDATE'][:10]>record['end_date']]
         if newer:record.update(status='剔除',status_note='同日采用更新报告期')
@@ -270,7 +276,7 @@ def update(sources=None):
             return dict(record,data_pending=True)
     with ThreadPoolExecutor(max_workers=4) as executor:
         records=list(executor.map(replay,sorted(existing.values(),key=lambda x:x['ann_date'])))
-    payload=dict(version='eg-20261013-v1',updated_at=datetime.now(TZ).isoformat(),financial_asof=today,
+    payload=dict(version=VERSION,updated_at=datetime.now(TZ).isoformat(),financial_asof=today,
         financial_source='东方财富公开定期财报',quote_source='腾讯公开行情',
         status='PARTIAL' if issues else 'PASS',issues=issues,records=records,
         checked_financial_ids=sorted(processed),

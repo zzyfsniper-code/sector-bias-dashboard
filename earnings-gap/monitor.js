@@ -36,6 +36,7 @@ function health(monitor,live,job,now=new Date(),errors=[],screened=[],loading={}
  return {severity,title:severity>=3?'监控异常':severity===2?'存在待核验事项':severity===1?(Object.values(loading).some(Boolean)?'正在核验':'更新进行中'):'公告与筛选正常',messages};
 }
 function reportState(report,screened=[]){
+ if(report.end_date?.slice(5,7)==='12')return {...report,complete:true,financial_eligible:false,strategy_excluded:true,result:'已排除',reason:'年报不参与策略'};
  if(!report.complete||!report.financial_eligible)return report;
  const trade=screened.filter(r=>r.ts_code===report.ts_code&&r.end_date===report.end_date).sort((a,b)=>b.ann_date.localeCompare(a.ann_date))[0];
  return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh}:report;

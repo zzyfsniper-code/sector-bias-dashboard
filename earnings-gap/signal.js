@@ -13,6 +13,7 @@ return calendar.find(d=>d>day||d===day&&!afterOpen)||null;
 }
 function evaluate(record,q,now,calendar=[],reactionCalendar=calendar){
 const out={...record};if(record.origin==='historical'||record.exit_date||!record.entry_date&&['剔除','未入选'].includes(record.status))return out;
+if(record.report_period==='FY'&&!record.entry_date)return {...out,status:'剔除',status_note:'年报不参与策略'};
 const f=freshness(q,now);out.quote_fresh=f.ok;out.quote_note=f.ok?f.note:'行情过期';if(!f.ok)return {...out,status:record.entry_date?'持有':'待更新',status_note:q?'行情过期':'行情待更新'};
 if(record.data_pending)return {...out,status:'待核验',status_note:'日线记录待补齐'};
 const day=f.day,cn=chinaTime(now);out.quote_time=f.time;

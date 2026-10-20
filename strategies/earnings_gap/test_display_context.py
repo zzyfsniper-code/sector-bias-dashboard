@@ -53,7 +53,8 @@ class DisplayTest(unittest.TestCase):
         self.assertEqual(d.season_check(row,history,meta,calendar,'2026-10-19',fetch)['state'], 'rejected')
 
     def test_separate_annual_and_q1_periods(self):
-        self.assertEqual(d.active_periods('2026-04-20'), ['2026-03-31','2025-12-31'])
+        self.assertEqual(d.active_periods('2026-04-20'), ['2026-03-31'])
+        self.assertEqual(d.active_periods('2026-02-20'), [])
         self.assertEqual(d.active_periods('2026-10-20'), ['2026-09-30'])
 
     def test_only_exact_first_reaction_final_ledger_result_reused(self):

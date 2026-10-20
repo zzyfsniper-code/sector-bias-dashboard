@@ -132,9 +132,9 @@ def industry_summary(disclosures, checks, members, cutoff):
 def active_periods(today):
     year, month = int(today[:4]), int(today[5:7])
     if month < 4:
-        return [f'{year-1}-12-31']
+        return []
     if month <= 6:
-        return [f'{year}-03-31'] + ([f'{year-1}-12-31'] if month == 4 else [])
+        return [f'{year}-03-31']
     return [f'{year}-06-30' if month <= 9 else f'{year}-09-30']
 
 
