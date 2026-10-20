@@ -40,13 +40,13 @@ def main():
         assert '2条正式公告' in page.locator('#monitorExplanation').inner_text()
         assert '今日应评公告' in page.locator('.monitor-metrics').inner_text()
         assert page.locator('#tableBody').inner_text().find('002648.SZ')==-1 # no simulated entry added by this migration
-        page.locator('.monitor-panel').screenshot(path=str(LOG/'calendar-desktop.png'))
+        page.locator('.monitor-panel').first.screenshot(path=str(LOG/'calendar-desktop.png'))
         page.locator('#dailyFailuresToggle').click()
         assert page.locator('#dailyFailures tr').count()==9
         page.locator('#dailyFailuresToggle').click()
         page.set_viewport_size({'width':390,'height':844})
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
-        page.locator('.monitor-panel').screenshot(path=str(LOG/'calendar-mobile.png'))
+        page.locator('.monitor-panel').first.screenshot(path=str(LOG/'calendar-mobile.png'))
         assert not errors,errors
         result=dict(status='PASS',url=url,announcements=21,financial=10,candidates=10,
                     actual_quotes_mocked=True,all_ten_reach_market_evaluation=True,original_dates_preserved=True,

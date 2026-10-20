@@ -41,14 +41,14 @@ def main():
         page.route('https://api.github.com/**',lambda route:route.fulfill(json={'workflow_runs':[]},headers={'Access-Control-Allow-Origin':'*'}))
         page.goto(url,wait_until='domcontentloaded')
         page.wait_for_function("document.querySelector('#tableBody').textContent.includes('33.65')")
-        assert page.locator('.table-wrap thead th').count()==13
+        assert page.locator('.table-wrap thead th').count()==14
         row=page.locator('#tableBody tr').filter(has_text='300688.SZ')
         cells=row.locator('td')
-        assert cells.count()==13
-        assert cells.nth(8).inner_text()=='止盈 33.65元\n止损 28.14元'
-        assert cells.nth(9).inner_text()=='2 天'
-        assert cells.nth(7).inner_text()=='2026-10-16\n30.59元'
-        assert '持有' in cells.nth(6).inner_text()
+        assert cells.count()==14
+        assert cells.nth(9).inner_text()=='止盈 33.65元\n止损 28.14元'
+        assert cells.nth(10).inner_text()=='2 天'
+        assert cells.nth(8).inner_text()=='2026-10-16\n30.59元'
+        assert '持有' in cells.nth(7).inner_text()
         page.locator('.table-wrap').screenshot(path=str(LOG/'position-desktop.png'))
         page.set_viewport_size({'width':390,'height':844})
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
@@ -58,10 +58,10 @@ def main():
         page.set_viewport_size({'width':1440,'height':1080})
         page.locator('#dateFilter').select_option('all')
         historical=page.locator('#tableBody tr').filter(has_text='300611.SZ')
-        assert historical.locator('td').nth(9).inner_text()=='10 天'
-        assert '初始止损' in historical.locator('td').nth(8).inner_text()
+        assert historical.locator('td').nth(10).inner_text()=='10 天'
+        assert '初始止损' in historical.locator('td').nth(9).inner_text()
         page.locator('#search').fill('不存在的股票')
-        assert page.locator('#tableBody td').get_attribute('colspan')=='13'
+        assert page.locator('#tableBody td').get_attribute('colspan')=='14'
         page.locator('#search').fill('')
         fixture['protected']=True
         page.reload(wait_until='domcontentloaded')
@@ -70,15 +70,15 @@ def main():
         page.reload(wait_until='domcontentloaded')
         page.wait_for_function("document.querySelector('#quoteStatus').textContent.includes('行情缺失或过期')")
         cells=page.locator('#tableBody tr').filter(has_text='300688.SZ').locator('td')
-        assert '33.65' in cells.nth(8).inner_text()
-        assert '截至2026-10-16' in cells.nth(8).get_attribute('title')
-        assert cells.nth(9).inner_text()=='2 天'
+        assert '33.65' in cells.nth(9).inner_text()
+        assert '截至2026-10-16' in cells.nth(9).get_attribute('title')
+        assert cells.nth(10).inner_text()=='2 天'
         page.route('**/earnings-gap/data/history.json?*',lambda route:route.fulfill(status=500,body='test error'))
         page.reload(wait_until='domcontentloaded')
         page.wait_for_function("document.querySelector('#tableBody').textContent.includes('策略数据加载失败')")
-        assert page.locator('#tableBody td').get_attribute('colspan')=='13'
+        assert page.locator('#tableBody td').get_attribute('colspan')=='14'
         assert not errors,errors
-        result=dict(status='PASS',url=url,actual_quotes_mocked=True,columns=13,target='33.65',stop='28.14',holding_trading_days=2,protected_stop='31.20',historical_days_fixed=True,stale_quote_basis_labeled=True,empty_and_error_colspan=13,desktop=True,mobile_no_page_overflow=True,errors=errors)
+        result=dict(status='PASS',url=url,actual_quotes_mocked=True,columns=14,target='33.65',stop='28.14',holding_trading_days=2,protected_stop='31.20',historical_days_fixed=True,stale_quote_basis_labeled=True,empty_and_error_colspan=14,desktop=True,mobile_no_page_overflow=True,errors=errors)
         (LOG/'position-browser.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),'utf-8')
         print(json.dumps(result,ensure_ascii=False))
         browser.close()
