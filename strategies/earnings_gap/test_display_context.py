@@ -56,6 +56,16 @@ class DisplayTest(unittest.TestCase):
         self.assertEqual(d.active_periods('2026-04-20'), ['2026-03-31','2025-12-31'])
         self.assertEqual(d.active_periods('2026-10-20'), ['2026-09-30'])
 
+    def test_only_exact_first_reaction_final_ledger_result_reused(self):
+        trade = dict(ann_date='2026-10-17', end_date='2026-09-30', reaction_date='2026-10-19', status='剔除')
+        check = lambda **extra:d.ledger_check(dict(trade, **extra),'2026-10-17','2026-09-30','2026-10-19')
+        self.assertEqual(check()['state'], 'rejected')
+        self.assertEqual(check(entry_date='2026-10-19')['state'], 'confirmed')
+        self.assertIsNone(check(data_pending=True))
+        self.assertIsNone(check(status='观察'))
+        self.assertIsNone(check(ann_date='2026-10-20'))
+        self.assertIsNone(check(reaction_date='2026-10-20'))
+
 
 if __name__ == '__main__':
     unittest.main()

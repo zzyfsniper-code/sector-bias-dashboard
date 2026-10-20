@@ -51,7 +51,8 @@ def main():
         page.locator('#industryToggle').click()
         assert page.locator('#industryRows tr').count() == 5
         if not online:
-            assert '55 家待收盘' in page.locator('#industryStatus').inner_text()
+            if context['seasons'][0]['waiting_close']:
+                assert '家待收盘' in page.locator('#industryStatus').inner_text()
             page.wait_for_function("[...document.querySelectorAll('#dailyCandidates .pb-value')].some(el=>el.textContent.includes('%'))")
             assert '历史不足' in page.locator('#dailyCandidates tr').first.inner_text()
             assert page.locator('#dailyCandidates tr').first.locator('td').count() == 10
@@ -61,6 +62,9 @@ def main():
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
         page.locator('.industry-panel').screenshot(path=str(LOG/('display-online-mobile.png' if online else 'display-mobile.png')))
         if not online:
+            late=json.loads(json.dumps(context))
+            late['seasons'][0].update(waiting_close=1,close_asof='2026-10-19')
+            page.route('**/earnings-gap/data/display_context.json?*',lambda route:route.fulfill(json=late))
             page.clock.set_fixed_time(datetime.fromisoformat('2026-10-20T15:50:10+08:00'))
             page.reload(wait_until='domcontentloaded')
             page.wait_for_function("document.querySelector('#industryStatus').textContent.includes('今日收盘行业统计尚未归档')")

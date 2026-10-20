@@ -138,6 +138,21 @@ def active_periods(today):
     return [f'{year}-06-30' if month <= 9 else f'{year}-09-30']
 
 
+def ledger_check(trade, stamp, end, cutoff):
+    if not trade or trade.get('data_pending') or trade['ann_date'] != stamp or trade['end_date'] != end:
+        return None
+    reaction = trade.get('reaction_date')
+    if not reaction or reaction > cutoff:
+        return None
+    if trade.get('entry_date') == reaction:
+        state = 'confirmed'
+    elif not trade.get('entry_date') and trade.get('status') in ['未入选', '剔除']:
+        state = 'rejected'
+    else:
+        return None
+    return dict(ann_date=stamp, reaction_date=reaction, state=state, reason='线上首次反应日已归档')
+
+
 def season_check(row, history, meta, calendar, cutoff, fetch_daily):
     code, ann, end = row['SECUCODE'], row['NOTICE_DATE'][:10], row['REPORTDATE'][:10]
     reaction = reaction_day(ann, calendar)
@@ -246,9 +261,13 @@ def refresh(input_dir=None):
         previous = cache.get('seasons', {}).get(end, {})
         checks = {}
         missing = []
+        ledger = {(r['ts_code'],r['end_date'],r['ann_date']):r for r in live.get('records', [])}
         for code, stamp in disclosures.items():
             row, prior = first.get(code), previous.get(code, {})
-            if row and row['NOTICE_DATE'][:10] == stamp:
+            archived = ledger_check(ledger.get((code,end,stamp)),stamp,end,closed)
+            if archived:
+                checks[code] = archived
+            elif row and row['NOTICE_DATE'][:10] == stamp:
                 if prior.get('state') in ['confirmed', 'rejected'] and prior.get('ann_date') == stamp:
                     checks[code] = prior
                 else:
@@ -259,12 +278,6 @@ def refresh(input_dir=None):
         print(json.dumps(dict(stage='season_financial_ready', end_date=end, disclosed=len(disclosures), check=len(missing))), flush=True)
         for row in missing:
             checks[row['SECUCODE']] = season_check(row, histories.get(row['SECUCODE'], []), meta, calendar, closed, u.daily)
-        # The forward ledger is the authority for already verified close entries.
-        for trade in live.get('records', []):
-            code = trade['ts_code']
-            if trade['end_date'] == end and trade.get('entry_date') and not trade.get('data_pending') and code in disclosures:
-                if trade['ann_date'] == disclosures[code] and trade['entry_date'] <= closed:
-                    checks[code] = dict(ann_date=trade['ann_date'], reaction_date=trade['entry_date'], state='confirmed', reason='线上收盘归档')
         rows = industry_summary(disclosures, checks, members, today)
         pending = sum(r['pending'] for r in rows)
         waiting = sum(r['waiting_close'] for r in rows)
