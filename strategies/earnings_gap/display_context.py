@@ -225,6 +225,40 @@ def industry_companies(disclosures, checks, details, members, cutoff, end, first
     return sorted(result, key=lambda r:(r['state']!='confirmed',r['financial_result']!='通过',r['ann_date'],r['ts_code']))
 
 
+def market_detail(company, cutoff, calendar, trade, previous, fetch_daily):
+    reaction = company.get('reaction_date')
+    result = dict(market_date=reaction, open_gap_pct=None, close_return_pct=None,
+                  market_source=None, market_note='反应日日线待核验')
+    if not reaction or reaction > cutoff:
+        return dict(result, market_note='待收盘确认')
+    if previous.get('ann_date') == company['ann_date'] and previous.get('market_date') == reaction:
+        gap, gain = number(previous.get('open_gap_pct')), number(previous.get('close_return_pct'))
+        if gap is not None and gain is not None:
+            return dict(result, open_gap_pct=gap, close_return_pct=gain,
+                        market_source=previous.get('market_source'), market_note='已收盘')
+    if (trade and not trade.get('data_pending') and trade.get('ann_date') == company['ann_date'] and
+        trade.get('end_date') == company['end_date'] and trade.get('reaction_date') == reaction):
+        gap, gain = number(trade.get('open_gap_pct')), number(trade.get('signal_return_pct'))
+        if gap is not None and gain is not None:
+            return dict(result, open_gap_pct=gap, close_return_pct=gain,
+                        market_source='线上首次反应日日线归档', market_note='已收盘')
+    before = prior_date(reaction, calendar)
+    if not before:
+        return result
+    try:
+        bars = {r['date']: r for r in fetch_daily(company['ts_code'], before, reaction)}
+        bar = bars.get(reaction, {})
+        previous_close, opening, close = [number(v) for v in
+            [bars.get(before, {}).get('close'), bar.get('open'), bar.get('close')]]
+        if any(v is None or v <= 0 for v in [previous_close, opening, close]):
+            return result
+        return dict(result, open_gap_pct=(opening/previous_close-1)*100,
+                    close_return_pct=(close/previous_close-1)*100,
+                    market_source='腾讯日线；反应日与前一市场交易日同口径', market_note='已收盘')
+    except Exception:
+        return result
+
+
 def season_check(row, history, meta, calendar, cutoff, fetch_daily):
     code, ann, end = row['SECUCODE'], row['NOTICE_DATE'][:10], row['REPORTDATE'][:10]
     reaction = reaction_day(ann, calendar)
@@ -248,7 +282,10 @@ def season_check(row, history, meta, calendar, cutoff, fetch_daily):
             return dict(result, reason='反应日或前日行情待补')
         bar, previous = bars[reaction], bars[before]['close']
         passed = industry_gap(bar['open'], bar['low'], previous)
-        return dict(result, state='confirmed' if passed else 'rejected', reason='收盘断层确认' if passed else '行情条件不符')
+        market = market_detail(dict(ts_code=code,ann_date=ann,end_date=end,reaction_date=reaction),
+                               cutoff,calendar,None,{},lambda *_:list(bars.values()))
+        return dict(result, state='confirmed' if passed else 'rejected',
+                    reason='收盘断层确认' if passed else '行情条件不符', **market)
     except Exception:
         return dict(result, reason='反应日日线待补')
 
@@ -366,6 +403,12 @@ def refresh(input_dir=None):
             checks[code].update(details[code])
         companies = industry_companies(disclosures,checks,details,members,today,end,first,ledger,monitor,
             sources.catalog.values(),meta,calendar)
+        for company in companies:
+            code, stamp = company['ts_code'], company['ann_date']
+            prior = checks[code] if checks[code].get('market_date') else previous.get(code,{})
+            market = market_detail(company,closed,calendar,ledger.get((code,end,stamp)),prior,u.daily)
+            company.update(market)
+            checks[code].update(market)
         rows = industry_summary(disclosures, checks, members, today)
         for group in rows:
             group['companies'] = [r for r in companies if r['industry_code'] == group['industry_code']]

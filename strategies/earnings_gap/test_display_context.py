@@ -139,6 +139,43 @@ class DisplayTest(unittest.TestCase):
         self.assertTrue(any(r['industry_code'] is None for r in companies))
         self.assertTrue(all(r['reaction_date']=='2026-10-19' for r in companies))
 
+    def test_market_detail_weekend_reaction_and_both_returns_use_previous_close(self):
+        company=dict(ts_code='X',ann_date='2026-10-17',end_date='2026-09-30',reaction_date='2026-10-19',financial_result='未通过')
+        fetch=Mock(return_value=[dict(date='2026-10-16',close=100),dict(date='2026-10-19',open=103,close=107)])
+        result=d.market_detail(company,'2026-10-19',['2026-10-16','2026-10-19'],None,{},fetch)
+        self.assertAlmostEqual(result['open_gap_pct'],3)
+        self.assertAlmostEqual(result['close_return_pct'],7)
+        self.assertEqual(result['market_date'],'2026-10-19')
+        fetch.assert_called_once_with('X','2026-10-16','2026-10-19')
+
+    def test_market_detail_never_uses_unclosed_reaction_even_if_cache_has_prices(self):
+        company=dict(ts_code='X',ann_date='2026-10-21',end_date='2026-09-30',reaction_date='2026-10-21')
+        prior=dict(ann_date='2026-10-21',market_date='2026-10-21',open_gap_pct=3,close_return_pct=7)
+        fetch=Mock()
+        result=d.market_detail(company,'2026-10-20',['2026-10-20','2026-10-21'],None,prior,fetch)
+        self.assertIsNone(result['open_gap_pct']);self.assertIsNone(result['close_return_pct'])
+        self.assertEqual(result['market_note'],'待收盘确认');fetch.assert_not_called()
+
+    def test_market_detail_reuses_exact_archive_and_zero_cached_return(self):
+        company=dict(ts_code='X',ann_date='2026-10-17',end_date='2026-09-30',reaction_date='2026-10-19')
+        trade=dict(company,open_gap_pct=3,signal_return_pct=8)
+        fetch=Mock()
+        result=d.market_detail(company,'2026-10-20',[],trade,{},fetch)
+        self.assertEqual(result['close_return_pct'],8);fetch.assert_not_called()
+        prior=dict(ann_date='2026-10-17',market_date='2026-10-19',open_gap_pct=0,close_return_pct=0)
+        result=d.market_detail(company,'2026-10-20',[],trade,prior,fetch)
+        self.assertEqual(result['open_gap_pct'],0);self.assertEqual(result['close_return_pct'],0);fetch.assert_not_called()
+
+    def test_market_detail_does_not_borrow_other_reaction_or_missing_bar(self):
+        company=dict(ts_code='X',ann_date='2026-10-17',end_date='2026-09-30',reaction_date='2026-10-19')
+        fetch=Mock(return_value=[dict(date='2026-10-16',close=100),dict(date='2026-10-20',open=103,close=107)])
+        prior=dict(ann_date='2026-10-18',market_date='2026-10-19',open_gap_pct=3,close_return_pct=7)
+        trade=dict(company,reaction_date='2026-10-20',open_gap_pct=3,signal_return_pct=7)
+        result=d.market_detail(company,'2026-10-20',['2026-10-16','2026-10-19'],trade,prior,fetch)
+        self.assertIsNone(result['open_gap_pct']);self.assertIsNone(result['close_return_pct']);fetch.assert_called_once()
+        fetch.side_effect=RuntimeError('offline')
+        self.assertIsNone(d.market_detail(company,'2026-10-20',['2026-10-16','2026-10-19'],None,{},fetch)['close_return_pct'])
+
 
 if __name__ == '__main__':
     unittest.main()

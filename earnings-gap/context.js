@@ -19,14 +19,14 @@ function companyDetails(season){
  const row=season.rows.find(r=>(r.industry_code||'UNKNOWN')===openIndustry),panel=$('industryCompaniesPanel');
  panel.hidden=!row;if(!row)return;
  $('industryCompaniesTitle').textContent=row.industry+' · '+$('industryPeriod').selectedOptions[0].textContent+'已披露公司';
- $('industryCompaniesMeta').textContent='已披露 '+row.disclosed+' 家 · 收盘断层 '+row.confirmed+' 家；单季归母口径，金额单位：万元。';
- if(!Array.isArray(row.companies)||row.companies.length!==row.disclosed){$('industryCompanies').innerHTML='<tr><td colspan="8" class="empty">公司明细尚未齐备，请等待展示数据更新；不能据此认定没有已披露公司。</td></tr>';return;}
+ $('industryCompaniesMeta').textContent='已披露 '+row.disclosed+' 家 · 收盘断层 '+row.confirmed+' 家；单季归母口径，金额单位：万元。涨幅按公告反应日统计。';
+ if(!Array.isArray(row.companies)||row.companies.length!==row.disclosed){$('industryCompanies').innerHTML='<tr><td colspan="9" class="empty">公司明细尚未齐备，请等待展示数据更新；不能据此认定没有已披露公司。</td></tr>';return;}
  const money=v=>Number.isFinite(v)?(v/10000).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
  const change=v=>Number.isFinite(v)?(v>0?'+':'')+v.toFixed(2)+'%':'—';
  $('industryCompanies').innerHTML=row.companies.length?row.companies.map(r=>{
   const label=r.state==='confirmed'?'收盘通过':r.state==='rejected'?'未通过':r.reason==='待收盘确认'?'待收盘确认':'待核验';
-  return '<tr class="'+(r.state==='confirmed'?'candidate-selected':'')+'"><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+'</span></td><td>'+esc(r.ann_date)+'<span class="sub">'+esc(r.reaction_date||'待确定')+'</span></td><td class="num '+(r.quarter_profit<0?'down':'')+'" title="'+esc(r.financial_source||'数据待补')+'">'+money(r.quarter_profit)+'</td><td class="num '+(r.quarter_yoy>0?'up':r.quarter_yoy<0?'down':'')+'">'+change(r.quarter_yoy)+'</td><td><span class="pill '+(r.financial_result==='未通过'?'reject':'')+'">'+esc(r.financial_result||'待核验')+'</span></td><td><span class="pill '+(r.state==='confirmed'?'watch':r.state==='rejected'?'reject':'')+'">'+label+'</span></td><td>'+esc(r.reason||'待核验')+'</td><td>'+original(r)+'</td></tr>';
- }).join(''):'<tr><td colspan="8" class="empty">本报告期该行业尚无已披露公司。</td></tr>';
+  return '<tr class="'+(r.state==='confirmed'?'candidate-selected':'')+'"><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+'</span></td><td>'+esc(r.ann_date)+'<span class="sub">'+esc(r.reaction_date||'待确定')+'</span></td><td class="num '+(r.quarter_profit<0?'down':'')+'" title="'+esc(r.financial_source||'数据待补')+'">'+money(r.quarter_profit)+'</td><td class="num '+(r.quarter_yoy>0?'up':r.quarter_yoy<0?'down':'')+'">'+change(r.quarter_yoy)+'</td><td class="num '+(r.open_gap_pct>0?'up':r.open_gap_pct<0?'down':'')+'" title="'+esc(r.market_source||r.market_note||'反应日行情待核验')+'">'+change(r.open_gap_pct)+'</td><td class="num '+(r.close_return_pct>0?'up':r.close_return_pct<0?'down':'')+'" title="'+esc(r.market_source||r.market_note||'反应日行情待核验')+'">'+(r.market_note==='待收盘确认'?'待收盘':change(r.close_return_pct))+'</td><td><span class="pill '+(r.financial_result==='未通过'?'reject':'')+'">'+esc(r.financial_result||'待核验')+'</span></td><td><span class="pill '+(r.state==='confirmed'?'watch':r.state==='rejected'?'reject':'')+'" title="'+esc(r.reason||'待核验')+'">'+label+'</span></td><td>'+original(r)+'</td></tr>';
+ }).join(''):'<tr><td colspan="9" class="empty">本报告期该行业尚无已披露公司。</td></tr>';
 }
 function render(){
  if(!$('industryRows'))return;
