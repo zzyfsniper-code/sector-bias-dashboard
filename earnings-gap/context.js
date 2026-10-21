@@ -6,7 +6,7 @@ const feature=row=>data?.features?.[row.id]||{};
 function industry(row){const f=feature(row);return '<span title="'+esc((data?.industry_basis||'申万一级 SW2021')+'；归属日期 '+(f.industry_date||'待核验'))+'">'+esc(f.industry_l1||'行业待核验')+'</span>';}
 function pb(row){
  const f=feature(row),valid=Number.isFinite(f.pb_percentile),title=(data?.pb_basis||'自身近3年正PB，至少252个观测')+'；估值日期 '+(f.pb_date||'待核验')+'；有效观测 '+(f.pb_observations??'—')+'；'+(f.pb_source||'数据待补');
- return '<span class="pb-value" title="'+esc(title)+'">'+(valid?f.pb_percentile.toFixed(1)+'%':esc(f.pb_status||'待补数据'))+'</span><span class="sub">'+(Number.isFinite(f.pb)?'PB '+f.pb.toFixed(2)+'倍':'PB —')+' · '+esc(f.pb_date||'日期待核验')+'</span>';
+ return '<span class="pb-value" title="'+esc(title)+'">'+(valid?f.pb_percentile.toFixed(1)+'%':esc(f.pb_status||'待补数据'))+'</span><span class="sub">'+(Number.isFinite(f.pb)?'PB '+f.pb.toFixed(2)+'倍':'PB —')+' · <span class="pb-date">'+esc(f.pb_date||'日期待核验')+'</span></span>';
 }
 root.EarningsGapDisplay={feature,industry,pb};
 if(typeof document==='undefined')return;
