@@ -1,6 +1,6 @@
 (function(root){
 'use strict';
-const THRESHOLD=1.5,EFFECTIVE='2026-10-21';
+const THRESHOLD=1.45,EFFECTIVE='2026-10-21';
 function required(record,reaction){return !record.entry_date&&reaction>=EFFECTIVE;}
 function assess(record,quote,model,now,fresh){
  const pending={volume_state:'pending',volume_note:'量能待核验',volume_ratio:null,volume_forecast_ratio:null,volume_actual_shares:null,volume_forecast_shares:null};
@@ -8,7 +8,7 @@ function assess(record,quote,model,now,fresh){
  const previous=record.volume_previous_shares,actual=quote?.volume_shares;
  if(!fresh||record.volume_reference_day!==day||!(record.volume_previous_date<day)||!Number.isFinite(previous)||previous<=0||!Number.isFinite(actual)||actual<0||minute<570)return pending;
  const out={...pending,volume_actual_shares:actual,volume_ratio:actual/previous},closed=minute>=900;
- if(closed)return {...out,volume_forecast_shares:actual,volume_forecast_ratio:out.volume_ratio,volume_state:out.volume_ratio+1e-12>=THRESHOLD?'confirmed':'failed',volume_note:out.volume_ratio+1e-12>=THRESHOLD?'量能已达标':'收盘量能不足1.5倍'};
+ if(closed)return {...out,volume_forecast_shares:actual,volume_forecast_ratio:out.volume_ratio,volume_state:out.volume_ratio+1e-12>=THRESHOLD?'confirmed':'failed',volume_note:out.volume_ratio+1e-12>=THRESHOLD?'量能已达标':'收盘量能不足1.45倍'};
  const own=model?.stock_profiles?.[record.ts_code],profile=own?.through<day?own:model?.global_profile;
  if(model?.version===1&&model.asof===day&&profile?.through<day&&Array.isArray(model.times)){
   let index=0;for(let i=0;i<model.times.length;i++){if(model.times[i]>minute)break;index=i;}

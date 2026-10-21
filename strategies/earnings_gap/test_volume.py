@@ -39,7 +39,7 @@ class VolumeTest(unittest.TestCase):
             def now(cls,tz=None):return cls(2026,10,21,15,30,tzinfo=updater.TZ)
         def prepare(root,records,today,calendar):
             for r in records:r.update(volume_previous_shares=1000,volume_previous_date='2026-10-20',volume_reference_day=today)
-        for amount,expected in [(1499,'剔除'),(1500,'持有'),(None,'待核验')]:
+        for amount,expected in [(1449,'剔除'),(1450,'持有'),(None,'待核验')]:
             with self.subTest(amount=amount),tempfile.TemporaryDirectory() as directory:
                 data=Path(directory)
                 for name,value in [('live.json',dict(records=[record])),('stock_metadata.json',{}),('calendar.json',['2026-10-20']),('trading_calendar.json',schedule)]:
@@ -49,7 +49,7 @@ class VolumeTest(unittest.TestCase):
                 with patch.object(updater,'DATA',data),patch.object(updater,'datetime',Close),patch.object(updater,'finance',return_value=[]),patch.object(updater,'daily',return_value=bars),patch.object(updater,'closing_quotes',return_value={'sh600000':quote}),patch('volume_data.prepare',side_effect=prepare):
                     payload,_,_=updater.update()
                 self.assertEqual(payload['records'][0]['status'],expected)
-                self.assertEqual(bool(payload['records'][0].get('entry_date')),amount==1500)
+                self.assertEqual(bool(payload['records'][0].get('entry_date')),amount==1450)
                 if amount is not None:self.assertEqual(payload['records'][0]['volume_forecast_shares'],amount)
     def test_closing_quote_units_and_missing_volume(self):
         lines=[]
@@ -86,10 +86,10 @@ class VolumeTest(unittest.TestCase):
         cal=['2026-10-20','2026-10-21']
         record=dict(ts_code='600000.SH',name='测试',ann_date=cal[1],list_date='2000-01-01',report_period='Q3')
         bars=[dict(date=cal[0],open=100,close=100,high=101,low=99,volume_shares=1000),
-              dict(date=cal[1],open=102,close=104,high=105,low=101,volume_shares=1500)]
+              dict(date=cal[1],open=102,close=104,high=105,low=101,volume_shares=1450)]
         self.assertEqual(simulate(record,bars,bars,cal)['status'],'持有')
-        bars[1]['volume_shares']=1499
-        self.assertEqual(simulate(record,bars,bars,cal)['status_note'],'收盘量能不足1.5倍')
+        bars[1]['volume_shares']=1449
+        self.assertEqual(simulate(record,bars,bars,cal)['status_note'],'收盘量能不足1.45倍')
         self.assertEqual(simulate(dict(record,entry_date=cal[1]),bars,bars,cal)['status'],'持有')
         del bars[0]['volume_shares']
         self.assertEqual(simulate(record,bars,bars,cal)['status_note'],'量能待核验')

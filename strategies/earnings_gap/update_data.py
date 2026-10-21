@@ -267,14 +267,14 @@ def update(sources=None):
             out=dict(record,reaction_date=today,signal_return_pct=(q['close']/q['previous']-1)*100,open_gap_pct=(q['open']/q['previous']-1)*100)
             actual=number(q.get('volume_shares'));previous=number(record.get('volume_previous_shares'))
             verified=actual is not None and actual>=0 and previous is not None and previous>0 and record.get('volume_reference_day')==today
-            if verified:out.update(volume_actual_shares=actual,volume_ratio=actual/previous,volume_forecast_shares=actual,volume_forecast_ratio=actual/previous,volume_state='confirmed' if actual+1e-8>=previous*1.5 else 'failed')
+            if verified:out.update(volume_actual_shares=actual,volume_ratio=actual/previous,volume_forecast_shares=actual,volume_forecast_ratio=actual/previous,volume_state='confirmed' if actual+1e-8>=previous*1.45 else 'failed')
             if q['open']<q['previous']*1.02-1e-8:return dict(out,status='未入选',status_note='高开不足2%')
             if q['low']<=q['previous']:return dict(out,status='剔除',status_note='已补缺口')
             if not qualifies(q['open'],q['low'],q['close'],q['previous'],record['report_period']):return dict(out,status='剔除',status_note='收盘涨幅不符')
             if reaction>=VOLUME_EFFECTIVE:
                 if not verified:
                     return dict(out,status='待核验',status_note='量能待核验')
-                if actual+1e-8<previous*1.5:return dict(out,status='剔除',status_note='收盘量能不足1.5倍')
+                if actual+1e-8<previous*1.45:return dict(out,status='剔除',status_note='收盘量能不足1.45倍')
             return dict(out,status='持有',entry_date=today,entry_price=q['close'],entry_basis=q['close'],
                 stop_basis=q['close']*.92,target_basis=q['close']*1.10,basis_last_close=q['close'],basis_date=today,
                 profit_pct=net_return(q['close'],q['close']),hold_days=1,armed=False)

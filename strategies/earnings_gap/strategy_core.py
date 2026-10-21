@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta, timezone
 import math
 
 COST = .003
-VERSION = 'eg-20261021-v3-volume15'
+VERSION = 'eg-20261021-v4-volume145'
 VOLUME_EFFECTIVE = '2026-10-21'
 REASONS = {'target': '止盈', 'stop': '止损', 'time': '10日到期'}
 
@@ -94,9 +94,9 @@ def simulate(record, bars, raw, calendar, reaction_calendar=None):
             return dict(out, status='待核验', status_note='量能待核验')
         out.update(volume_ratio=current_volume/prior_volume, volume_actual_shares=current_volume, volume_previous_shares=prior_volume,
                    volume_forecast_shares=current_volume, volume_forecast_ratio=current_volume/prior_volume,
-                   volume_state='confirmed' if current_volume+1e-8>=prior_volume*1.5 else 'failed')
-        if current_volume + 1e-8 < prior_volume*1.5:
-            return dict(out, status='剔除', status_note='收盘量能不足1.5倍')
+                   volume_state='confirmed' if current_volume+1e-8>=prior_volume*1.45 else 'failed')
+        if current_volume + 1e-8 < prior_volume*1.45:
+            return dict(out, status='剔除', status_note='收盘量能不足1.45倍')
     entry = bar['close']; stop = entry * .92; target = entry * 1.10; peak = entry
     out.update(status='持有', entry_date=reaction, entry_price=r['close'], entry_basis=entry)
     for day in calendar[index + 1:]:
