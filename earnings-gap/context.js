@@ -32,6 +32,7 @@ function render(){
  if(!$('industryRows'))return;
  const period=$('industryPeriod').value,seasons=data?.seasons||[],season=seasons.find(r=>r.end_date===period)||seasons[0];
  if(!season){const inactive=data&&!error&&Array.isArray(data.seasons)&&!data.seasons.length;$('industryRows').innerHTML='<tr><td colspan="5" class="empty">'+esc(error||(inactive?'当前时段暂无参与策略的报告季（年报已剔除）。':'行业统计正在读取，暂不能判断发生率。'))+'</td></tr>';$('industryMeta').textContent=inactive?'仅统计一季报、中报、三季报':'统计数据待核验';$('industryCompaniesPanel').hidden=true;return;}
+ if(season.industry_rule!=='financial_gap_no_close_cap_v1'){$('industryRows').innerHTML='<tr><td colspan="5" class="empty">行业统计正在更新为不限制收盘涨幅的口径，请稍后刷新。</td></tr>';$('industryMeta').textContent='新口径数据待更新';$('industryCompaniesPanel').hidden=true;return;}
  const cn=new Date(Date.now()+8*3600000).toISOString(),day=cn.slice(0,10),stale=data.asof<day,lateClose=cn.slice(11,16)>='15:45'&&data.asof===day&&season.waiting_close>0&&season.close_asof<day,waitingLabel=cn.slice(11,16)>='15:00'?'待收盘归档':'待收盘';
  $('industryMeta').textContent='披露截至 '+season.disclosure_asof+' · 收盘确认截至 '+season.close_asof+' · 申万一级 SW2021（归属日 '+season.industry_date+'）';
  const notices=[error,data.refresh_status==='FAILED'?'本次展示数据更新失败，保留上次快照。':'',stale?'尚未更新至今天。':'',lateClose?'今日收盘行业统计尚未归档，请核验更新任务。':'',season.waiting_close?season.waiting_close+' 家'+waitingLabel+'。':'',season.missing?season.missing+' 家数据待核验。':'',season.pending?'发生率及排名为暂定值。':'',season.unknown_industry?'行业待核验 '+season.unknown_industry+' 家，单列且不参与排名。':''].filter(Boolean);

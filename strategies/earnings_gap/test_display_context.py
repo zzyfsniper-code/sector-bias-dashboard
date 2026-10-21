@@ -57,6 +57,42 @@ class DisplayTest(unittest.TestCase):
         self.assertEqual(d.active_periods('2026-02-20'), [])
         self.assertEqual(d.active_periods('2026-10-20'), ['2026-09-30'])
 
+    def test_display_gap_has_no_close_gain_cap_but_keeps_gap_boundaries(self):
+        from strategy_core import qualifies
+        for end,previous,current in [('2026-03-31','2025-03-31',200),('2026-06-30','2025-06-30',300),('2026-09-30','2025-09-30',400)]:
+            row=dict(SECUCODE='600000.SH',NOTICE_DATE='2026-10-19',REPORTDATE=end,SECURITY_NAME_ABBR='测试',PARENT_NETPROFIT=current)
+            history=[row,dict(NOTICE_DATE='2025-01-01',REPORTDATE=previous,PARENT_NETPROFIT=current/2)]
+            if end[5:7] != '03':
+                prior='03-31' if end[5:7]=='06' else '06-30'
+                history += [dict(NOTICE_DATE='2026-01-01',REPORTDATE='2026-'+prior,PARENT_NETPROFIT=100),
+                            dict(NOTICE_DATE='2025-01-01',REPORTDATE='2025-'+prior,PARENT_NETPROFIT=50)]
+            fetch=Mock(return_value=[dict(date='2026-10-16',close=100),dict(date='2026-10-19',open=103,low=102,close=120)])
+            result=d.season_check(row,history,{'600000.SH':dict(list_date='2000-01-01')},['2026-10-16','2026-10-19'],'2026-10-19',fetch)
+            self.assertEqual(result['state'],'confirmed');self.assertEqual(result['industry_rule'],d.INDUSTRY_RULE)
+        self.assertFalse(qualifies(103,102,107,100,'Q3'))
+        self.assertFalse(qualifies(103,102,105,100,'H1'))
+        self.assertTrue(d.industry_gap(102,100.01,100))
+        self.assertFalse(d.industry_gap(101.99,100.01,100))
+        self.assertFalse(d.industry_gap(103,100,100))
+
+    def test_only_cap_rejected_archive_is_promoted_for_display(self):
+        trade=dict(ann_date='2026-10-17',end_date='2026-09-30',reaction_date='2026-10-19',status='剔除',
+            status_note='收盘涨幅不符',quarter_profit=100,quarter_yoy=30,open_gap_pct=3,signal_return_pct=20,
+            list_date='2000-01-01',name='测试')
+        check=lambda **extra:d.ledger_check(dict(trade,**extra),'2026-10-17','2026-09-30','2026-10-19')
+        self.assertEqual(check()['state'],'confirmed');self.assertIn('仅计入',check()['reason'])
+        self.assertEqual(check(status_note='已补缺口')['state'],'rejected')
+        self.assertEqual(check(status_note='高开不足2%')['state'],'rejected')
+        for extra in [dict(quarter_profit=-1),dict(quarter_yoy=29.99),dict(list_date='2026-10-01'),dict(name='ST测试'),dict(data_pending=True),dict(open_gap_pct=1.99)]:
+            self.assertIsNone(check(**extra))
+
+    def test_old_generic_market_cache_is_not_reused_as_no_cap(self):
+        old=dict(ann_date='2026-10-17',state='rejected',reason='行情条件不符')
+        self.assertIsNone(d.cached_check(old,'2026-10-17'))
+        self.assertEqual(d.cached_check(dict(old,industry_rule=d.INDUSTRY_RULE),'2026-10-17')['state'],'rejected')
+        self.assertEqual(d.cached_check(dict(old,reason='财务或ST条件不符'),'2026-10-17')['industry_rule'],d.INDUSTRY_RULE)
+        self.assertIsNone(d.cached_check(dict(old,industry_rule=d.INDUSTRY_RULE),'2026-10-18'))
+
     def test_only_exact_first_reaction_final_ledger_result_reused(self):
         trade = dict(ann_date='2026-10-17', end_date='2026-09-30', reaction_date='2026-10-19', status='剔除')
         check = lambda **extra:d.ledger_check(dict(trade, **extra),'2026-10-17','2026-09-30','2026-10-19')

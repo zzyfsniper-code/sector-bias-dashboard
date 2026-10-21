@@ -8,10 +8,11 @@ import time
 import requests
 
 from financial_sources import FinancialSources, amounts, date as iso_date
-from strategy_core import number, qualifies, reaction_day, report_kind
+from strategy_core import number, reaction_day
 import update_data as u
 
 DATA = u.DATA
+INDUSTRY_RULE = 'financial_gap_no_close_cap_v1'
 
 
 def read(name, default):
@@ -147,10 +148,36 @@ def ledger_check(trade, stamp, end, cutoff):
     if trade.get('entry_date') == reaction:
         state = 'confirmed'
     elif not trade.get('entry_date') and trade.get('status') in ['未入选', '剔除']:
+        if trade.get('status_note') == '收盘涨幅不符':
+            # This archived reason is emitted only after the opening gap and
+            # unfilled-gap checks pass; confirm its remaining financial limits.
+            profit, growth = number(trade.get('quarter_profit')), number(trade.get('quarter_yoy'))
+            gap, gain = number(trade.get('open_gap_pct')), number(trade.get('signal_return_pct'))
+            listed, name = iso_date(trade.get('list_date')), trade.get('name') or ''
+            if (profit is None or profit < 0 or growth is None or growth < 30 or
+                gap is None or gap < 2-1e-7 or gain is None or not listed or not name or
+                name.upper().startswith(('ST','*ST')) or
+                (date.fromisoformat(reaction)-date.fromisoformat(listed)).days < 90):
+                return None
+            return dict(ann_date=stamp, reaction_date=reaction, state='confirmed', industry_rule=INDUSTRY_RULE,
+                        reason='涨幅超买入上限，仅计入行业断层统计')
         state = 'rejected'
     else:
         return None
-    return dict(ann_date=stamp, reaction_date=reaction, state=state, reason='线上首次反应日已归档')
+    return dict(ann_date=stamp, reaction_date=reaction, state=state, reason='线上首次反应日已归档', industry_rule=INDUSTRY_RULE)
+
+
+def cached_check(prior, stamp):
+    if prior.get('ann_date') != stamp or prior.get('state') not in ['confirmed','rejected']:
+        return None
+    if prior.get('industry_rule') == INDUSTRY_RULE or prior.get('reason') in ['财务或ST条件不符','上市不足90日']:
+        return dict(prior, industry_rule=INDUSTRY_RULE)
+    return None
+
+
+def industry_gap(open_price, low, previous):
+    o, l, p = [round(float(x)*100) for x in [open_price,low,previous]]
+    return p > 0 and o*100 >= p*102 and l > p
 
 
 def financial_detail(code, end, stamp, trade, monitor, previous, row=None, history=None):
@@ -201,7 +228,7 @@ def industry_companies(disclosures, checks, details, members, cutoff, end, first
 def season_check(row, history, meta, calendar, cutoff, fetch_daily):
     code, ann, end = row['SECUCODE'], row['NOTICE_DATE'][:10], row['REPORTDATE'][:10]
     reaction = reaction_day(ann, calendar)
-    result = dict(ann_date=ann, reaction_date=reaction, state='pending')
+    result = dict(ann_date=ann, reaction_date=reaction, state='pending', industry_rule=INDUSTRY_RULE)
     if not reaction or reaction > cutoff:
         return dict(result, reason='待收盘确认')
     profit, growth = amounts(row, history)
@@ -220,7 +247,7 @@ def season_check(row, history, meta, calendar, cutoff, fetch_daily):
         if before not in bars or reaction not in bars:
             return dict(result, reason='反应日或前日行情待补')
         bar, previous = bars[reaction], bars[before]['close']
-        passed = qualifies(bar['open'], bar['low'], bar['close'], previous, report_kind(end))
+        passed = industry_gap(bar['open'], bar['low'], previous)
         return dict(result, state='confirmed' if passed else 'rejected', reason='收盘断层确认' if passed else '行情条件不符')
     except Exception:
         return dict(result, reason='反应日日线待补')
@@ -319,8 +346,9 @@ def refresh(input_dir=None):
             if archived:
                 checks[code] = archived
             elif row and row['NOTICE_DATE'][:10] == stamp:
-                if prior.get('state') in ['confirmed', 'rejected'] and prior.get('ann_date') == stamp:
-                    checks[code] = prior
+                reused = cached_check(prior,stamp)
+                if reused:
+                    checks[code] = reused
                 else:
                     missing.append(row)
             else:
@@ -346,13 +374,13 @@ def refresh(input_dir=None):
         pending = sum(r['pending'] for r in rows)
         waiting = sum(r['waiting_close'] for r in rows)
         unknown = sum(r['disclosed'] for r in rows if r['industry_code'] is None)
-        seasons.append(dict(end_date=end, disclosure_asof=today, close_asof=closed, industry_date=today,
+        seasons.append(dict(end_date=end, disclosure_asof=today, close_asof=closed, industry_date=today, industry_rule=INDUSTRY_RULE,
             rows=rows, disclosed=len(disclosures), confirmed=sum(r['confirmed'] for r in rows),
             pending=pending, waiting_close=waiting, missing=pending-waiting, unknown_industry=unknown,
             status='PARTIAL' if pending or unknown else 'PASS'))
         cache.setdefault('seasons', {})[end] = checks
         write('display_cache.json', cache)
-    result = dict(version=1, updated_at=now.isoformat(), asof=today, features=features, seasons=seasons,
+    result = dict(version=1, industry_rule=INDUSTRY_RULE, updated_at=now.isoformat(), asof=today, features=features, seasons=seasons,
         industry_basis='申万一级 SW2021；按成员纳入/剔除日期匹配，历史分类可能回溯修订',
         pb_basis='反应日前一市场交易日；自身近3个日历年正PB，含锚点；至少252个观测；相等值半权重',
         source='Tushare daily_basic / index_member_all / disclosure_date；东财→Tushare→Wind Excel单季财务；腾讯日线',
