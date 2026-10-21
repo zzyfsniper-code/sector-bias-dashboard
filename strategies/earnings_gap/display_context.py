@@ -13,6 +13,8 @@ import update_data as u
 
 DATA = u.DATA
 INDUSTRY_RULE = 'financial_gap_no_close_cap_v1'
+PB_YEARS = 5
+PB_MINIMUM = 500
 
 
 def read(name, default):
@@ -70,14 +72,14 @@ def prior_date(reaction, calendar):
 
 def pb_feature(rows, anchor):
     result = dict(pb_date=anchor, pb=None, pb_percentile=None, pb_observations=0,
-                  pb_status='待补数据', pb_source='Tushare daily_basic')
+                  pb_status='待补数据', pb_source='Tushare daily_basic', pb_window_years=PB_YEARS, pb_minimum=PB_MINIMUM)
     if not anchor:
         return result
     day = date.fromisoformat(anchor)
     try:
-        start = day.replace(year=day.year-3).isoformat()
+        start = day.replace(year=day.year-PB_YEARS).isoformat()
     except ValueError:
-        start = day.replace(year=day.year-3, day=28).isoformat()
+        start = day.replace(year=day.year-PB_YEARS, day=28).isoformat()
     values = {}
     for row in rows:
         stamp = iso_date(row.get('trade_date'))
@@ -93,7 +95,7 @@ def pb_feature(rows, anchor):
         return result
     if current is None or current <= 0:
         return dict(result, pb_status='无有效正PB')
-    if len(positive) < 252:
+    if len(positive) < PB_MINIMUM:
         return dict(result, pb_status='历史不足')
     rank = 100 * (sum(x < current for x in positive) + .5*sum(x == current for x in positive)) / len(positive)
     return dict(result, pb_percentile=rank, pb_status='有效')
@@ -315,7 +317,7 @@ def refresh(input_dir=None):
     old = read('display_context.json', {})
     features = dict(old.get('features', {}))
     pb_pairs = {(r.get('ts_code'), v.get('pb_date')): v for r in history + live.get('records', [])
-                if (v := features.get(r['id'])) and v.get('pb_status') != '待补数据'}
+                if (v := features.get(r['id'])) and v.get('pb_window_years') == PB_YEARS and v.get('pb_status') != '待补数据'}
     monitor = json.loads((input_dir/'monitor.json').read_text('utf-8')) if input_dir else read('monitor.json', {})
     records = history + live.get('records', []) + monitor.get('reports', [])
     pb_requests = 0
@@ -327,13 +329,13 @@ def refresh(input_dir=None):
         # Historical values remain anchored to the original signal, never today's PB.
         if (row['ts_code'], anchor) in pb_pairs:
             current = pb_pairs[(row['ts_code'], anchor)]
-        elif current.get('pb_date') != anchor or current.get('pb_status') == '待补数据':
+        elif current.get('pb_window_years') != PB_YEARS or current.get('pb_date') != anchor or current.get('pb_status') == '待补数据':
             if row in history:
                 current = dict(pb_feature([], anchor), **industry_at(members, row['ts_code'], anchor or today))
             elif row.get('financial_eligible') is False or not anchor or anchor >= today or pb_requests >= 60:
                 current = pb_feature([], anchor)
             else:
-                start = (date.fromisoformat(anchor)-timedelta(days=1097)).isoformat() if anchor else today
+                start = (date.fromisoformat(anchor)-timedelta(days=1830)).isoformat() if anchor else today
                 pb_requests += 1
                 values = client('daily_basic', 'ts_code,trade_date,pb', ts_code=row['ts_code'],
                                 start_date=start.replace('-', ''), end_date=(anchor or today).replace('-', ''))
@@ -425,7 +427,8 @@ def refresh(input_dir=None):
         write('display_cache.json', cache)
     result = dict(version=1, industry_rule=INDUSTRY_RULE, updated_at=now.isoformat(), asof=today, features=features, seasons=seasons,
         industry_basis='申万一级 SW2021；按成员纳入/剔除日期匹配，历史分类可能回溯修订',
-        pb_basis='反应日前一市场交易日；自身近3个日历年正PB，含锚点；至少252个观测；相等值半权重',
+        pb_window_years=PB_YEARS, pb_minimum=PB_MINIMUM,
+        pb_basis='反应日前一市场交易日；自身近5个日历年正PB，含锚点；至少500个观测；相等值半权重；上市不足5年按可得历史',
         source='Tushare daily_basic / index_member_all / disclosure_date；东财→Tushare→Wind Excel单季财务；腾讯日线',
         source_live_updated_at=live.get('updated_at'), calls=client.calls)
     if old.get('history_import'):

@@ -5,10 +5,13 @@ let data=null,error='',expanded=false,openIndustry=null;
 const feature=row=>data?.features?.[row.id]||{};
 function industry(row){const f=feature(row);return '<span title="'+esc((data?.industry_basis||'申万一级 SW2021')+'；归属日期 '+(f.industry_date||'待核验'))+'">'+esc(f.industry_l1||'行业待核验')+'</span>';}
 function pb(row){
- const f=feature(row),valid=Number.isFinite(f.pb_percentile),title=(data?.pb_basis||'自身近3年正PB，至少252个观测')+'；估值日期 '+(f.pb_date||'待核验')+'；有效观测 '+(f.pb_observations??'—')+'；'+(f.pb_source||'数据待补');
- return '<span class="pb-value" title="'+esc(title)+'">'+(valid?f.pb_percentile.toFixed(1)+'%':esc(f.pb_status||'待补数据'))+'</span><span class="sub">'+(Number.isFinite(f.pb)?'PB '+f.pb.toFixed(2)+'倍':'PB —')+' · <span class="pb-date">'+esc(f.pb_date||'日期待核验')+'</span></span>';
+ const f=feature(row),windowOk=f.pb_window_years===5&&f.pb_minimum===500,valid=windowOk&&Number.isFinite(f.pb_percentile),title=(data?.pb_basis||'自身近5年正PB，至少500个观测')+'；估值日期 '+(f.pb_date||'待核验')+'；有效观测 '+(f.pb_observations??'—')+'；'+(f.pb_source||'数据待补');
+ return '<span class="pb-value" title="'+esc(title)+'">'+(valid?f.pb_percentile.toFixed(1)+'%':esc(windowOk?f.pb_status||'待补数据':'5年数据待更新'))+'</span><span class="sub">'+(Number.isFinite(f.pb)?'PB '+f.pb.toFixed(2)+'倍':'PB —')+' · <span class="pb-date">'+esc(f.pb_date||'日期待核验')+'</span></span>';
 }
-root.EarningsGapDisplay={feature,industry,pb};
+function period(row){const labels={'03':'一季报','06':'中报','09':'三季报','12':'年报'};return esc(row.end_date.slice(0,4))+'<span class="sub report-kind">'+esc(labels[row.end_date.slice(5,7)]||'待核验')+'</span>';}
+function volumeRatio(row){const f=feature(row);return Number.isFinite(row.volume_ratio)?row.volume_ratio:f.signal_volume_date===row.reaction_date&&Number.isFinite(f.signal_volume_ratio)?f.signal_volume_ratio:null;}
+function volume(row){const ratio=volumeRatio(row),f=feature(row),title='信号日 '+(row.reaction_date||'待核验')+'；相对前一实际交易日成交量'+(f.signal_volume_previous_date?'（'+f.signal_volume_previous_date+'）':'')+'；'+(f.signal_volume_source||'冻结信号日成交量');return '<span title="'+esc(title)+'">'+(ratio===null?'待核验':ratio.toFixed(2)+'倍')+'</span>';}
+root.EarningsGapDisplay={feature,industry,pb,period,volumeRatio,volume};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 function original(row){

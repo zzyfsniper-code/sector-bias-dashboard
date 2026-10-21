@@ -39,7 +39,7 @@ function reportState(report,screened=[]){
  if(report.end_date?.slice(5,7)==='12')return {...report,complete:true,financial_eligible:false,strategy_excluded:true,result:'已排除',reason:'年报不参与策略'};
  if(!report.complete||!report.financial_eligible)return report;
  const trade=screened.filter(r=>r.ts_code===report.ts_code&&r.end_date===report.end_date).sort((a,b)=>b.ann_date.localeCompare(a.ann_date))[0];
- return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh,volume_state:trade.volume_state,volume_ratio:trade.volume_ratio,volume_forecast_ratio:trade.volume_forecast_ratio,volume_actual_shares:trade.volume_actual_shares,volume_forecast_shares:trade.volume_forecast_shares,volume_profile_kind:trade.volume_profile_kind,volume_profile_days:trade.volume_profile_days,volume_profile_through:trade.volume_profile_through}:report;
+ return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh,gap_filled:trade.gap_filled,data_pending:trade.data_pending,volume_state:trade.volume_state,volume_ratio:trade.volume_ratio,volume_forecast_ratio:trade.volume_forecast_ratio,volume_actual_shares:trade.volume_actual_shares,volume_forecast_shares:trade.volume_forecast_shares,volume_profile_kind:trade.volume_profile_kind,volume_profile_days:trade.volume_profile_days,volume_profile_through:trade.volume_profile_through}:report;
 }
 function filterReports(reports,filter){return filter==='all'?reports:reports.filter(r=>r.financial_eligible);}
 function financialReport(report,monitor){
@@ -68,6 +68,31 @@ function marketState(row,day,synced=true,quotesReady=true){
  if(row.result==='观察')return row.reason==='当前满足买入条件'?{label:'当前符合',passed:true,failed:false,known:true}:{label:'当前不符',passed:false,failed:true,known:true};
  return waiting(row.result==='等待开盘'?'待开盘':'待核验');
 }
+function currentState(row,day,synced=true,quotesReady=true){
+ const base=marketState(row,day,synced,quotesReady),reason=row.reason||'',result=(label,details='',extra={})=>({...base,label,details,...extra});
+ if(row.strategy_excluded)return result('年报不参与',reason,{passed:false,failed:true,known:true});
+ if(!row.complete)return result('财务待核验',reason);
+ if(row.financial_eligible===false)return result(reason.includes('ST股票')?'ST不参与':reason.includes('上市不足')?'上市不足90日':'财报不符',reason,{passed:false,failed:true,known:true});
+ if(row.reaction_date!==day)return result('待反应日',row.reaction_date||'反应日待核验');
+ if(!synced)return result('数据待同步');
+ if(base.passed)return result(row.closing_confirmed||row.result==='买入'?'收盘入选':base.estimated?'预计符合':'当前符合',base.estimated?'预计量能达标':'');
+ if(!base.known){
+  if(row.data_pending||reason.includes('日线'))return result('日线待补',reason);
+  if(row.volume_state==='pending')return result('量能待核验',reason);
+  if(reason.includes('行情过期'))return result('行情过期');
+  if(row.result==='等待开盘')return result('待开盘');
+  return result(base.label==='待行情'?'行情待更新':'待核验',reason);
+ }
+ const failures=[];
+ if(reason.includes('ST股票'))failures.push('ST不参与');
+ if(reason.includes('上市不足'))failures.push('上市不足90日');
+ if(reason.includes('高开不足')||Number.isFinite(row.open_gap_pct)&&row.open_gap_pct<2-1e-7)failures.push('高开不足');
+ if(row.gap_filled||reason.includes('已补缺口'))failures.push('缺口已补');
+ const cap=row.end_date?.slice(5,7)==='06'?5:7;
+ if(reason.includes('涨幅')||Number.isFinite(row.signal_return_pct)&&row.signal_return_pct>=cap)failures.push('涨幅不符');
+ if(['waiting','failed'].includes(row.volume_state)||reason.includes('量能不足')||reason.includes('等待量能'))failures.push('量能不足');
+ return result(failures[0]||'未入选',failures.length>1?failures.slice(1).join(' · '):reason);
+}
 function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true){
  const day=china(now).slice(0,10),confirmed=monitor?.source_status==='PASS'&&monitor.financial_asof===day;
  const synced=confirmed&&live?.updated_at===monitor.data_updated_at&&live?.version===monitor.version;
@@ -79,7 +104,7 @@ function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true)
  const today=latestReports(aligned.filter(r=>r.reaction_date===day),r=>r.ts_code);
  const candidates=latestReports(today.filter(r=>r.financial_eligible),r=>r.ts_code).map(r=>{
   const closed=archived&&(live.records||[]).some(t=>t.ts_code===r.ts_code&&t.end_date===r.end_date&&t.entry_date===day&&!t.data_pending);
-  const row={...r,closing_confirmed:closed};return {...row,market:marketState(row,day,synced,quotesReady)};
+  const row={...r,closing_confirmed:closed};return {...row,market:currentState(row,day,synced,quotesReady)};
  });
  const market=candidates.filter(r=>r.reaction_date===day);
  return {day,confirmed,synced,archived,tradingDay,all:raw,today,candidates,failures:today.filter(r=>r.complete&&!r.financial_eligible),
@@ -87,10 +112,10 @@ function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true)
   market:synced&&market.every(r=>r.market.known)?market.filter(r=>r.market.passed).length:null,
   closing:archived?(live.records||[]).filter(r=>r.entry_date===day&&!r.data_pending).length:null};
 }
-const api={health,reportState,filterReports,financialReport,reactionDay,marketState,dailyOverview};root.EarningsGapMonitoring=api;if(typeof module!=='undefined')module.exports=api;
+const api={health,reportState,filterReports,financialReport,reactionDay,marketState,currentState,dailyOverview};root.EarningsGapMonitoring=api;if(typeof module!=='undefined')module.exports=api;
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const periods={'03':'一季报','06':'中报','09':'三季报','12':'年报'},format=value=>value?new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
+const format=value=>value?new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
 let monitor=null,live=null,job=null,errors=[],liveError='',busy=false,screened=[];
 const loading={monitor:true,live:true,job:true,quotes:true};
 api.setLive=value=>{if(live?.updated_at!==value.updated_at)screened=[];live=value;liveError='';loading.live=false;render();};
@@ -100,7 +125,7 @@ const percent=value=>Number.isFinite(value)?`${value>0?'+':''}${value.toFixed(2)
 const money=value=>Number.isFinite(value)?(value/10000).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
 const amount=value=>'<span class="'+(value<0?'down':'')+'">'+money(value)+'</span>';
 const change=value=>'<span class="'+(value>0?'up':value<0?'down':'')+'">'+percent(value)+'</span>';
-const period=row=>esc(row.end_date.slice(0,4)+(periods[row.end_date.slice(5,7)]||''));
+const period=row=>root.EarningsGapDisplay.period(row);
 function original(row){
  try{const url=new URL(row.url);if(url.protocol==='https:'&&['static.cninfo.com.cn','pdf.dfcfw.com','data.eastmoney.com'].includes(url.hostname))return '<a href="'+esc(url.href)+'" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">原文 ↗</a>';}catch{}
  return '—';
@@ -126,13 +151,12 @@ function render(){
  $('dailyClosing').textContent=daily.tradingDay===false?'休市':daily.confirmed?closing:'待核验';$('dailyClosing').className=daily.closing==null?'text-value':'';
  $('dailyCandidateCount').textContent=daily.confirmed?daily.candidates.length+' 家':'待核验';
  $('dailyCandidates').innerHTML=daily.confirmed&&daily.candidates.length?daily.candidates.map(r=>{
-  const gap=r.reason?.includes('已补缺口')?'已补缺口':r.open_gap_pct>=2&&r.market.known?'未补缺口':'—';
-  return '<tr class="'+(r.market.failed?'candidate-rejected':r.market.passed?'candidate-selected'+(r.market.estimated?' candidate-estimated':''):'candidate-pending')+'"><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td class="num">'+root.EarningsGapDisplay.pb(r)+'</td><td>'+period(r)+'</td><td>'+esc(r.ann_date)+'<span class="sub">'+esc(r.reaction_date||'待确定')+'</span></td><td class="num">'+amount(r.quarter_profit)+'<span class="sub">同比 '+change(r.quarter_yoy)+'</span></td><td class="num">'+change(r.open_gap_pct)+'</td><td class="num">'+change(r.signal_return_pct)+'</td><td class="num">'+root.EarningsGapVolume.cell(r)+'</td><td class="num">'+root.EarningsGapVolume.cell(r,true)+'</td><td>'+esc(gap)+'</td><td><span class="pill '+(r.market.failed?'reject':r.market.passed?'watch':'')+'">'+esc(r.market.label)+'</span></td><td>'+original(r)+'</td></tr>';
- }).join(''):'<tr><td colspan="12" class="empty">'+(daily.confirmed?'今日暂无财务候选或行情反应日候选。':'今日公告与筛选尚未核验，不能据此认定没有候选。')+'</td></tr>';
+  return '<tr class="'+(r.market.failed?'candidate-rejected':r.market.passed?'candidate-selected'+(r.market.estimated?' candidate-estimated':''):'candidate-pending')+'"><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td class="num">'+root.EarningsGapDisplay.pb(r)+'</td><td>'+period(r)+'</td><td>'+esc(r.ann_date)+'<span class="sub">'+esc(r.reaction_date||'待确定')+'</span></td><td class="num">'+amount(r.quarter_profit)+'<span class="sub">同比 '+change(r.quarter_yoy)+'</span></td><td class="num">'+change(r.open_gap_pct)+'</td><td class="num">'+change(r.signal_return_pct)+'</td><td class="num">'+root.EarningsGapVolume.cell(r)+'</td><td class="num">'+root.EarningsGapVolume.cell(r,true)+'</td><td class="current-state"><span class="pill '+(r.market.failed?'reject':r.market.passed?'watch':'')+'" title="'+esc(r.reason||r.market.details||r.market.label)+'">'+esc(r.market.label)+'</span>'+(r.market.details?'<span class="sub">'+esc(r.market.details)+'</span>':'')+'</td><td>'+original(r)+'</td></tr>';
+ }).join(''):'<tr><td colspan="11" class="empty">'+(daily.confirmed?'今日暂无财务候选或行情反应日候选。':'今日公告与筛选尚未核验，不能据此认定没有候选。')+'</td></tr>';
  $('dailyFailureCount').textContent=daily.confirmed?daily.failures.length+' 家':'待核验';
  $('dailyFailuresToggle').textContent=$('dailyFailuresPanel').hidden?'查看财务未通过的 '+daily.failures.length+' 家 →':'收起财务未通过名单 ↑';
  $('dailyFailuresToggle').disabled=!daily.confirmed;
- $('dailyFailures').innerHTML=daily.failures.length?daily.failures.map(r=>'<tr><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td>'+period(r)+'</td><td class="num">'+amount(r.quarter_profit)+'</td><td class="num">'+change(r.quarter_yoy)+'</td><td><span class="pill reject">'+esc(r.reason)+'</span></td><td>'+original(r)+'</td></tr>').join(''):'<tr><td colspan="6" class="empty">今日暂无已核验的财务未通过记录。</td></tr>';
+ $('dailyFailures').innerHTML=daily.failures.length?daily.failures.map(r=>{const state=currentState(r,daily.day,daily.synced,!loading.quotes);return '<tr><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td>'+period(r)+'</td><td class="num">'+amount(r.quarter_profit)+'</td><td class="num">'+change(r.quarter_yoy)+'</td><td class="current-state"><span class="pill reject">'+esc(state.label)+'</span><span class="sub">'+esc(state.details)+'</span></td><td>'+original(r)+'</td></tr>';}).join(''):'<tr><td colspan="6" class="empty">今日暂无已核验的财务未通过记录。</td></tr>';
  $('monitorScope').textContent=confirmed?monitor.window_start+' — '+monitor.financial_asof+' · '+(monitor.counts?.announcements??'—')+'条公告 / '+(monitor.counts?.companies??'—')+'家公司 · 财务通过 '+(monitor.counts?.financial_candidates??'—')+'家':'公告覆盖范围待核验';
  const all=daily.all,filter=$('monitorFilter').value,reports=filterReports(all,filter);
  $('monitorReports').innerHTML=reports.length?reports.slice(0,50).map(r=>'<tr><td>'+esc(r.ann_date)+'</td><td>'+esc(r.name)+'<span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td>'+period(r)+(r.corrected?'（更正）':'')+'</td><td class="num">'+amount(r.quarter_profit)+'</td><td class="num">'+change(r.quarter_yoy)+'</td><td>'+esc(r.result)+'<span class="sub">'+esc(r.reason)+'</span></td><td>'+original(r)+'</td></tr>').join(''):'<tr><td colspan="7" class="empty">'+(confirmed?(filter==='all'?'核对范围内暂无正式公告。':'暂无符合财务条件的公告，可切换“全部公告”查看。'):'公告覆盖尚未核验，不能据此认定没有公告。')+'</td></tr>';

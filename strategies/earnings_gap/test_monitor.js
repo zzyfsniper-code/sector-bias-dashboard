@@ -107,3 +107,37 @@ assert.equal(dailyOverview(monitor,holidayLive,[],new Date(holiday+'T15:50:00+08
 assert.equal(health(monitor,mondayLive,job,new Date('2027-01-04T10:00:00+08:00')).severity,3);
 assert.equal(dailyOverview({...mondayMonitor,reports:[{...weekend,ann_date:'2026-10-20'}]},mondayLive,[],mondayTime).candidates.length,0);
 console.log('MONITOR CHECKS PASS: health, daily date scopes, deduplication, corrections, missing data, gray states and closing confirmation');
+
+{
+const {currentState,marketState}=require('../../earnings-gap/monitor.js');
+const day='2026-10-21',row={complete:true,financial_eligible:true,reaction_date:day,end_date:'2026-09-30',result:'观察',reason:'当前满足买入条件',quote_fresh:true};
+assert.equal(currentState(row,day).label,'当前符合');
+assert.equal(currentState({...row,financial_eligible:false,reason:'单季同比不足30%'},day).label,'财报不符');
+assert.equal(currentState({...row,complete:false},day).label,'财务待核验');
+assert.equal(currentState({...row,reaction_date:'2026-10-22'},day).label,'待反应日');
+assert.equal(currentState(row,day,false).label,'数据待同步');
+assert.equal(currentState({...row,quote_fresh:false,reason:'行情过期'},day).label,'行情过期');
+assert.equal(currentState({...row,quote_fresh:false,result:'等待开盘'},day).label,'待开盘');
+assert.equal(currentState({...row,result:'待核验',data_pending:true,reason:'日线记录待补齐'},day).label,'日线待补');
+assert.equal(currentState({...row,reason:'量能预计达标',volume_state:'estimated'},day).label,'预计符合');
+assert.equal(currentState({...row,result:'买入'},day).label,'收盘入选');
+assert.equal(currentState({...row,closing_confirmed:true,quote_fresh:false},day).label,'收盘入选');
+assert.equal(currentState({...row,volume_state:'pending'},day).label,'量能待核验');
+assert.equal(currentState({...row,reason:'等待量能放大',volume_state:'waiting'},day).label,'量能不足');
+assert.equal(currentState({...row,result:'剔除',reason:'已补缺口'},day).label,'缺口已补');
+assert.equal(currentState({...row,result:'未入选',reason:'高开不足2%'},day).label,'高开不足');
+assert.equal(currentState({...row,result:'剔除',reason:'收盘涨幅不符'},day).label,'涨幅不符');
+assert.equal(currentState({...row,result:'剔除',reason:'ST股票'},day).label,'ST不参与');
+assert.equal(currentState({...row,result:'剔除',reason:'上市不足90日'},day).label,'上市不足90日');
+const multiple={...row,result:'未入选',reason:'高开不足2%',open_gap_pct:1,gap_filled:true,signal_return_pct:8,volume_state:'failed'};
+assert.equal(currentState(multiple,day).label,'高开不足');
+assert.equal(currentState(multiple,day).details,'缺口已补 · 涨幅不符 · 量能不足');
+for(const item of [row,multiple,{...row,reason:'等待量能放大',volume_state:'waiting'},{...row,volume_state:'pending'},{...row,reason:'量能预计达标',volume_state:'estimated'}]){
+ for(const key of ['passed','failed','known'])assert.equal(currentState(item,day)[key],marketState(item,day)[key]);
+}
+console.log('CURRENT_STATE_PASS detailed statuses, combined reasons and unchanged selection flags');
+
+}
+
+assert.equal(require('../../earnings-gap/monitor.js').currentState({complete:true,financial_eligible:false,strategy_excluded:true,reason:'年报不参与策略'},'2026-10-21').label,'年报不参与');
+assert.equal(require('../../earnings-gap/monitor.js').currentState({complete:true,financial_eligible:false,reason:'ST股票'},'2026-10-21').label,'ST不参与');

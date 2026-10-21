@@ -7,11 +7,11 @@ import display_context as d
 class DisplayTest(unittest.TestCase):
     def test_pb_ties_and_future_excluded(self):
         anchor = date(2026, 10, 19)
-        rows = [dict(trade_date=(anchor-timedelta(days=i)).isoformat(), pb=2) for i in range(252)]
-        rows += [dict(trade_date='2026-10-20', pb=100), dict(trade_date='2023-10-19', pb=100)]
+        rows = [dict(trade_date=(anchor-timedelta(days=i)).isoformat(), pb=2) for i in range(500)]
+        rows += [dict(trade_date='2026-10-20', pb=100), dict(trade_date='2021-10-19', pb=100)]
         result = d.pb_feature(rows, anchor.isoformat())
         self.assertEqual(result['pb_percentile'], 50)
-        self.assertEqual(result['pb_observations'], 252)
+        self.assertEqual(result['pb_observations'], 500)
 
     def test_insufficient_nonpositive_and_missing_anchor_not_forward_filled(self):
         self.assertEqual(d.pb_feature([dict(trade_date='20261019', pb=2)], '2026-10-19')['pb_status'], '历史不足')
@@ -175,6 +175,27 @@ class DisplayTest(unittest.TestCase):
         self.assertIsNone(result['open_gap_pct']);self.assertIsNone(result['close_return_pct']);fetch.assert_called_once()
         fetch.side_effect=RuntimeError('offline')
         self.assertIsNone(d.market_detail(company,'2026-10-20',['2026-10-16','2026-10-19'],None,{},fetch)['close_return_pct'])
+
+    def rows(self,n=500):
+        anchor=date(2026,10,20)
+        return [dict(trade_date=(anchor-timedelta(days=i)).isoformat(),pb=2) for i in range(n)]
+    def test_uses_five_years_and_excludes_future_and_exact_left_boundary(self):
+        rows=self.rows()+[dict(trade_date='2022-01-01',pb=1),dict(trade_date='2021-10-20',pb=100),dict(trade_date='2026-10-21',pb=100)]
+        result=d.pb_feature(rows,'2026-10-20')
+        self.assertEqual(result['pb_observations'],501)
+        self.assertAlmostEqual(result['pb_percentile'],251/501*100)
+        self.assertEqual(result['pb_window_years'],5);self.assertEqual(result['pb_minimum'],500)
+    def test_minimum_is_500_positive_values(self):
+        self.assertEqual(d.pb_feature(self.rows(499),'2026-10-20')['pb_status'],'历史不足')
+        self.assertEqual(d.pb_feature(self.rows(),'2026-10-20')['pb_percentile'],50)
+        rows=self.rows();rows[-1]['pb']=-1
+        self.assertEqual(d.pb_feature(rows,'2026-10-20')['pb_status'],'历史不足')
+    def test_conflicting_duplicate_is_not_averaged(self):
+        with self.assertRaisesRegex(ValueError,'PB同日冲突'):
+            d.pb_feature(self.rows()+[dict(trade_date='2026-10-20',pb=3)],'2026-10-20')
+    def test_missing_anchor_is_not_forward_filled(self):
+        rows=self.rows();rows[0]['trade_date']='2022-01-01'
+        self.assertIsNone(d.pb_feature(rows,'2026-10-20')['pb_percentile'])
 
 
 if __name__ == '__main__':
