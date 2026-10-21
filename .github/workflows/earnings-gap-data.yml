@@ -33,6 +33,8 @@ jobs:
           python strategies/earnings_gap/test_financial_sources.py
           python strategies/earnings_gap/test_monitoring.py
           python strategies/earnings_gap/test_profit_reasons.py
+          python strategies/earnings_gap/test_volume.py
+          node strategies/earnings_gap/test_volume.js
           node strategies/earnings_gap/test_signal.js
           node strategies/earnings_gap/test_monitor.js
           python strategies/earnings_gap/test_display_context.py

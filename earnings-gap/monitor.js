@@ -39,7 +39,7 @@ function reportState(report,screened=[]){
  if(report.end_date?.slice(5,7)==='12')return {...report,complete:true,financial_eligible:false,strategy_excluded:true,result:'已排除',reason:'年报不参与策略'};
  if(!report.complete||!report.financial_eligible)return report;
  const trade=screened.filter(r=>r.ts_code===report.ts_code&&r.end_date===report.end_date).sort((a,b)=>b.ann_date.localeCompare(a.ann_date))[0];
- return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh}:report;
+ return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh,volume_state:trade.volume_state,volume_ratio:trade.volume_ratio,volume_forecast_ratio:trade.volume_forecast_ratio,volume_actual_shares:trade.volume_actual_shares,volume_forecast_shares:trade.volume_forecast_shares,volume_profile_kind:trade.volume_profile_kind,volume_profile_days:trade.volume_profile_days,volume_profile_through:trade.volume_profile_through}:report;
 }
 function filterReports(reports,filter){return filter==='all'?reports:reports.filter(r=>r.financial_eligible);}
 function financialReport(report,monitor){
@@ -63,6 +63,8 @@ function marketState(row,day,synced=true,quotesReady=true){
  if(row.closing_confirmed)return {label:'收盘通过',passed:true,failed:false,known:true};
  if(!quotesReady||row.quote_fresh!==true)return waiting(row.result==='等待开盘'?'待开盘':'待行情');
  if(row.result==='买入')return {label:'收盘通过',passed:true,failed:false,known:true};
+ if(row.result==='观察'&&row.volume_state==='estimated'&&row.reason==='量能预计达标')return {label:'预计符合',passed:true,failed:false,known:true,estimated:true};
+ if(row.result==='观察'&&row.volume_state==='pending')return waiting('量能待核验');
  if(row.result==='观察')return row.reason==='当前满足买入条件'?{label:'当前符合',passed:true,failed:false,known:true}:{label:'当前不符',passed:false,failed:true,known:true};
  return waiting(row.result==='等待开盘'?'待开盘':'待核验');
 }
@@ -125,8 +127,8 @@ function render(){
  $('dailyCandidateCount').textContent=daily.confirmed?daily.candidates.length+' 家':'待核验';
  $('dailyCandidates').innerHTML=daily.confirmed&&daily.candidates.length?daily.candidates.map(r=>{
   const gap=r.reason?.includes('已补缺口')?'已补缺口':r.open_gap_pct>=2&&r.market.known?'未补缺口':'—';
-  return '<tr class="'+(r.market.failed?'candidate-rejected':r.market.passed?'candidate-selected':'candidate-pending')+'"><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td class="num">'+root.EarningsGapDisplay.pb(r)+'</td><td>'+period(r)+'</td><td>'+esc(r.ann_date)+'<span class="sub">'+esc(r.reaction_date||'待确定')+'</span></td><td class="num">'+amount(r.quarter_profit)+'<span class="sub">同比 '+change(r.quarter_yoy)+'</span></td><td class="num">'+change(r.open_gap_pct)+'</td><td class="num">'+change(r.signal_return_pct)+'</td><td>'+esc(gap)+'</td><td><span class="pill '+(r.market.failed?'reject':r.market.passed?'watch':'')+'">'+esc(r.market.label)+'</span></td><td>'+original(r)+'</td></tr>';
- }).join(''):'<tr><td colspan="10" class="empty">'+(daily.confirmed?'今日暂无财务候选或行情反应日候选。':'今日公告与筛选尚未核验，不能据此认定没有候选。')+'</td></tr>';
+  return '<tr class="'+(r.market.failed?'candidate-rejected':r.market.passed?'candidate-selected'+(r.market.estimated?' candidate-estimated':''):'candidate-pending')+'"><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td class="num">'+root.EarningsGapDisplay.pb(r)+'</td><td>'+period(r)+'</td><td>'+esc(r.ann_date)+'<span class="sub">'+esc(r.reaction_date||'待确定')+'</span></td><td class="num">'+amount(r.quarter_profit)+'<span class="sub">同比 '+change(r.quarter_yoy)+'</span></td><td class="num">'+change(r.open_gap_pct)+'</td><td class="num">'+change(r.signal_return_pct)+'</td><td class="num">'+root.EarningsGapVolume.cell(r)+'</td><td class="num">'+root.EarningsGapVolume.cell(r,true)+'</td><td>'+esc(gap)+'</td><td><span class="pill '+(r.market.failed?'reject':r.market.passed?'watch':'')+'">'+esc(r.market.label)+'</span></td><td>'+original(r)+'</td></tr>';
+ }).join(''):'<tr><td colspan="12" class="empty">'+(daily.confirmed?'今日暂无财务候选或行情反应日候选。':'今日公告与筛选尚未核验，不能据此认定没有候选。')+'</td></tr>';
  $('dailyFailureCount').textContent=daily.confirmed?daily.failures.length+' 家':'待核验';
  $('dailyFailuresToggle').textContent=$('dailyFailuresPanel').hidden?'查看财务未通过的 '+daily.failures.length+' 家 →':'收起财务未通过名单 ↑';
  $('dailyFailuresToggle').disabled=!daily.confirmed;

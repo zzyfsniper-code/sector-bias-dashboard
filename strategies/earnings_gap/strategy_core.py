@@ -5,7 +5,8 @@ from datetime import date, datetime, time, timedelta, timezone
 import math
 
 COST = .003
-VERSION = 'eg-20261020-v2-no-fy'
+VERSION = 'eg-20261021-v3-volume15'
+VOLUME_EFFECTIVE = '2026-10-21'
 REASONS = {'target': '止盈', 'stop': '止损', 'time': '10日到期'}
 
 
@@ -85,6 +86,17 @@ def simulate(record, bars, raw, calendar, reaction_calendar=None):
         return dict(out, status='剔除', status_note='ST股票')
     if (date.fromisoformat(reaction) - date.fromisoformat(record['list_date'])).days < 90:
         return dict(out, status='剔除', status_note='上市不足90日')
+    if reaction >= VOLUME_EFFECTIVE and not record.get('entry_date'):
+        current_volume = number(r.get('volume_shares'))
+        prior_bar = rawday.get(max(before), byday[max(before)])
+        prior_volume = number(prior_bar.get('volume_shares'))
+        if current_volume is None or prior_volume is None or prior_volume <= 0:
+            return dict(out, status='待核验', status_note='量能待核验')
+        out.update(volume_ratio=current_volume/prior_volume, volume_actual_shares=current_volume, volume_previous_shares=prior_volume,
+                   volume_forecast_shares=current_volume, volume_forecast_ratio=current_volume/prior_volume,
+                   volume_state='confirmed' if current_volume+1e-8>=prior_volume*1.5 else 'failed')
+        if current_volume + 1e-8 < prior_volume*1.5:
+            return dict(out, status='剔除', status_note='收盘量能不足1.5倍')
     entry = bar['close']; stop = entry * .92; target = entry * 1.10; peak = entry
     out.update(status='持有', entry_date=reaction, entry_price=r['close'], entry_basis=entry)
     for day in calendar[index + 1:]:

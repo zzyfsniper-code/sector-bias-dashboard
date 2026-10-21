@@ -14,9 +14,9 @@ API='https://api.github.com/repos/zzyfsniper-code/sector-bias-dashboard'
 def publish(data_only=False,monitor_only=False,scoped_files=None,expected_parent=None):
     files=['earnings-gap/data/monitor.json'] if monitor_only else ['earnings-gap/data/live.json','earnings-gap/data/monitor.json'] if data_only else ['earnings_gap.html','strategies/index.html','strategies/app.js',
         '.github/workflows/earnings-gap-data.yml']+[p.relative_to(ROOT).as_posix() for p in (ROOT/'earnings-gap').rglob('*') if p.is_file()]+[
-        'strategies/earnings_gap/'+n for n in ['strategy_core.py','update_data.py','monitoring.py','financial_sources.py','profit_reasons.py','publish.py','display_context.py','test_display_context.py','test_strategy.py','test_signal.js','test_monitoring.py','test_profit_reasons.py','test_monitor.js','test_financial_sources.py']]
+        'strategies/earnings_gap/'+n for n in ['strategy_core.py','volume_data.py','test_volume.py','test_volume.js','update_data.py','monitoring.py','financial_sources.py','profit_reasons.py','publish.py','display_context.py','test_display_context.py','test_strategy.py','test_signal.js','test_monitoring.py','test_profit_reasons.py','test_monitor.js','test_financial_sources.py']]
     if data_only:
-        files += [name for name in ['earnings-gap/data/display_context.json','earnings-gap/data/display_cache.json'] if (ROOT/name).exists()]
+        files += [name for name in ['earnings-gap/data/display_context.json','earnings-gap/data/display_cache.json','earnings-gap/data/volume_model.json','earnings-gap/data/volume_cache.json'] if (ROOT/name).exists()]
     if scoped_files:
         if any(not (name=='earnings_gap.html' or name=='.github/workflows/earnings-gap-data.yml' or name.startswith(('earnings-gap/','strategies/earnings_gap/'))) or '..' in Path(name).parts for name in scoped_files):
             raise RuntimeError('Publication outside earnings gap scope')

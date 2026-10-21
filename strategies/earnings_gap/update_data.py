@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
-from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day, VERSION
+from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day, VERSION, VOLUME_EFFECTIVE
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / 'earnings-gap/data'
@@ -60,7 +60,7 @@ def daily(code, start, end, adjusted=True):
         raise RuntimeError(f'{code}日线缺失')
     part = d['data'][symbol]
     values = part.get('qfqday', part.get('day', []))
-    return [dict(date=x[0], open=float(x[1]), close=float(x[2]), high=float(x[3]), low=float(x[4])) for x in values]
+    return [dict(date=x[0], open=float(x[1]), close=float(x[2]), high=float(x[3]), low=float(x[4]), volume_shares=float(x[5])*(1 if code.startswith('68') else 100) if len(x)>5 else None) for x in values]
 
 
 def report_title(title, end):
@@ -161,6 +161,8 @@ def closing_quotes(rows,today):
             values=[number(f[j]) for j in [3,4,5,33,34]]
             if not all(v is not None and v>0 for v in values):continue
             quotes[symbol]=dict(zip(['close','previous','open','high','low'],values))
+            volume=number(f[6])
+            quotes[symbol]['volume_shares']=volume*(1 if symbol.startswith('sh68') else 100) if volume is not None and f[6].strip() else None
     return quotes
 
 
@@ -239,6 +241,13 @@ def update(sources=None):
         matched=original_links(needs)
         for record in existing.values():record.update(matched.get(record['id'],{}))
     except Exception:issues.append('部分原文暂缺，保留已有链接并提供巨潮检索')
+    volume_records=[r for r in existing.values() if not r.get('entry_date') and (reaction_day(r['ann_date'],reaction_calendar,r.get('available_at')) or '')>=VOLUME_EFFECTIVE and r.get('status') not in ['未入选','剔除']]
+    if volume_records:
+        try:
+            from volume_data import prepare
+            prepare(DATA,volume_records,today,reaction_calendar)
+        except Exception:
+            issues.append('量能数据更新失败；未核验记录暂停入场，已有持仓按原退出规则处理')
     final_quotes={}
     if final_day==today:
         try:final_quotes=closing_quotes([r for r in existing.values() if not r.get('entry_date') and reaction_day(r['ann_date'],reaction_calendar,r.get('available_at'))==today],today)
@@ -256,9 +265,16 @@ def update(sources=None):
         q=final_quotes.get(record['ts_code'][-2:].lower()+record['ts_code'][:6])
         if not record.get('entry_date') and reaction==today and q:
             out=dict(record,reaction_date=today,signal_return_pct=(q['close']/q['previous']-1)*100,open_gap_pct=(q['open']/q['previous']-1)*100)
+            actual=number(q.get('volume_shares'));previous=number(record.get('volume_previous_shares'))
+            verified=actual is not None and actual>=0 and previous is not None and previous>0 and record.get('volume_reference_day')==today
+            if verified:out.update(volume_actual_shares=actual,volume_ratio=actual/previous,volume_forecast_shares=actual,volume_forecast_ratio=actual/previous,volume_state='confirmed' if actual+1e-8>=previous*1.5 else 'failed')
             if q['open']<q['previous']*1.02-1e-8:return dict(out,status='未入选',status_note='高开不足2%')
             if q['low']<=q['previous']:return dict(out,status='剔除',status_note='已补缺口')
             if not qualifies(q['open'],q['low'],q['close'],q['previous'],record['report_period']):return dict(out,status='剔除',status_note='收盘涨幅不符')
+            if reaction>=VOLUME_EFFECTIVE:
+                if not verified:
+                    return dict(out,status='待核验',status_note='量能待核验')
+                if actual+1e-8<previous*1.5:return dict(out,status='剔除',status_note='收盘量能不足1.5倍')
             return dict(out,status='持有',entry_date=today,entry_price=q['close'],entry_basis=q['close'],
                 stop_basis=q['close']*.92,target_basis=q['close']*1.10,basis_last_close=q['close'],basis_date=today,
                 profit_pct=net_return(q['close'],q['close']),hold_days=1,armed=False)
