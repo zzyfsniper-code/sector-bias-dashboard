@@ -40,6 +40,8 @@ class DailyPerformanceTest(unittest.TestCase):
         self.assertEqual(packet['metrics'], self.frozen['metrics'])
         self.assertEqual(packet['curves'], self.frozen['curves'])
         self.assertEqual(packet['dates'], self.frozen['dates'])
+        for code in [*CODES,'cash']:
+            np.testing.assert_allclose(packet['asset_weights'][code],self.frozen['asset_weights'][code],atol=1e-12,rtol=0)
 
     def test_new_day_extends_model_and_recomputes_all_metrics(self):
         packet, live, model = self.package(self.extended_prices(), 15)
@@ -56,6 +58,10 @@ class DailyPerformanceTest(unittest.TestCase):
         self.assertAlmostEqual(model['return'].iloc[-1],expected)
         self.assertEqual(model.turnover.iloc[-1],0)
         self.assertFalse(packet['actual_fills_recorded'])
+        for code in [*CODES,'cash']:
+            self.assertEqual(len(packet['asset_weights'][code]),733)
+            column='cash_weight' if code=='cash' else 'weight_'+code
+            np.testing.assert_allclose(packet['asset_weights'][code],model[column],atol=1e-12,rtol=0)
 
     def test_changed_frozen_history_is_rejected(self):
         packet, live, model = self.package(self.prices,14)
@@ -65,6 +71,10 @@ class DailyPerformanceTest(unittest.TestCase):
             build_performance(self.prices,self.calendar,model,live,changed)
         with self.assertRaises(ValueError):
             build_performance(self.prices,self.calendar,model,{**live,'data_as_of':'2026-10-15'},self.frozen)
+        changed=deepcopy(self.frozen)
+        changed['asset_weights'][CODES[0]][20]+=.01
+        with self.assertRaises(AssertionError):
+            build_performance(self.prices,self.calendar,model,live,changed)
 
     def test_full_updater_writes_daily_output_but_not_frozen_backtest(self):
         prices = self.extended_prices()

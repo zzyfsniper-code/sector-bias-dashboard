@@ -63,6 +63,14 @@ def attribution(frame, frequency):
     return rows
 
 
+def asset_weights(model):
+    weights = model[['weight_'+code for code in CODES]+['cash_weight']].to_numpy()
+    if not np.isfinite(weights).all() or (weights < -1e-10).any():
+        raise ValueError('Invalid daily asset weights')
+    np.testing.assert_allclose(weights.sum(axis=1), 1, atol=1e-10, rtol=0)
+    return {code:weights[:,i].tolist() for i,code in enumerate([*CODES,'cash'])}
+
+
 def build_performance(prices, calendar, model, live, frozen):
     """Daily full-path model performance; never reset positions at the freeze boundary."""
     if live['version'] != VERSION or frozen['version'] != VERSION:
@@ -85,10 +93,13 @@ def build_performance(prices, calendar, model, live, frozen):
             np.testing.assert_allclose(curves[key][field][:count], frozen['curves'][key][field],
                                        atol=1e-8, rtol=0, err_msg='Frozen performance changed; review source differences')
     np.testing.assert_allclose(model.risk_weight.iloc[:count], frozen['risk_exposure'], atol=1e-8, rtol=0)
+    holdings = asset_weights(model)
+    for code in holdings:
+        np.testing.assert_allclose(holdings[code][:count], frozen['asset_weights'][code], atol=1e-8, rtol=0)
     return dict(version=VERSION, name=NAME, run_id=live['run_id'], status=live['status'],
                 updated_at=live['updated_at'], data_as_of=live['data_as_of'], start=dates[0], end=dates[-1],
                 frozen_end=frozen['end'], metrics=measure(model), dates=dates, curves=curves,
-                risk_exposure=model.risk_weight.tolist(), source=live['history_source'],
+                risk_exposure=model.risk_weight.tolist(), asset_weights=holdings, source=live['history_source'],
                 actual_fills_recorded=False, independent_out_of_sample=False)
 
 
@@ -189,7 +200,7 @@ def main():
                     inception=INCEPTION, listing=LISTING, warmup_start=LISTING,
                     metrics=metrics, costs=[dict(cost_bps=bps, **measure(simulate(prices, calendar, cost=bps/10000)[0])) for bps in [0,10,20,30]],
                     annual=attribution(daily, 'year'), monthly=attribution(daily, 'month'),
-                    dates=daily.index.tolist(), curves=curves, risk_exposure=daily.risk_weight.tolist(),
+                    dates=daily.index.tolist(), curves=curves, risk_exposure=daily.risk_weight.tolist(), asset_weights=asset_weights(daily),
                     references=[],
                     source='Verified research cache: 159696 Tushare close + adjustment factor; 510300/518880 Wind Excel WDF.Addin WSD PriceAdj=F',
                     source_by_asset={CODES[0]:'Tushare historical close + adjustment factor (verified cached research)',

@@ -108,6 +108,8 @@ with sync_playwright() as p:
     next_day=next(d for d in model['calendar'] if d>daily['end'])
     revised=deepcopy(daily);revised.update(run_id='BROWSER_TEST_ONLY',end=next_day,data_as_of=next_day)
     revised['dates'].append(next_day);revised['risk_exposure'].append(revised['risk_exposure'][-1])
+    for weights in revised['asset_weights'].values():
+        weights.append(weights[-1])
     revised['metrics']['annual_return']+=.001
     for curve in revised['curves'].values():
         curve['nav'].append(curve['nav'][-1]*1.01)

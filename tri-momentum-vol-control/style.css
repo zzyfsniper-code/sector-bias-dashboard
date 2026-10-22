@@ -19,6 +19,7 @@ h2{font:700 23px/1.4 "STSong","SimSun",serif;margin:0}
 .metric-grid span,.metric-grid small{display:block;color:var(--muted);font-size:11px}.metric-grid strong{display:block;font:700 27px/1.6 serif}
 .chart-toolbar h3{margin:12px 0}.chart-toolbar label{font-size:12px;color:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin:12px 0}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.holdings-legend{margin:10px 16px 4px}
 .chart-stack{position:relative;background:var(--card);border:1px solid var(--border);padding:8px 0;touch-action:pan-y}
 .plot{position:relative}.plot svg{display:block;width:100%}.plot text{fill:var(--muted);font:11px Arial,sans-serif}.plot .grid{stroke:#e5ded3;stroke-width:1}
 .plot .crosshair{stroke:#8a918e;stroke-dasharray:3 3;pointer-events:none}
