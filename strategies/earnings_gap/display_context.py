@@ -150,8 +150,8 @@ def ledger_check(trade, stamp, end, cutoff):
     if trade.get('entry_date') == reaction:
         state = 'confirmed'
     elif not trade.get('entry_date') and trade.get('status') in ['未入选', '剔除']:
-        if trade.get('status_note') == '收盘涨幅不符':
-            # This archived reason is emitted only after the opening gap and
+        if trade.get('status_note') in ['收盘涨幅不符', '收盘量能不足1.45倍']:
+            # These archived reasons are emitted only after the opening gap and
             # unfilled-gap checks pass; confirm its remaining financial limits.
             profit, growth = number(trade.get('quarter_profit')), number(trade.get('quarter_yoy'))
             gap, gain = number(trade.get('open_gap_pct')), number(trade.get('signal_return_pct'))
@@ -162,11 +162,12 @@ def ledger_check(trade, stamp, end, cutoff):
                 (date.fromisoformat(reaction)-date.fromisoformat(listed)).days < 90):
                 return None
             return dict(ann_date=stamp, reaction_date=reaction, state='confirmed', industry_rule=INDUSTRY_RULE,
-                        reason='涨幅超买入上限，仅计入行业断层统计')
+                        reason=('涨幅超买入上限' if trade['status_note']=='收盘涨幅不符' else '量能未达买入门槛')+'，仅计入行业断层统计')
         state = 'rejected'
     else:
         return None
-    return dict(ann_date=stamp, reaction_date=reaction, state=state, reason='线上首次反应日已归档', industry_rule=INDUSTRY_RULE)
+    return dict(ann_date=stamp, reaction_date=reaction, state=state,
+                reason=trade.get('status_note') if state=='rejected' and trade.get('status_note') else '线上首次反应日已归档', industry_rule=INDUSTRY_RULE)
 
 
 def cached_check(prior, stamp):
@@ -206,6 +207,19 @@ def financial_detail(code, end, stamp, trade, monitor, previous, row=None, histo
     return dict(quarter_profit=None, quarter_yoy=None, financial_result='待核验', financial_source=None)
 
 
+def rejection_reason(company, trade=None):
+    reason = company.get('reason')
+    if company.get('name', '').upper().startswith(('ST', '*ST')): return 'ST股票不参与'
+    profit, growth = number(company.get('quarter_profit')), number(company.get('quarter_yoy'))
+    if profit is not None and profit < 0: return '单季净利润为负'
+    if growth is not None and growth < 30: return '单季同比不足30%'
+    if trade and not trade.get('data_pending') and (trade.get('ts_code'),trade.get('end_date'),trade.get('ann_date')) == (company.get('ts_code'),company.get('end_date'),company.get('ann_date')):
+        if not trade.get('entry_date') and trade.get('status_note'): return trade['status_note']
+    gap = number(company.get('open_gap_pct'))
+    if gap is not None and gap < 2-1e-7: return '高开不足2%'
+    return reason if reason and reason not in ['线上首次反应日已归档','财务或ST条件不符','行情条件不符'] else '排除原因待核验'
+
+
 def industry_companies(disclosures, checks, details, members, cutoff, end, first, ledger, monitor, catalog, meta, calendar):
     result = []
     notices = list(catalog) + monitor.get('reports', [])
@@ -224,6 +238,7 @@ def industry_companies(disclosures, checks, details, members, cutoff, end, first
             announcement_url=notice.get('url') or trade.get('announcement_url') or exact.get('ANNOUNCEMENT_URL'),
             **details.get(code, dict(quarter_profit=None, quarter_yoy=None, financial_result='待核验', financial_source=None)),
             **industry_at(members, code, cutoff)))
+        if result[-1]['state']=='rejected': result[-1]['reason']=rejection_reason(result[-1],trade)
     return sorted(result, key=lambda r:(r['state']!='confirmed',r['financial_result']!='通过',r['ann_date'],r['ts_code']))
 
 
@@ -410,6 +425,8 @@ def refresh(input_dir=None):
             prior = checks[code] if checks[code].get('market_date') else previous.get(code,{})
             market = market_detail(company,closed,calendar,ledger.get((code,end,stamp)),prior,u.daily)
             company.update(market)
+            if company['state']=='rejected': company['reason']=rejection_reason(company,ledger.get((code,end,stamp)))
+            checks[code]['reason']=company['reason']
             checks[code].update(market)
         rows = industry_summary(disclosures, checks, members, today)
         for group in rows:

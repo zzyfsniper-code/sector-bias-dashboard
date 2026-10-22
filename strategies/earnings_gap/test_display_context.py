@@ -81,10 +81,26 @@ class DisplayTest(unittest.TestCase):
             list_date='2000-01-01',name='测试')
         check=lambda **extra:d.ledger_check(dict(trade,**extra),'2026-10-17','2026-09-30','2026-10-19')
         self.assertEqual(check()['state'],'confirmed');self.assertIn('仅计入',check()['reason'])
+        self.assertEqual(check(status_note='收盘量能不足1.45倍')['state'],'confirmed')
         self.assertEqual(check(status_note='已补缺口')['state'],'rejected')
+        self.assertEqual(check(status_note='已补缺口')['reason'],'已补缺口')
         self.assertEqual(check(status_note='高开不足2%')['state'],'rejected')
         for extra in [dict(quarter_profit=-1),dict(quarter_yoy=29.99),dict(list_date='2026-10-01'),dict(name='ST测试'),dict(data_pending=True),dict(open_gap_pct=1.99)]:
             self.assertIsNone(check(**extra))
+            self.assertIsNone(check(**dict(extra,status_note='收盘量能不足1.45倍')))
+
+    def test_rejection_reason_uses_exact_finance_and_archive_without_guessing(self):
+        row=dict(ts_code='X',ann_date='2026-10-17',end_date='2026-09-30',name='测试',state='rejected',
+                 reason='线上首次反应日已归档',quarter_profit=100,quarter_yoy=50)
+        trade=dict(row,status_note='已补缺口')
+        self.assertEqual(d.rejection_reason(row,trade),'已补缺口')
+        self.assertEqual(d.rejection_reason(dict(row,quarter_profit=-1),trade),'单季净利润为负')
+        self.assertEqual(d.rejection_reason(dict(row,quarter_yoy=29.99),trade),'单季同比不足30%')
+        self.assertEqual(d.rejection_reason(dict(row,name='*ST测试'),trade),'ST股票不参与')
+        self.assertEqual(d.rejection_reason(dict(row,open_gap_pct=1.99)),'高开不足2%')
+        self.assertEqual(d.rejection_reason(row,dict(trade,ann_date='2026-10-20')),'排除原因待核验')
+        self.assertEqual(d.rejection_reason(row,dict(trade,data_pending=True)),'排除原因待核验')
+        self.assertEqual(d.rejection_reason(dict(row,reason='上市不足90日')),'上市不足90日')
 
     def test_old_generic_market_cache_is_not_reused_as_no_cap(self):
         old=dict(ann_date='2026-10-17',state='rejected',reason='行情条件不符')
