@@ -12,5 +12,13 @@ if(cn.time>='15:00:00')return {ready:false,note:'已收盘，不再提示执行'
 if(!live.signal?.is_final||live.signal.execution_date!==cn.day||live.signal.information_date!==prior)return {ready:false,note:'本周最终前收信号未就绪'};
 if(!networkOk||!codes.every(c=>quoteCheck(quotes[c],now).ok))return {ready:false,note:'行情缺失或过期，暂停可执行提示'};
 return {ready:true,note:'前收信号已定 · 行情时效通过 · 收盘附近人工执行'};}
-root.TriMomentumCore={chinaTime,parseQuotes,quoteCheck,evaluate,codes};if(typeof module!=='undefined')module.exports=root.TriMomentumCore;
+function positionSize(capital,weight,price){
+if(![capital,weight,price].every(Number.isFinite)||capital<=0||weight<0||weight>1||price<=0)return null;
+// Cash-start estimate: ETF value / (capital - buy cost) must not exceed target weight.
+const shares=Math.floor(capital*weight/(price*(1+.001*weight)*100))*100;
+if(!Number.isSafeInteger(shares))return null;
+const amount=shares*price,fee=amount*.001,cash=Math.max(0,capital-amount-fee);
+return {shares,lots:shares/100,price,amount,fee,cash,weight:amount/(capital-fee)};
+}
+root.TriMomentumCore={chinaTime,parseQuotes,quoteCheck,evaluate,positionSize,codes};if(typeof module!=='undefined')module.exports=root.TriMomentumCore;
 })(typeof window!=='undefined'?window:globalThis);

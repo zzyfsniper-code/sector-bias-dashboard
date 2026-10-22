@@ -7,6 +7,9 @@ h2{font:700 23px/1.4 "STSong","SimSun",serif;margin:0}
 .decision-grid span,.decision-grid small{display:block;color:var(--muted);font-size:11px}
 .decision-grid strong{display:block;font:700 27px/1.5 serif;margin:7px 0}
 .signal-card .footnote{margin:18px 0 10px}.model-current{padding-top:12px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+.position-calculator{border-top:1px solid var(--border);margin-top:16px;padding-top:16px}.sizing-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.sizing-heading h3{margin:0;font-size:16px}.sizing-heading label{font-size:12px;color:var(--muted)}.sizing-heading input{width:190px;max-width:100%;margin-left:8px}
+.sizing-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:18px}.sizing-results span,.sizing-results small{display:block;color:var(--muted);font-size:11px}.sizing-results strong{display:block;font:700 21px/1.6 serif;margin:5px 0;overflow-wrap:anywhere}.position-calculator .footnote{margin:10px 0 0}.sizing-status{color:var(--accent)}
+@media(max-width:900px){.sizing-results{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.sizing-heading label{width:100%}.sizing-heading input{display:block;margin:7px 0 0;width:100%}.sizing-results{gap:14px 10px}.sizing-results strong{font-size:19px}}
 .section-heading{margin:28px 0 14px}.section-heading>span{color:var(--muted);font-size:11px}
 .asset-section .table-wrap table{min-width:900px}.history-section .table-wrap table{min-width:1110px}.history-section>.footnote{margin:0 0 16px}
 .asset-section tr.selected{background:#f6ecd8}.code{display:block;color:var(--muted);font-size:10px}
