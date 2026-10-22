@@ -12,6 +12,10 @@ DATA = Path(__file__).resolve().parents[2] / 'earnings-gap/data'
 TZ = timezone(timedelta(hours=8))
 
 
+def is_a_share(code):
+    return bool(re.fullmatch(r'(?:6\d{5}\.SH|[03]\d{5}\.SZ)', str(code)))
+
+
 def read_monitor():
     path = DATA / 'monitor.json'
     return json.loads(path.read_text('utf-8')) if path.exists() else {}
@@ -51,14 +55,21 @@ def notice_record(item):
                ('一季度', '03-31'), ('半年度', '06-30'), ('半年', '06-30'), ('年度报告', '12-31'), ('年报', '12-31')]
     end = next((suffix for word, suffix in periods if word in title), None)
     code = str(item.get('secCode', ''))
-    if not year or not end or '报告' not in title or len(code) != 6 or code[0] not in '036':
+    if not end or '报告' not in title or len(code) != 6 or code[0] not in '036':
         return None
+    identity = item.get('report_identity', {})
+    if not year:
+        if identity.get('code') != code or identity.get('period_end') != end or not re.fullmatch(r'[0-9a-f]{64}', identity.get('sha256', '')):
+            return None
+        year = re.fullmatch(r'(20\d{2})', str(identity.get('year', '')))
+        if not year: return None
     url = item.get('adjunctUrl') or ''; date = re.search(r'/((?:20)\d{2}-\d{2}-\d{2})/', url)
     if not date:
         raise ValueError('正式报告缺少可核验的公告日期')
     return dict(id=str(item.get('announcementId') or url), ts_code=code + ('.SH' if code[0] == '6' else '.SZ'),
                 name=item.get('secName') or code, ann_date=date[1], end_date=year[1] + '-' + end,
-                title=title, url='https://static.cninfo.com.cn/' + url, corrected='更正' in title or '修订' in title)
+                title=title, url='https://static.cninfo.com.cn/' + url, corrected='更正' in title or '修订' in title,
+                **({'report_identity': identity} if identity else {}))
 
 
 def report_id(row):
@@ -113,7 +124,7 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
         issues.append('筛选记录核验失败：' + str(exc)[:180])
     by_period = {}
     for row in sorted(finance_rows, key=lambda r: r['NOTICE_DATE'], reverse=True):
-        if row['SECUCODE'][-2:] not in ['SH', 'SZ'] or row['SECUCODE'][0] not in '036': continue
+        if not is_a_share(row['SECUCODE']): continue
         by_period.setdefault((row['SECUCODE'], row['REPORTDATE'][:10]), row)
     records = {r['id']: r for r in payload['records']}; rows = []
     for notice in sorted(catalog.values(), key=lambda n: (n['ann_date'], n['id']), reverse=True):
@@ -152,7 +163,17 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
             item['reason'] += '；更正原文已核验'
         rows.append(item)
     covered = {(n['ts_code'], n['end_date']) for n in catalog.values()}
-    unmatched = [r for r in finance_rows if r['SECUCODE'][-2:] in ['SH', 'SZ'] and start <= r['NOTICE_DATE'][:10] <= today and (r['SECUCODE'], r['REPORTDATE'][:10]) not in covered]
+    unmatched = []; exclusions = []
+    for row in finance_rows:
+        code, end, ann = row['SECUCODE'], row['REPORTDATE'][:10], row['NOTICE_DATE'][:10]
+        if not start <= ann <= today: continue
+        reason = None
+        if code.startswith(('200', '900')) and code.endswith(('.SZ', '.SH')): reason = 'B股不参与策略'
+        elif is_a_share(code) and (code, end) not in covered:
+            if str(row.get('ISNEW')) == '0' and any(n['ts_code'] == code and n['ann_date'] == ann and n['end_date'] > end for n in catalog.values()):
+                reason = '本期正式报告的历史比较数据，不是独立公告'
+            else: unmatched.append(row)
+        if reason: exclusions.append(dict(ts_code=code, name=row.get('SECURITY_NAME_ABBR'), end_date=end, ann_date=ann, reason=reason))
     if unmatched: issues.append(f'{len(unmatched)}份财务记录未与巨潮正式公告清单对应')
     pending = sum(not r['complete'] for r in rows)
     if pending: issues.append(f'{pending}条正式公告尚未完成筛选或更正核验')
@@ -160,7 +181,7 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
     return dict(version=payload['version'], status='PARTIAL' if issues else 'PASS', checked_at=datetime.now(TZ).isoformat(),
                 data_updated_at=payload['updated_at'], financial_asof=today, window_start=start,
                 source_asof=today if source_ok else previous.get('source_asof'), source_status='PASS' if source_ok else 'FAILED',
-                catalog=list(catalog.values()), financial_checks=checks, reports=rows, issues=issues,
+                catalog=list(catalog.values()), financial_checks=checks, reports=rows, issues=issues, scope_exclusions=exclusions,
                 counts=dict(announcements=len(rows), companies=len({r['ts_code'] for r in rows}),
                             processed=len(rows)-pending, pending=pending, finance_records=len(by_period),
                             financial_candidates=sum(c.get('eligible', False) for c in checks.values()),

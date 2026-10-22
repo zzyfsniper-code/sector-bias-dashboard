@@ -2,6 +2,18 @@
 'use strict';
 const china=now=>new Date(now.getTime()+8*3600000).toISOString();
 const core=root.EarningsGapCore||(typeof require==='function'?require('./signal.js'):null);
+function quoteState(live,quotes,now=new Date()){
+ const cn=core.chinaTime(now),weekday=new Date(cn.day+'T00:00:00Z').getUTCDay();
+ const covered=live.reaction_calendar_start<=cn.day&&cn.day<=live.reaction_calendar_end;
+ const tradingDay=covered?live.reaction_calendar.includes(cn.day):weekday>0&&weekday<6;
+ if(!tradingDay)return {className:'',text:'今日休市，等待下一交易日行情'};
+ if(cn.minutes<570)return {className:'',text:cn.minutes<555?'盘前等待开盘，09:30后核验实时行情':'集合竞价中，09:30后按正式开盘行情筛选'};
+ const watch=[...new Set((live.records||[]).filter(r=>!r.exit_date&&!['未入选','剔除'].includes(r.status)).map(r=>r.ts_code.slice(-2).toLowerCase()+r.ts_code.slice(0,6)))];
+ const missing=watch.filter(code=>!core.freshness(quotes[code],now).ok);
+ const stamp=Object.values(quotes).filter(q=>core.freshness(q,now).ok).map(q=>q.timestamp).sort().at(-1);
+ if(missing.length)return {className:'offline',text:cn.minutes>=900?`${missing.length}只跟踪股票收盘行情尚未核验，暂停对应买卖确认`:`${missing.length}只跟踪股票行情缺失或过期，暂停对应买卖确认`};
+ return {className:stamp?'live':'offline',text:stamp?`${cn.minutes>690&&cn.minutes<780?'午间休市 · ':cn.minutes>=900?'收盘行情 · ':''}行情 ${stamp.slice(8,10)}:${stamp.slice(10,12)}:${stamp.slice(12,14)}`:'尚未取得有效行情，暂停确认买卖'};
+}
 function health(monitor,live,job,now=new Date(),errors=[],screened=[],loading={}){
  const cn=china(now),day=cn.slice(0,10),minutes=Number(cn.slice(11,13))*60+Number(cn.slice(14,16)),weekday=new Date(day+'T00:00:00Z').getUTCDay(),messages=[];
  let severity=0;const add=(level,text)=>{severity=Math.max(severity,level);messages.push(text);};
@@ -59,6 +71,7 @@ function marketState(row,day,synced=true,quotesReady=true){
  if(!row.complete)return waiting('待复核');
  if(row.reaction_date!==day)return waiting('待反应日');
  if(!synced)return waiting('待核验');
+ if(row.awaiting_open)return waiting('待开盘');
  if(['未入选','剔除','已排除'].includes(row.result))return {label:'未通过',passed:false,failed:true,known:true};
  if(row.closing_confirmed)return {label:'收盘通过',passed:true,failed:false,known:true};
  if(!quotesReady||row.quote_fresh!==true)return waiting(row.result==='等待开盘'?'待开盘':'待行情');
@@ -75,6 +88,7 @@ function currentState(row,day,synced=true,quotesReady=true){
  if(row.financial_eligible===false)return result(reason.includes('ST股票')?'ST不参与':reason.includes('上市不足')?'上市不足90日':'财报不符',reason,{passed:false,failed:true,known:true});
  if(row.reaction_date!==day)return result('待反应日',row.reaction_date||'反应日待核验');
  if(!synced)return result('数据待同步');
+ if(row.awaiting_open)return result('待开盘','09:30后按正式开盘行情筛选');
  if(base.passed)return result(row.closing_confirmed||row.result==='买入'?'收盘入选':base.estimated?'预计符合':'当前符合',base.estimated?'预计量能达标':'');
  if(!base.known){
   if(row.data_pending||reason.includes('日线'))return result('日线待补',reason);
@@ -104,7 +118,7 @@ function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true)
  const today=latestReports(aligned.filter(r=>r.reaction_date===day),r=>r.ts_code);
  const candidates=latestReports(today.filter(r=>r.financial_eligible),r=>r.ts_code).map(r=>{
   const closed=archived&&(live.records||[]).some(t=>t.ts_code===r.ts_code&&t.end_date===r.end_date&&t.entry_date===day&&!t.data_pending);
-  const row={...r,closing_confirmed:closed};return {...row,market:currentState(row,day,synced,quotesReady)};
+  const row={...r,closing_confirmed:closed,awaiting_open:tradingDay!==false&&core.chinaTime(now).minutes<570};return {...row,market:currentState(row,day,synced,quotesReady)};
  });
  const market=candidates.filter(r=>r.reaction_date===day);
  return {day,confirmed,synced,archived,tradingDay,all:raw,today,candidates,failures:today.filter(r=>r.complete&&!r.financial_eligible),
@@ -112,7 +126,7 @@ function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true)
   market:synced&&market.every(r=>r.market.known)?market.filter(r=>r.market.passed).length:null,
   closing:archived?(live.records||[]).filter(r=>r.entry_date===day&&!r.data_pending).length:null};
 }
-const api={health,reportState,filterReports,financialReport,reactionDay,marketState,currentState,dailyOverview};root.EarningsGapMonitoring=api;if(typeof module!=='undefined')module.exports=api;
+const api={health,quoteState,reportState,filterReports,financialReport,reactionDay,marketState,currentState,dailyOverview};root.EarningsGapMonitoring=api;if(typeof module!=='undefined')module.exports=api;
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=value=>value?new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
@@ -158,6 +172,7 @@ function render(){
  $('dailyFailuresToggle').disabled=!daily.confirmed;
  $('dailyFailures').innerHTML=daily.failures.length?daily.failures.map(r=>{const state=currentState(r,daily.day,daily.synced,!loading.quotes);return '<tr><td><span class="stock">'+esc(r.name)+'</span><span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td>'+period(r)+'</td><td class="num">'+amount(r.quarter_profit)+'</td><td class="num">'+change(r.quarter_yoy)+'</td><td class="current-state"><span class="pill reject">'+esc(state.label)+'</span><span class="sub">'+esc(state.details)+'</span></td><td>'+original(r)+'</td></tr>';}).join(''):'<tr><td colspan="6" class="empty">今日暂无已核验的财务未通过记录。</td></tr>';
  $('monitorScope').textContent=confirmed?monitor.window_start+' — '+monitor.financial_asof+' · '+(monitor.counts?.announcements??'—')+'条公告 / '+(monitor.counts?.companies??'—')+'家公司 · 财务通过 '+(monitor.counts?.financial_candidates??'—')+'家':'公告覆盖范围待核验';
+ if(confirmed&&monitor.scope_exclusions?.length)$('monitorScope').textContent+=' · 已排除B股 '+monitor.scope_exclusions.filter(r=>r.reason==='B股不参与策略').length+'条、历史比较期 '+monitor.scope_exclusions.filter(r=>r.reason.includes('历史比较数据')).length+'条（明细可下载）';
  const all=daily.all,filter=$('monitorFilter').value,reports=filterReports(all,filter);
  $('monitorReports').innerHTML=reports.length?reports.slice(0,50).map(r=>'<tr><td>'+esc(r.ann_date)+'</td><td>'+esc(r.name)+'<span class="sub">'+esc(r.ts_code)+' · '+root.EarningsGapDisplay.industry(r)+'</span></td><td>'+period(r)+(r.corrected?'（更正）':'')+'</td><td class="num">'+amount(r.quarter_profit)+'</td><td class="num">'+change(r.quarter_yoy)+'</td><td>'+esc(r.result)+'<span class="sub">'+esc(r.reason)+'</span></td><td>'+original(r)+'</td></tr>').join(''):'<tr><td colspan="7" class="empty">'+(confirmed?(filter==='all'?'核对范围内暂无正式公告。':'暂无符合财务条件的公告，可切换“全部公告”查看。'):'公告覆盖尚未核验，不能据此认定没有公告。')+'</td></tr>';
  $('monitorRowsNote').textContent=(filter==='all'?'全部公告':'符合财务条件')+' '+reports.length+'条 / 共'+all.length+'条'+(reports.length>50?'；显示最近50条，可下载全部记录。':'');

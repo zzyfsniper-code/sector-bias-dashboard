@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import requests
 from strategy_core import quarter_profit
+from monitoring import is_a_share
 
 
 def date(value):
@@ -119,7 +120,7 @@ class FinancialSources:
         missing={}
         for notice in sorted(self.catalog.values(),key=lambda n:n['ann_date'],reverse=True):
             key=(notice['ts_code'],notice['end_date'])
-            if key in existing or key in missing or notice['name'].upper().startswith(('ST','*ST')):continue
+            if key in existing or key in missing or not is_a_share(notice['ts_code']) or notice['name'].upper().startswith(('ST','*ST')):continue
             missing[key]=dict(SECUCODE=notice['ts_code'],REPORTDATE=notice['end_date'],NOTICE_DATE=notice['ann_date'],
                               SECURITY_NAME_ABBR=notice['name'],PARENT_NETPROFIT=None,ANNOUNCEMENT_URL=notice['url'])
         for row in missing.values():

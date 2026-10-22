@@ -25,6 +25,19 @@ assert.equal(health(monitor,live,job,now,[],[{...missing,status:'持有',entry_d
 assert.equal(health(monitor,live,job,new Date('2026-10-14T09:20:00+08:00'),[],[missing]).severity,0);
 assert.equal(health(monitor,live,job,now,[],[{...missing,status:'未入选'}]).severity,0);
 assert.equal(health(monitor,live,job,now,[],[{status:'观察',quote_fresh:true}]).severity,0);
+{
+const {quoteState}=require('../../earnings-gap/monitor.js');
+const tracked={...live,records:[{ts_code:'600000.SH',status:'等待开盘'}],reaction_calendar:['2026-10-14'],reaction_calendar_start:'2026-01-01',reaction_calendar_end:'2026-12-31'};
+const q={symbol:'sh600000',timestamp:'20261014100000'};
+assert.match(quoteState(tracked,{},new Date('2026-10-14T08:51:00+08:00')).text,/盘前等待开盘/);
+assert.match(quoteState(tracked,{},new Date('2026-10-14T09:20:00+08:00')).text,/集合竞价/);
+assert.equal(quoteState(tracked,{},new Date('2026-10-14T09:20:00+08:00')).className,'');
+assert.match(quoteState(tracked,{},now).text,/1只跟踪股票行情缺失或过期/);
+assert.equal(quoteState(tracked,{sh600000:q},now).className,'live');
+assert.match(quoteState(tracked,{sh600000:{...q,timestamp:'20261014113000'}},new Date('2026-10-14T12:00:00+08:00')).text,/午间休市/);
+assert.match(quoteState(tracked,{},new Date('2026-10-14T15:20:00+08:00')).text,/收盘行情尚未核验/);
+assert.match(quoteState(tracked,{},new Date('2026-10-17T10:00:00+08:00')).text,/休市/);
+}
 const report={complete:true,financial_eligible:true,ts_code:'001207.SZ',end_date:'2026-09-30',result:'等待开盘',reason:'进入行情筛选'};
 const screened={ts_code:'001207.SZ',end_date:'2026-09-30',ann_date:'2026-10-14',status:'未入选',status_note:'高开不足2%',open_gap_pct:-3.22,signal_return_pct:-6.45,quote_time:'10:00:36',quote_fresh:true};
 assert.equal(reportState(report,[screened]).result,'未入选');

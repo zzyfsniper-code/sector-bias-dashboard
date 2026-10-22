@@ -30,6 +30,26 @@ class MonitoringTest(unittest.TestCase):
         self.assertEqual(result['reports'][0]['result'],'待补数据')
     def test_finance_without_announcement_is_unreconciled(self):
         result=build(notices=[]);self.assertEqual(result['status'],'PARTIAL');self.assertTrue(result['issues'])
+    def test_b_shares_are_explicitly_excluded_from_coverage(self):
+        for code in ['200530.SZ','900906.SH']:
+            result=build(finance=[ROW,dict(ROW,SECUCODE=code,SECURITY_NAME_ABBR='测试B')],selected=[ROW])
+            self.assertEqual(result['status'],'PASS')
+            self.assertEqual(result['scope_exclusions'][0]['reason'],'B股不参与策略')
+            self.assertNotIn(code,{r['ts_code'] for r in result['reports']})
+    def test_comparative_finance_needs_matching_newer_formal_notice(self):
+        comparative=dict(ROW,REPORTDATE='2025-09-30',ISNEW='0')
+        result=build(finance=[ROW,comparative],selected=[ROW]);self.assertEqual(result['status'],'PASS')
+        self.assertIn('历史比较数据',result['scope_exclusions'][0]['reason'])
+        result=build(notices=[],finance=[ROW,comparative],selected=[ROW])
+        self.assertEqual(result['status'],'PARTIAL');self.assertFalse(result['scope_exclusions'])
+        self.assertEqual(build(finance=[ROW,dict(comparative,ISNEW='1')],selected=[ROW])['status'],'PARTIAL')
+    def test_yearless_title_requires_verified_original_identity(self):
+        item=dict(NOTICE,announcementTitle='测试公司第三季度报告')
+        self.assertIsNone(m.notice_record(item))
+        identity=dict(code='600000',year=2026,period_end='09-30',sha256='a'*64)
+        self.assertEqual(m.notice_record(dict(item,report_identity=identity))['end_date'],'2026-09-30')
+        for bad in [dict(identity,code='600001'),dict(identity,period_end='06-30'),dict(identity,sha256='invalid')]:
+            self.assertIsNone(m.notice_record(dict(item,report_identity=bad)))
     def test_st_is_explicitly_accounted_for(self):
         notice=dict(NOTICE,secName='*ST测试');result=build(notices=[notice],finance=[])
         self.assertEqual(result['status'],'PASS');self.assertEqual(result['counts']['processed'],1);self.assertEqual(result['reports'][0]['reason'],'ST股票')

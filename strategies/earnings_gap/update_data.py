@@ -7,6 +7,8 @@ A failed critical fetch preserves live.json.
 from __future__ import annotations
 
 import argparse
+import hashlib
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -15,6 +17,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
+import pdfplumber
+from monitoring import is_a_share
 
 from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day, VERSION, VOLUME_EFFECTIVE
 
@@ -82,8 +86,29 @@ def cninfo(start, end):
         r.raise_for_status(); d = r.json()
         if 'announcements' not in d: raise RuntimeError('巨潮公告结果结构变化')
         result.extend(d.get('announcements') or [])
-        if not d.get('hasMore'): return result
+        if not d.get('hasMore'):
+            for item in result: resolve_report_year(item)
+            return result
         page += 1; time.sleep(.15)
+
+
+def resolve_report_year(item):
+    title = re.sub('<[^>]*>', '', item.get('announcementTitle') or '')
+    code = str(item.get('secCode', ''))
+    if re.search(r'20\d{2}\s*年', title) or not re.fullmatch(r'[036]\d{5}', code): return
+    if '报告' not in title or any(s in title for s in ['摘要', '预告', '快报', '说明会', '审计', '英文', '取消', '提示性']): return
+    periods = [('第三季度','09-30'),('三季度','09-30'),('第一季度','03-31'),('一季度','03-31'),('半年度','06-30'),('半年','06-30'),('年度报告','12-31'),('年报','12-31')]
+    end = next((suffix for word,suffix in periods if word in title), None)
+    if not end: return
+    path = item.get('adjunctUrl', '')
+    if not re.fullmatch(r'finalpage/20\d{2}-\d{2}-\d{2}/\d+\.[Pp][Dd][Ff]', path): raise ValueError('缺少年份的公告原文地址待核验')
+    response = SESSION.get('https://static.cninfo.com.cn/'+path, timeout=25);response.raise_for_status()
+    if len(response.content)>5_000_000 or not response.content.startswith(b'%PDF'): raise ValueError('公告原文格式或大小异常')
+    with pdfplumber.open(BytesIO(response.content)) as doc: text = ''.join((p.extract_text() or '') for p in doc.pages[:2])
+    compact = re.sub(r'\s+', '', text)
+    years = {match[1] for match in re.finditer(r'(20\d{2})年(?:第三季度|三季度|第一季度|一季度|半年度|半年|年度)报告', compact) if any(word in match[0] and suffix==end for word,suffix in periods)}
+    if not re.search(r'证券代码[:：]'+code, compact) or len(years)!=1: raise ValueError(code+'公告年份未能与原文身份核对')
+    item['report_identity'] = dict(code=code, year=int(years.pop()), period_end=end, sha256=hashlib.sha256(response.content).hexdigest(), pages=[1,2])
 
 
 def enrich(record, notices):
@@ -186,7 +211,7 @@ def update(sources=None):
     issues = []; fetched = {}; published = []
     for r in current:
         code = r['SECUCODE']; end = r['REPORTDATE'][:10]; ann = r['NOTICE_DATE'][:10]
-        if code[-2:] not in ['SH','SZ'] or not report_kind(end): continue
+        if not is_a_share(code) or not report_kind(end): continue
         if r['SECURITY_NAME_ABBR'].upper().startswith(('ST','*ST')): continue
         key = (code,end,ann)
         if key in fetched: continue
