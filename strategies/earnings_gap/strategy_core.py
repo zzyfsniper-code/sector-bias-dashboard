@@ -5,8 +5,10 @@ from datetime import date, datetime, time, timedelta, timezone
 import math
 
 COST = .003
-VERSION = 'eg-20261021-v4-volume145'
+VERSION = 'eg-20261023-v5-pullback83'
 VOLUME_EFFECTIVE = '2026-10-21'
+PULLBACK_EFFECTIVE = '2026-10-23'
+PULLBACK_REASON = '冲高回落：最高≥8%，收盘<3%'
 REASONS = {'target': '止盈', 'stop': '止损', 'time': '10日到期'}
 
 
@@ -58,6 +60,14 @@ def reaction_day(ann_date, calendar, available_at=None):
     return next((d for d in calendar if d > ann_date or d == ann_date and not after_open), None)
 
 
+def pullback_excluded(high, close, previous):
+    values = [number(x) for x in [high, close, previous]]
+    if any(x is None or x <= 0 for x in values) or values[0] < values[1]:
+        return None
+    h, c, p = [round(x * 100) for x in values]
+    return h * 100 >= p * 108 and c * 100 < p * 103
+
+
 def simulate(record, bars, raw, calendar, reaction_calendar=None):
     """Rebuild one independent paper trade, including T+1 and prior-close protection."""
     byday = {b['date']: b for b in bars}; rawday = {b['date']: b for b in raw}
@@ -86,6 +96,14 @@ def simulate(record, bars, raw, calendar, reaction_calendar=None):
         return dict(out, status='剔除', status_note='ST股票')
     if (date.fromisoformat(reaction) - date.fromisoformat(record['list_date'])).days < 90:
         return dict(out, status='剔除', status_note='上市不足90日')
+    if reaction >= PULLBACK_EFFECTIVE and not record.get('entry_date'):
+        prior_raw = previous * r['close'] / bar['close']
+        excluded = pullback_excluded(r.get('high'), r['close'], prior_raw)
+        if excluded is None:
+            return dict(out, status='待核验', status_note='冲高回落条件待核验：缺少有效最高价')
+        out.update(signal_high_pct=(r['high'] / prior_raw - 1) * 100, pullback_excluded=excluded)
+        if excluded:
+            return dict(out, status='剔除', status_note=PULLBACK_REASON)
     if reaction >= VOLUME_EFFECTIVE and not record.get('entry_date'):
         current_volume = number(r.get('volume_shares'))
         prior_bar = rawday.get(max(before), byday[max(before)])

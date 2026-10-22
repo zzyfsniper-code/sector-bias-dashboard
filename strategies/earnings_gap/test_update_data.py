@@ -11,6 +11,31 @@ import monitoring as m
 
 
 class FetchTest(unittest.TestCase):
+    def test_pullback_closing_quote_and_daily_fallback_keep_old_entries(self):
+        record=dict(id='live-test',ts_code='600000.SH',name='测试',ann_date='2026-10-23',list_date='2000-01-01',
+                    report_period='Q3',end_date='2026-09-30',quarter_profit=100,quarter_yoy=30,status='等待开盘',
+                    announcement_url='https://example.invalid/report',volume_previous_shares=1000,volume_reference_day='2026-10-23')
+        schedule=json.loads((u.DATA/'trading_calendar.json').read_text('utf-8'))
+        class Close(datetime):
+            @classmethod
+            def now(cls,tz=None):return cls(2026,10,23,15,30,tzinfo=u.TZ)
+        for snapshot in [True,False]:
+            for high,close,expected,bought in [(108,102.99,'剔除',False),(107.99,102.99,'持有',False),(108,103,'持有',False),(None,102.99,'待核验',False),(108,102.99,'持有',True)]:
+                with self.subTest(snapshot=snapshot,high=high,close=close,bought=bought),tempfile.TemporaryDirectory() as folder:
+                    data=Path(folder);candidate=dict(record)
+                    if bought:candidate.update(status='持有',entry_date='2026-10-23',entry_price=close,armed=False,stop_basis=close*.92,profit_pct=-.6)
+                    for name,value in [('live.json',dict(records=[candidate])),('stock_metadata.json',{}),('calendar.json',['2026-10-22']),('trading_calendar.json',schedule)]:
+                        (data/name).write_text(json.dumps(value),'utf-8')
+                    quote=dict(close=close,previous=100,open=104,high=high,low=101,volume_shares=1500)
+                    bars=[dict(date='2026-10-22',open=100,close=100,high=101,low=99,volume_shares=1000),dict(quote,date='2026-10-23')]
+                    with patch.object(u,'DATA',data),patch.object(u,'datetime',Close),patch.object(u,'finance',return_value=[]),patch.object(u,'financial_histories',return_value={}),patch.object(u,'daily',return_value=bars),patch.object(u,'closing_quotes',return_value={'sh600000':quote} if snapshot else {}),patch('volume_data.prepare'):
+                        payload,_,_=u.update()
+                    result=payload['records'][0]
+                    self.assertEqual(result['status'],expected)
+                    self.assertEqual(bool(result.get('entry_date')),expected=='持有')
+                    if expected=='剔除':self.assertEqual(result['status_note'],'冲高回落：最高≥8%，收盘<3%')
+                    if bought:self.assertEqual(result,candidate)
+
     def test_b_shares_never_reach_financial_history_or_listing_checks(self):
         rows=[dict(SECUCODE=code,REPORTDATE='2026-09-30',NOTICE_DATE='2026-10-22',PARENT_NETPROFIT=100,SECURITY_NAME_ABBR='测试B') for code in ['200530.SZ','900906.SH']]
         schedule=json.loads((u.DATA/'trading_calendar.json').read_text('utf-8'))

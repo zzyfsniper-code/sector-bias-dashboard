@@ -82,12 +82,14 @@ class DisplayTest(unittest.TestCase):
         check=lambda **extra:d.ledger_check(dict(trade,**extra),'2026-10-17','2026-09-30','2026-10-19')
         self.assertEqual(check()['state'],'confirmed');self.assertIn('仅计入',check()['reason'])
         self.assertEqual(check(status_note='收盘量能不足1.45倍')['state'],'confirmed')
+        self.assertEqual(check(status_note='冲高回落：最高≥8%，收盘<3%',signal_return_pct=2.99)['state'],'confirmed')
         self.assertEqual(check(status_note='已补缺口')['state'],'rejected')
         self.assertEqual(check(status_note='已补缺口')['reason'],'已补缺口')
         self.assertEqual(check(status_note='高开不足2%')['state'],'rejected')
         for extra in [dict(quarter_profit=-1),dict(quarter_yoy=29.99),dict(list_date='2026-10-01'),dict(name='ST测试'),dict(data_pending=True),dict(open_gap_pct=1.99)]:
             self.assertIsNone(check(**extra))
             self.assertIsNone(check(**dict(extra,status_note='收盘量能不足1.45倍')))
+            self.assertIsNone(check(**dict(extra,status_note='冲高回落：最高≥8%，收盘<3%')))
 
     def test_rejection_reason_uses_exact_finance_and_archive_without_guessing(self):
         row=dict(ts_code='X',ann_date='2026-10-17',end_date='2026-09-30',name='测试',state='rejected',

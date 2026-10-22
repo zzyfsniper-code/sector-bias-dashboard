@@ -51,7 +51,7 @@ function reportState(report,screened=[]){
  if(report.end_date?.slice(5,7)==='12')return {...report,complete:true,financial_eligible:false,strategy_excluded:true,result:'已排除',reason:'年报不参与策略'};
  if(!report.complete||!report.financial_eligible)return report;
  const trade=screened.filter(r=>r.ts_code===report.ts_code&&r.end_date===report.end_date).sort((a,b)=>b.ann_date.localeCompare(a.ann_date))[0];
- return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh,gap_filled:trade.gap_filled,data_pending:trade.data_pending,volume_state:trade.volume_state,volume_ratio:trade.volume_ratio,volume_forecast_ratio:trade.volume_forecast_ratio,volume_actual_shares:trade.volume_actual_shares,volume_forecast_shares:trade.volume_forecast_shares,volume_profile_kind:trade.volume_profile_kind,volume_profile_days:trade.volume_profile_days,volume_profile_through:trade.volume_profile_through}:report;
+ return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,signal_high_pct:trade.signal_high_pct,pullback_excluded:trade.pullback_excluded,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh,gap_filled:trade.gap_filled,data_pending:trade.data_pending,volume_state:trade.volume_state,volume_ratio:trade.volume_ratio,volume_forecast_ratio:trade.volume_forecast_ratio,volume_actual_shares:trade.volume_actual_shares,volume_forecast_shares:trade.volume_forecast_shares,volume_profile_kind:trade.volume_profile_kind,volume_profile_days:trade.volume_profile_days,volume_profile_through:trade.volume_profile_through}:report;
 }
 function filterReports(reports,filter){return filter==='all'?reports:reports.filter(r=>r.financial_eligible);}
 function financialReport(report,monitor){
@@ -76,6 +76,7 @@ function marketState(row,day,synced=true,quotesReady=true){
  if(row.closing_confirmed)return {label:'收盘通过',passed:true,failed:false,known:true};
  if(!quotesReady||row.quote_fresh!==true)return waiting(row.result==='等待开盘'?'待开盘':'待行情');
  if(row.result==='买入')return {label:'收盘通过',passed:true,failed:false,known:true};
+ if(row.pullback_excluded&&row.result==='观察')return {label:'冲高回落',passed:false,failed:true,known:true};
  if(row.result==='观察'&&row.volume_state==='estimated'&&row.reason==='量能预计达标')return {label:'预计符合',passed:true,failed:false,known:true,estimated:true};
  if(row.result==='观察'&&row.volume_state==='pending')return waiting('量能待核验');
  if(row.result==='观察')return row.reason==='当前满足买入条件'?{label:'当前符合',passed:true,failed:false,known:true}:{label:'当前不符',passed:false,failed:true,known:true};
@@ -92,6 +93,7 @@ function currentState(row,day,synced=true,quotesReady=true){
  if(base.passed)return result(row.closing_confirmed||row.result==='买入'?'收盘入选':base.estimated?'预计符合':'当前符合',base.estimated?'预计量能达标':'');
  if(!base.known){
   if(row.data_pending||reason.includes('日线'))return result('日线待补',reason);
+  if(reason.startsWith('冲高回落条件待核验'))return result('最高价待核验',reason);
   if(row.volume_state==='pending')return result('量能待核验',reason);
   if(reason.includes('行情过期'))return result('行情过期');
   if(row.result==='等待开盘')return result('待开盘');
@@ -102,10 +104,12 @@ function currentState(row,day,synced=true,quotesReady=true){
  if(reason.includes('上市不足'))failures.push('上市不足90日');
  if(reason.includes('高开不足')||Number.isFinite(row.open_gap_pct)&&row.open_gap_pct<2-1e-7)failures.push('高开不足');
  if(row.gap_filled||reason.includes('已补缺口'))failures.push('缺口已补');
+ if(row.pullback_excluded||reason.startsWith('冲高回落：'))failures.push('冲高回落');
  const cap=row.end_date?.slice(5,7)==='06'?5:7;
  if(reason.includes('涨幅')||Number.isFinite(row.signal_return_pct)&&row.signal_return_pct>=cap)failures.push('涨幅不符');
  if(['waiting','failed'].includes(row.volume_state)||reason.includes('量能不足')||reason.includes('等待量能'))failures.push('量能不足');
- return result(failures[0]||'未入选',failures.length>1?failures.slice(1).join(' · '):reason);
+ const detail=failures[0]==='冲高回落'&&Number.isFinite(row.signal_high_pct)?`最高 +${row.signal_high_pct.toFixed(2)}% · ${row.result==='观察'?'当前':'收盘'} ${row.signal_return_pct.toFixed(2)}%`:reason;
+ return result(failures[0]||'未入选',failures.length>1?failures.slice(1).join(' · '):detail);
 }
 function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true){
  const day=china(now).slice(0,10),confirmed=monitor?.source_status==='PASS'&&monitor.financial_asof===day;

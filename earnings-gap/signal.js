@@ -1,6 +1,8 @@
 (function(root){
 'use strict';
 const volume=root.EarningsGapVolume||(typeof require==='function'?require('./volume.js'):null);
+const VERSION='eg-20261023-v5-pullback83',PULLBACK_EFFECTIVE='2026-10-23';
+const DATA_VERSIONS=['eg-20261021-v4-volume145',VERSION];
 function chinaTime(now){const s=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(now).split(' ');return {day:s[0],time:s[1],minutes:Number(s[1].slice(0,2))*60+Number(s[1].slice(3,5))};}
 function parseQuotes(text){const out={};for(const m of text.matchAll(/v_([a-z]+\d+)="([^"]*)"/g)){const f=m[2].split('~');if(f.length<35||!/^\d{14}$/.test(f[30]))continue;const q={symbol:m[1],name:f[1],last:Number(f[3]),previous:Number(f[4]),open:Number(f[5]),high:Number(f[33]),low:Number(f[34]),timestamp:f[30],volume_shares:f[6]?.trim()&&Number.isFinite(Number(f[6]))&&Number(f[6])>=0?Number(f[6])*(m[1].startsWith('sh68')?1:100):null};if([q.last,q.previous,q.open,q.high,q.low].every(x=>Number.isFinite(x)&&x>0))out[m[1]]=q;}return out;}
 function freshness(q,now){if(!q)return {ok:false,note:'行情待更新'};const cn=chinaTime(now),s=q.timestamp,day=`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`,time=`${s.slice(8,10)}:${s.slice(10,12)}:${s.slice(12,14)}`,mins=Number(s.slice(8,10))*60+Number(s.slice(10,12)),age=(now-new Date(`${day}T${time}+08:00`))/1000;const open=(cn.minutes>=570&&cn.minutes<=690)||(cn.minutes>=780&&cn.minutes<900),lunch=cn.minutes>690&&cn.minutes<780;return {ok:day===cn.day&&age>=-30&&(open?age<=120:lunch?mins>=689:cn.minutes>=900?mins>=900:age<=120),day,time,mins,age,note:open?'盘中':lunch?'午间休市':cn.minutes>=900?'收盘':'盘前'};}
@@ -41,6 +43,11 @@ if(!record.list_date||(new Date(day)-new Date(record.list_date))/86400000<90)ret
 const o=Math.round(q.open*100),p=Math.round(q.previous*100),l=Math.round(q.low*100),c=Math.round(q.last*100),cap=record.report_period==='H1'?105:107;
 if(o*100<p*102)return {...out,status:'未入选',status_note:'高开不足2%'};if(l<=p)return {...out,status:'剔除',status_note:'已补缺口'};
 const within=c*100<p*cap,closed=cn.minutes>=900&&f.mins>=900;
+if(reaction>=PULLBACK_EFFECTIVE){
+ if(!Number.isFinite(q.high)||q.high<=0||q.high<q.last)return {...out,status:'待核验',status_note:'冲高回落条件待核验：缺少有效最高价'};
+ out.signal_high_pct=(q.high/q.previous-1)*100;out.pullback_excluded=Math.round(q.high*100)*100>=p*108&&c*100<p*103;
+ if(out.pullback_excluded)return {...out,status:closed?'剔除':'观察',status_note:closed?'冲高回落：最高≥8%，收盘<3%':'冲高回落：最高≥8%，当前<3%'};
+}
 if(volume?.required(record,reaction)){
  if(closed&&out.volume_state!=='confirmed')return {...out,status:out.volume_state==='failed'?'剔除':'待核验',status_note:out.volume_note};
  if(!closed&&within&&out.volume_state!=='confirmed')return {...out,status:'观察',status_note:out.volume_note};
@@ -74,5 +81,5 @@ out.stop_price=(Number.isFinite(record.stop_basis)&&record.stop_basis>0?record.s
 if(out.stop_price>record.entry_basis*scale)out.stop_label='保护止损';
 return out;
 }
-root.EarningsGapCore={chinaTime,parseQuotes,freshness,reactionDay,evaluate,positionDetails};if(typeof module!=='undefined')module.exports=root.EarningsGapCore;
+root.EarningsGapCore={VERSION,DATA_VERSIONS,chinaTime,parseQuotes,freshness,reactionDay,evaluate,positionDetails};if(typeof module!=='undefined')module.exports=root.EarningsGapCore;
 })(typeof globalThis!=='undefined'?globalThis:this);

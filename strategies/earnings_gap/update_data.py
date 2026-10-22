@@ -20,7 +20,7 @@ import requests
 import pdfplumber
 from monitoring import is_a_share
 
-from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day, VERSION, VOLUME_EFFECTIVE
+from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day, VERSION, VOLUME_EFFECTIVE, PULLBACK_EFFECTIVE, PULLBACK_REASON, pullback_excluded
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / 'earnings-gap/data'
@@ -296,6 +296,11 @@ def update(sources=None):
             if q['open']<q['previous']*1.02-1e-8:return dict(out,status='未入选',status_note='高开不足2%')
             if q['low']<=q['previous']:return dict(out,status='剔除',status_note='已补缺口')
             if not qualifies(q['open'],q['low'],q['close'],q['previous'],record['report_period']):return dict(out,status='剔除',status_note='收盘涨幅不符')
+            if reaction>=PULLBACK_EFFECTIVE:
+                excluded=pullback_excluded(q.get('high'),q['close'],q['previous'])
+                if excluded is None:return dict(out,status='待核验',status_note='冲高回落条件待核验：缺少有效最高价')
+                out.update(signal_high_pct=(q['high']/q['previous']-1)*100,pullback_excluded=excluded)
+                if excluded:return dict(out,status='剔除',status_note=PULLBACK_REASON)
             if reaction>=VOLUME_EFFECTIVE:
                 if not verified:
                     return dict(out,status='待核验',status_note='量能待核验')

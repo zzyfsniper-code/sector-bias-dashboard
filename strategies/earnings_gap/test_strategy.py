@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from strategy_core import qualifies, quarter_profit, simulate, net_return, reaction_day
+from strategy_core import qualifies, quarter_profit, simulate, net_return, reaction_day, pullback_excluded, PULLBACK_REASON
 
 CAL=['2026-10-08','2026-10-09','2026-10-12','2026-10-13','2026-10-14','2026-10-15','2026-10-16','2026-10-19','2026-10-20','2026-10-21','2026-10-22']
 RECORD=dict(id='test',ts_code='600000.SH',name='测试公司',list_date='2000-01-01',ann_date='2026-10-09',end_date='2026-09-30',report_period='Q3')
@@ -10,6 +10,32 @@ def base():return [bar(CAL[0],100,100,101,99),bar(CAL[1],103,104,108,102)]
 
 
 class RulesTest(unittest.TestCase):
+    def test_pullback_boundaries_and_missing_high(self):
+        self.assertTrue(pullback_excluded(108,102.99,100))
+        self.assertFalse(pullback_excluded(107.99,102.99,100))
+        self.assertFalse(pullback_excluded(108,103,100))
+        self.assertTrue(pullback_excluded(10.8,10.29,10))
+        for high in [None,float('nan'),0,102]:
+            self.assertIsNone(pullback_excluded(high,102.99,100))
+
+    def test_pullback_daily_path_and_existing_entries(self):
+        for day in ['2026-10-22','2026-10-23']:
+            for high,close,expected in [(108,102.99,'剔除'),(108,103,'持有'),(107.99,102.99,'持有'),(None,102.99,'待核验')]:
+                with self.subTest(day=day,high=high,close=close):
+                    calendar=['2026-10-21',day]
+                    raw=[dict(bar(calendar[0],100,100,101,99),volume_shares=1000),dict(bar(day,104,close,high,101),volume_shares=1500)]
+                    record=dict(RECORD,ann_date=day)
+                    result=simulate(record,raw,raw,calendar)
+                    self.assertEqual(result['status'],expected if day=='2026-10-23' else '持有')
+                    # Existing purchases bypass the new entry filter, including future replays.
+                    bought=simulate(dict(record,entry_date=day,entry_price=close),raw,raw,calendar)
+                    self.assertEqual(bought['status'],'持有');self.assertEqual(bought['entry_price'],close)
+                    if day=='2026-10-23' and expected=='剔除':
+                        self.assertEqual(result['status_note'],PULLBACK_REASON)
+                        # Adjusted bars and raw bars must produce the same price-percent decision.
+                        adjusted=[{k:(v*2 if k in ['open','high','low','close'] else v) for k,v in b.items()} for b in raw]
+                        self.assertEqual(simulate(record,adjusted,raw,calendar)['status_note'],PULLBACK_REASON)
+
     def test_strict_caps(self):
         self.assertFalse(qualifies(102,101,107,100,'Q3'))
         self.assertTrue(qualifies(102,101,106.99,100,'Q3'))

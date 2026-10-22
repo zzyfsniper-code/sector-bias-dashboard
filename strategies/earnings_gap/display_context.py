@@ -150,7 +150,9 @@ def ledger_check(trade, stamp, end, cutoff):
     if trade.get('entry_date') == reaction:
         state = 'confirmed'
     elif not trade.get('entry_date') and trade.get('status') in ['未入选', '剔除']:
-        if trade.get('status_note') in ['收盘涨幅不符', '收盘量能不足1.45倍']:
+        buy_only_reasons = {'收盘涨幅不符':'涨幅超买入上限', '收盘量能不足1.45倍':'量能未达买入门槛',
+                            '冲高回落：最高≥8%，收盘<3%':'冲高回落不买入'}
+        if trade.get('status_note') in buy_only_reasons:
             # These archived reasons are emitted only after the opening gap and
             # unfilled-gap checks pass; confirm its remaining financial limits.
             profit, growth = number(trade.get('quarter_profit')), number(trade.get('quarter_yoy'))
@@ -162,7 +164,7 @@ def ledger_check(trade, stamp, end, cutoff):
                 (date.fromisoformat(reaction)-date.fromisoformat(listed)).days < 90):
                 return None
             return dict(ann_date=stamp, reaction_date=reaction, state='confirmed', industry_rule=INDUSTRY_RULE,
-                        reason=('涨幅超买入上限' if trade['status_note']=='收盘涨幅不符' else '量能未达买入门槛')+'，仅计入行业断层统计')
+                        reason=buy_only_reasons[trade['status_note']]+'，仅计入行业断层统计')
         state = 'rejected'
     else:
         return None
