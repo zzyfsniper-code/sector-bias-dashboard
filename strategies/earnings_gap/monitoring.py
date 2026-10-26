@@ -76,6 +76,17 @@ def report_id(row):
     return f"live-{row['SECUCODE']}-{row['REPORTDATE'][:10]}-{row['NOTICE_DATE'][:10]}"
 
 
+def report_scope_exclusion(notice, verified):
+    proof = verified.get(notice.get('url'), {})
+    if (proof.get('scope') != 'other_entity' or proof.get('publisher_code') != notice.get('ts_code') or
+        not proof.get('report_subject_code') or proof['report_subject_code'] == notice.get('ts_code') or
+        not re.fullmatch(r'[0-9a-f]{64}', proof.get('sha256', ''))):
+        return None
+    return dict(ts_code=notice['ts_code'], name=notice['name'], end_date=notice['end_date'], ann_date=notice['ann_date'],
+                url=notice['url'], scope='other_entity', report_subject_code=proof['report_subject_code'],
+                sha256=proof['sha256'], reason='报告主体为'+proof['company']+'，非本上市公司自身财报')
+
+
 def financial_check(row, history, meta, checked_at):
     code = row['SECUCODE']; end = row['REPORTDATE'][:10]; ann = row['NOTICE_DATE'][:10]
     if end[5:7] == '12':
@@ -99,13 +110,24 @@ def financial_check(row, history, meta, checked_at):
 
 def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_histories, meta, verified):
     today = payload['financial_asof']; start = max('2026-10-10', (datetime.fromisoformat(today) - timedelta(days=40)).date().isoformat())
-    catalog = {n['id']: n for n in previous.get('catalog', []) if start <= n['ann_date'] <= today}
+    excluded = {n['url']:n for n in previous.get('scope_exclusions', []) if n.get('scope')=='other_entity' and report_scope_exclusion(n, verified)}
+    catalog = {}
+    for notice in previous.get('catalog', []):
+        if not start <= notice['ann_date'] <= today: continue
+        outside = report_scope_exclusion(notice, verified)
+        if outside: excluded[notice['url']] = outside
+        else: catalog[notice['id']] = notice
     source_start = max(start, (datetime.fromisoformat(previous['source_asof']) - timedelta(days=2)).date().isoformat()) if previous.get('source_asof') else start
     issues = []; source_ok = False
     try:
         for item in fetch_notices(source_start, today):
             notice = notice_record(item)
-            if notice and start <= notice['ann_date'] <= today: catalog[notice['id']] = notice
+            if notice and start <= notice['ann_date'] <= today:
+                outside = report_scope_exclusion(notice, verified)
+                if outside:
+                    excluded[notice['url']] = outside
+                    catalog.pop(notice['id'], None)
+                else: catalog[notice['id']] = notice
         source_ok = True
     except Exception as exc:
         issues.append('巨潮公告清单未完成核对：' + str(exc)[:180])
@@ -157,13 +179,15 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
                 item.update(result=trade['status'], reason=trade.get('status_note') or trade.get('exit_reason') or '进入行情筛选')
                 if trade.get('data_pending') or abs(trade.get('quarter_profit', check['quarter_profit']) - check['quarter_profit']) > .011:
                     item.update(complete=False, result='待复核', reason='行情数据待补或财务值已变化，信号记录需核验')
+                elif notice['corrected'] and trade.get('reaction_date') and trade.get('ann_date')!=notice['ann_date'] and abs(trade.get('quarter_yoy', check['quarter_yoy'])-check['quarter_yoy'])<=.011:
+                    item.update(reaction_date=trade['reaction_date'], reason=item['reason']+'；更正财务值未变，沿用首次财报反应日')
             elif item['complete'] and item['financial_eligible']:
                 item.update(complete=False, result='待复核', reason='财务条件符合，但尚未建立行情跟踪记录')
         if notice['corrected'] and item['complete'] and not item.get('strategy_excluded') and '更正原文已核验' not in item['reason']:
             item['reason'] += '；更正原文已核验'
         rows.append(item)
     covered = {(n['ts_code'], n['end_date']) for n in catalog.values()}
-    unmatched = []; exclusions = []
+    unmatched = []; exclusions = list(excluded.values())
     for row in finance_rows:
         code, end, ann = row['SECUCODE'], row['REPORTDATE'][:10], row['NOTICE_DATE'][:10]
         if not start <= ann <= today: continue

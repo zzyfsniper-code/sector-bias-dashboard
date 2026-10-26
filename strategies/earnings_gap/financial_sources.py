@@ -103,17 +103,21 @@ class FinancialSources:
         return self.notice_cache[key]
 
     def discover(self,start,today):
-        from monitoring import notice_record
+        from monitoring import notice_record, report_scope_exclusion
+        proof_path=self.data/'announcement_checks.json'
+        verified=json.loads(proof_path.read_text('utf-8')) if proof_path.exists() else {}
         primary_error=None
         try:rows=self.primary(f"(NOTICE_DATE>='{start}')(NOTICE_DATE<='{today}')")
         except Exception as exc:rows=[];primary_error=exc
         old_path=self.data/'monitor.json';old=json.loads(old_path.read_text('utf-8')) if old_path.exists() else {}
-        self.catalog={n['id']:n for n in old.get('catalog',[]) if start<=n['ann_date']<=today}
+        self.catalog={n['id']:n for n in old.get('catalog',[]) if start<=n['ann_date']<=today and not report_scope_exclusion(n,verified)}
         if primary_error and not self.catalog:raise primary_error
         try:
             for raw in self.notices(start,today):
                 notice=notice_record(raw)
-                if notice and start<=notice['ann_date']<=today:self.catalog[notice['id']]=notice
+                if notice and start<=notice['ann_date']<=today:
+                    if report_scope_exclusion(notice,verified):self.catalog.pop(notice['id'],None)
+                    else:self.catalog[notice['id']]=notice
         except Exception:
             if primary_error:raise RuntimeError('东财与公告清单均不可用，保留上次数据') from None
         existing={(r['SECUCODE'],r['REPORTDATE'][:10]) for r in rows if valid(r.get('PARENT_NETPROFIT'))}

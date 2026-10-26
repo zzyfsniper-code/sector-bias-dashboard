@@ -14,6 +14,19 @@ NOTICE=dict(secCode='601059',secName='测试',announcementId='1',announcementTit
 
 
 class SourcesTest(unittest.TestCase):
+    def test_other_entity_report_never_fetches_parent_fallbacks(self):
+        import monitoring as m
+        notice=m.notice_record(NOTICE)
+        with tempfile.TemporaryDirectory() as folder,patch.object(f,'tushare_income') as ts,patch.object(f,'wind_excel_cache') as wind:
+            root=Path(folder)
+            (root/'monitor.json').write_text(json.dumps({'catalog':[notice]}),'utf-8')
+            proof={notice['url']:dict(scope='other_entity',publisher_code=notice['ts_code'],report_subject_code='000001.SZ',company='子公司',sha256='a'*64)}
+            (root/'announcement_checks.json').write_text(json.dumps(proof),'utf-8')
+            source=self.source(folder,primary=[],history=[])
+            self.assertEqual(source.discover('2026-10-10','2026-10-19'),[])
+            self.assertEqual(source.catalog,{})
+            ts.assert_not_called();wind.assert_not_called();source.primary_histories.assert_not_called()
+
     def source(self,folder,primary=None,history=None):
         return f.FinancialSources(folder,Mock(return_value=[ROW] if primary is None else primary),
             Mock(return_value={ROW['SECUCODE']:HISTORY if history is None else history}),Mock(return_value=[NOTICE]))

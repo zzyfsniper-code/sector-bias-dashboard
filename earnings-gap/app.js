@@ -15,7 +15,7 @@ function currentRows(){const now=new Date(),day=core.chinaTime(now).day;const fo
 const q=networkOk&&live.financial_asof===day&&(!live.reaction_calendar||live.reaction_calendar.includes(day))?quotes[symbols(record.ts_code)]:null;let row=core.evaluate(record,q,now,live.calendar,live.reaction_calendar||live.calendar,volumeModel);
 if(!record.entry_date&&row.quote_fresh&&row.reaction_date===day&&q.low<=q.previous&&row.open_gap_pct>=2)breaches[record.id]=true;
 if(!record.entry_date&&breaches[record.id]&&row.reaction_date===day)row={...row,status:'剔除',status_note:'已补缺口'};
-return {...row,gap_filled:q&&row.quote_fresh&&row.reaction_date===day?q.low<=q.previous:undefined,...core.positionDetails(record.entry_date?record:row,q,now,live,day)};});try{localStorage.setItem('eg-gap-breaches-v1',JSON.stringify({day,ids:breaches}));}catch{}
+return {...row,gap_filled:q&&!q.suspended&&row.quote_fresh&&row.reaction_date===day?q.low<=q.previous:undefined,...core.positionDetails(record.entry_date?record:row,q,now,live,day)};});try{localStorage.setItem('eg-gap-breaches-v1',JSON.stringify({day,ids:breaches}));}catch{}
 window.EarningsGapMonitoring.setScreening(forward,screeningReady);return [...forward,...history.map(r=>({...r,...core.positionDetails(r,null,now,live,day)}))];}
 function render(){rows=currentRows();const day=core.chinaTime(new Date()).day;
 $('holdingCount').textContent=rows.filter(r=>r.entry_date&&['持有','买入','卖出提示'].includes(r.status)).length;

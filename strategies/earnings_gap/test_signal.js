@@ -72,3 +72,27 @@ assert.equal(core.evaluate(legacyHold,closeQuote,eodTime,['2026-10-22']).exit_re
 assert.equal(core.DATA_VERSIONS.includes('eg-20261021-v4-volume145'),true);
 assert.equal(core.DATA_VERSIONS.includes(core.VERSION),true);
 console.log('PULLBACK83 PASS: price boundaries, reversible observation, close exclusion, old entries and exits');
+{
+const fields=Array(41).fill('');
+for(const [i,v] of Object.entries({1:'停牌测试',3:'41.19',4:'41.19',5:'0',6:'0',30:'20261026134000',33:'0',34:'0',40:'S'}))fields[i]=v;
+const parse=f=>core.parseQuotes('v_sh605258="'+f.join('~')+'";').sh605258;
+const paused=parse(fields),time=new Date('2026-10-26T13:40:10+08:00');
+assert.equal(paused.suspended,true);
+const r={...record,ts_code:'605258.SH',ann_date:'2026-10-24',reaction_date:'2026-10-26'};
+const result=core.evaluate(r,paused,time,[],['2026-10-26']);
+assert.equal(result.status,'停牌');assert.equal(result.quote_fresh,true);assert.equal(result.open_gap_pct,null);
+assert.equal(result.market_suspended,true);assert.equal(result.entry_date,undefined);
+assert.equal(core.evaluate({...r,entry_date:'2026-10-23',entry_price:40,entry_basis:40,stop_basis:36.8},paused,time,['2026-10-23']).status,'持有');
+assert.equal(core.evaluate(r,{...paused,timestamp:'20261023150000'},time,[],['2026-10-26']).status,'待更新');
+const ordinary=[...fields];ordinary[40]='';assert.equal(parse(ordinary),undefined);
+const traded=[...fields];traded[6]='1';assert.equal(parse(traded),undefined);
+const report={...r,complete:true,financial_eligible:true,result:result.status,reason:result.status_note,quote_fresh:true,market_suspended:true,end_date:'2026-09-30'};
+assert.equal(monitoring.currentState(report,'2026-10-26').label,'停牌');
+assert.equal(monitoring.currentState(report,'2026-10-26').known,true);
+assert.equal(monitoring.currentState({...report,quote_fresh:false},'2026-10-26').known,false);
+const live={records:[r],reaction_calendar:['2026-10-26'],reaction_calendar_start:'2026-01-01',reaction_calendar_end:'2026-12-31'};
+assert.equal(monitoring.quoteState(live,{sh605258:paused},time).className,'live');
+assert.match(monitoring.quoteState(live,{sh605258:paused},time).text,/1只停牌/);
+assert.equal(monitoring.quoteState(live,{},time).className,'offline');
+console.log('SUSPENSION PASS: explicit status only, fresh quotes, no entry/exit, known market state; true gaps still fail');
+}

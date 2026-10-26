@@ -12,7 +12,8 @@ function quoteState(live,quotes,now=new Date()){
  const missing=watch.filter(code=>!core.freshness(quotes[code],now).ok);
  const stamp=Object.values(quotes).filter(q=>core.freshness(q,now).ok).map(q=>q.timestamp).sort().at(-1);
  if(missing.length)return {className:'offline',text:cn.minutes>=900?`${missing.length}只跟踪股票收盘行情尚未核验，暂停对应买卖确认`:`${missing.length}只跟踪股票行情缺失或过期，暂停对应买卖确认`};
- return {className:stamp?'live':'offline',text:stamp?`${cn.minutes>690&&cn.minutes<780?'午间休市 · ':cn.minutes>=900?'收盘行情 · ':''}行情 ${stamp.slice(8,10)}:${stamp.slice(10,12)}:${stamp.slice(12,14)}`:'尚未取得有效行情，暂停确认买卖'};
+ const suspended=watch.filter(code=>quotes[code]?.suspended&&core.freshness(quotes[code],now).ok);
+ return {className:stamp?'live':'offline',text:stamp?`${cn.minutes>690&&cn.minutes<780?'午间休市 · ':cn.minutes>=900?'收盘行情 · ':''}行情 ${stamp.slice(8,10)}:${stamp.slice(10,12)}:${stamp.slice(12,14)}`+(suspended.length?` · ${suspended.length}只停牌（${suspended.map(code=>quotes[code].name).join('、')}）`:''):'尚未取得有效行情，暂停确认买卖'};
 }
 function health(monitor,live,job,now=new Date(),errors=[],screened=[],loading={}){
  const cn=china(now),day=cn.slice(0,10),minutes=Number(cn.slice(11,13))*60+Number(cn.slice(14,16)),weekday=new Date(day+'T00:00:00Z').getUTCDay(),messages=[];
@@ -51,7 +52,7 @@ function reportState(report,screened=[]){
  if(report.end_date?.slice(5,7)==='12')return {...report,complete:true,financial_eligible:false,strategy_excluded:true,result:'已排除',reason:'年报不参与策略'};
  if(!report.complete||!report.financial_eligible)return report;
  const trade=screened.filter(r=>r.ts_code===report.ts_code&&r.end_date===report.end_date).sort((a,b)=>b.ann_date.localeCompare(a.ann_date))[0];
- return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,signal_high_pct:trade.signal_high_pct,pullback_excluded:trade.pullback_excluded,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh,gap_filled:trade.gap_filled,data_pending:trade.data_pending,volume_state:trade.volume_state,volume_ratio:trade.volume_ratio,volume_forecast_ratio:trade.volume_forecast_ratio,volume_actual_shares:trade.volume_actual_shares,volume_forecast_shares:trade.volume_forecast_shares,volume_profile_kind:trade.volume_profile_kind,volume_profile_days:trade.volume_profile_days,volume_profile_through:trade.volume_profile_through}:report;
+ return trade?{...report,result:trade.status,reason:trade.status_note||trade.exit_reason||report.reason,reaction_date:trade.reaction_date||report.reaction_date,quarter_profit:trade.quarter_profit??report.quarter_profit,entry_date:trade.entry_date,open_gap_pct:trade.open_gap_pct,signal_return_pct:trade.signal_return_pct,signal_high_pct:trade.signal_high_pct,pullback_excluded:trade.pullback_excluded,quote_time:trade.quote_time,quote_fresh:trade.quote_fresh,market_suspended:trade.market_suspended,gap_filled:trade.gap_filled,data_pending:trade.data_pending,volume_state:trade.volume_state,volume_ratio:trade.volume_ratio,volume_forecast_ratio:trade.volume_forecast_ratio,volume_actual_shares:trade.volume_actual_shares,volume_forecast_shares:trade.volume_forecast_shares,volume_profile_kind:trade.volume_profile_kind,volume_profile_days:trade.volume_profile_days,volume_profile_through:trade.volume_profile_through}:report;
 }
 function filterReports(reports,filter){return filter==='all'?reports:reports.filter(r=>r.financial_eligible);}
 function financialReport(report,monitor){
@@ -75,6 +76,7 @@ function marketState(row,day,synced=true,quotesReady=true){
  if(['未入选','剔除','已排除'].includes(row.result))return {label:'未通过',passed:false,failed:true,known:true};
  if(row.closing_confirmed)return {label:'收盘通过',passed:true,failed:false,known:true};
  if(!quotesReady||row.quote_fresh!==true)return waiting(row.result==='等待开盘'?'待开盘':'待行情');
+ if(row.market_suspended||row.result==='停牌')return {label:'停牌',passed:false,failed:true,known:true};
  if(row.result==='买入')return {label:'收盘通过',passed:true,failed:false,known:true};
  if(row.pullback_excluded&&row.result==='观察')return {label:'冲高回落',passed:false,failed:true,known:true};
  if(row.result==='观察'&&row.volume_state==='estimated'&&row.reason==='量能预计达标')return {label:'预计符合',passed:true,failed:false,known:true,estimated:true};
@@ -91,6 +93,7 @@ function currentState(row,day,synced=true,quotesReady=true){
  if(!synced)return result('数据待同步');
  if(row.awaiting_open)return result('待开盘','09:30后按正式开盘行情筛选');
  if(base.passed)return result(row.closing_confirmed||row.result==='买入'?'收盘入选':base.estimated?'预计符合':'当前符合',base.estimated?'预计量能达标':'');
+ if(base.known&&(row.market_suspended||row.result==='停牌'))return result('停牌','反应日停牌，不参与当日入选');
  if(!base.known){
   if(row.data_pending||reason.includes('日线'))return result('日线待补',reason);
   if(reason.startsWith('冲高回落条件待核验'))return result('最高价待核验',reason);
@@ -120,14 +123,15 @@ function dailyOverview(monitor,live,screened=[],now=new Date(),quotesReady=true)
  const all=latestReports(raw,r=>r.ts_code+'|'+r.end_date),calendar=live?.reaction_calendar||live?.calendar||[];
  const aligned=all.map(r=>({...r,reaction_date:reactionDay(r,calendar,day)}));
  const today=latestReports(aligned.filter(r=>r.reaction_date===day),r=>r.ts_code);
- const candidates=latestReports(today.filter(r=>r.financial_eligible),r=>r.ts_code).map(r=>{
+ const candidates=latestReports(today.filter(r=>r.complete&&r.financial_eligible),r=>r.ts_code).map(r=>{
   const closed=archived&&(live.records||[]).some(t=>t.ts_code===r.ts_code&&t.end_date===r.end_date&&t.entry_date===day&&!t.data_pending);
   const row={...r,closing_confirmed:closed,awaiting_open:tradingDay!==false&&core.chinaTime(now).minutes<570};return {...row,market:currentState(row,day,synced,quotesReady)};
  });
  const market=candidates.filter(r=>r.reaction_date===day);
  return {day,confirmed,synced,archived,tradingDay,all:raw,today,candidates,failures:today.filter(r=>r.complete&&!r.financial_eligible),
   announcements:confirmed?today.length:null,financial:confirmed?today.filter(r=>r.complete&&r.financial_eligible).length:null,
-  market:synced&&market.every(r=>r.market.known)?market.filter(r=>r.market.passed).length:null,
+  market:synced&&quotesReady?market.filter(r=>r.market.passed).length:null,
+  market_pending:synced&&quotesReady?market.filter(r=>!r.market.known).length:null,
   closing:archived?(live.records||[]).filter(r=>r.entry_date===day&&!r.data_pending).length:null};
 }
 const api={health,quoteState,reportState,filterReports,financialReport,reactionDay,marketState,currentState,dailyOverview};root.EarningsGapMonitoring=api;if(typeof module!=='undefined')module.exports=api;
@@ -157,7 +161,7 @@ function render(){
  const confirmed=monitor&&monitor.source_status==='PASS';
  $('monitorProgress').textContent=confirmed?(monitor.counts?.processed??'—')+' / '+(monitor.counts?.announcements??'—'):'—';
  $('monitorPending').textContent=confirmed?String(monitor.counts?.pending??'—'):'—';$('monitorPending').className=monitor?.counts?.pending?'up':'down';
- const checked=monitor?.attempt?.finished_at||monitor?.checked_at;
+ const checked=monitor?.checked_at||monitor?.attempt?.finished_at;
  $('monitorTime').textContent=checked?new Date(checked).toLocaleTimeString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';$('monitorTime').title=format(checked);
  $('monitorRun').textContent=job?(job.status==='completed'?(job.conclusion==='success'?'成功':'失败'):'执行中')+'（'+(job.event==='schedule'?'定时':'手动')+'）':'待核验';
  $('monitorRun').title=job?format(job.created_at):'';
@@ -165,6 +169,7 @@ function render(){
  const daily=dailyOverview(monitor,liveError?null:live,screened,now,!loading.quotes);
  $('monitorToday').textContent=daily.day;
  for(const [id,value] of [['dailyAnnouncements',daily.announcements],['dailyFinancial',daily.financial],['dailyMarket',daily.market]])$(id).textContent=value==null?'—':value+' 家';
+ if(daily.market_pending){$('dailyMarket').textContent='≥'+daily.market+' 家';$('dailyMarket').title=daily.market_pending+'只候选待行情或核验；显示已确认符合数量的下限';}else $('dailyMarket').title='';
  const closing=daily.closing==null?(china(now).slice(11,16)<'15:00'?'待收盘':'待归档'):daily.closing+' 家';
  $('dailyClosing').textContent=daily.tradingDay===false?'休市':daily.confirmed?closing:'待核验';$('dailyClosing').className=daily.closing==null?'text-value':'';
  $('dailyCandidateCount').textContent=daily.confirmed?daily.candidates.length+' 家':'待核验';

@@ -4,7 +4,7 @@ const volume=root.EarningsGapVolume||(typeof require==='function'?require('./vol
 const VERSION='eg-20261023-v5-pullback83',PULLBACK_EFFECTIVE='2026-10-23';
 const DATA_VERSIONS=['eg-20261021-v4-volume145',VERSION];
 function chinaTime(now){const s=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(now).split(' ');return {day:s[0],time:s[1],minutes:Number(s[1].slice(0,2))*60+Number(s[1].slice(3,5))};}
-function parseQuotes(text){const out={};for(const m of text.matchAll(/v_([a-z]+\d+)="([^"]*)"/g)){const f=m[2].split('~');if(f.length<35||!/^\d{14}$/.test(f[30]))continue;const q={symbol:m[1],name:f[1],last:Number(f[3]),previous:Number(f[4]),open:Number(f[5]),high:Number(f[33]),low:Number(f[34]),timestamp:f[30],volume_shares:f[6]?.trim()&&Number.isFinite(Number(f[6]))&&Number(f[6])>=0?Number(f[6])*(m[1].startsWith('sh68')?1:100):null};if([q.last,q.previous,q.open,q.high,q.low].every(x=>Number.isFinite(x)&&x>0))out[m[1]]=q;}return out;}
+function parseQuotes(text){const out={};for(const m of text.matchAll(/v_([a-z]+\d+)="([^"]*)"/g)){const f=m[2].split('~');if(f.length<35||!/^\d{14}$/.test(f[30]))continue;const q={symbol:m[1],name:f[1],last:Number(f[3]),previous:Number(f[4]),open:Number(f[5]),high:Number(f[33]),low:Number(f[34]),timestamp:f[30],volume_shares:f[6]?.trim()&&Number.isFinite(Number(f[6]))&&Number(f[6])>=0?Number(f[6])*(m[1].startsWith('sh68')?1:100):null};q.suspended=f[40]==='S'&&q.open===0&&q.high===0&&q.low===0&&q.volume_shares===0;if([q.last,q.previous].every(x=>Number.isFinite(x)&&x>0)&&(q.suspended||[q.open,q.high,q.low].every(x=>Number.isFinite(x)&&x>0)))out[m[1]]=q;}return out;}
 function freshness(q,now){if(!q)return {ok:false,note:'行情待更新'};const cn=chinaTime(now),s=q.timestamp,day=`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`,time=`${s.slice(8,10)}:${s.slice(10,12)}:${s.slice(12,14)}`,mins=Number(s.slice(8,10))*60+Number(s.slice(10,12)),age=(now-new Date(`${day}T${time}+08:00`))/1000;const open=(cn.minutes>=570&&cn.minutes<=690)||(cn.minutes>=780&&cn.minutes<900),lunch=cn.minutes>690&&cn.minutes<780;return {ok:day===cn.day&&age>=-30&&(open?age<=120:lunch?mins>=689:cn.minutes>=900?mins>=900:age<=120),day,time,mins,age,note:open?'盘中':lunch?'午间休市':cn.minutes>=900?'收盘':'盘前'};}
 function reactionDay(record,calendar=[]){
 let day=record.ann_date,afterOpen=false;
@@ -20,6 +20,12 @@ if(record.report_period==='FY'&&!record.entry_date)return {...out,status:'剔除
 const f=freshness(q,now);out.quote_fresh=f.ok;out.quote_note=f.ok?f.note:'行情过期';if(!f.ok)return {...out,status:record.entry_date?'持有':'待更新',status_note:q?'行情过期':'行情待更新'};
 if(record.data_pending)return {...out,status:'待核验',status_note:'日线记录待补齐'};
 const day=f.day,cn=chinaTime(now);out.quote_time=f.time;
+out.market_suspended=!!q.suspended;
+if(q.suspended){
+ if(record.entry_date)return {...out,status:'持有',status_note:'停牌，暂停确认退出'};
+ const reaction=reactionDay(record,reactionCalendar);
+ return {...out,reaction_date:reaction,status:day===reaction?'停牌':'待核验',status_note:day===reaction?'反应日停牌，不参与当日入选':'等待对应反应日记录',signal_return_pct:null,open_gap_pct:null};
+}
 if(!record.entry_date&&(q.name.toUpperCase().startsWith('ST')||q.name.toUpperCase().startsWith('*ST')))return {...out,status:'剔除',status_note:'ST股票'};
 if(record.entry_date){
 if(day<record.entry_date)return {...out,status:'待更新',status_note:'行情早于买入日'};

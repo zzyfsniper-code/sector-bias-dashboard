@@ -21,6 +21,28 @@ def build(notices=None, finance=None, selected=None, previous=None, verified=Non
 
 
 class MonitoringTest(unittest.TestCase):
+    def test_verified_other_entity_does_not_create_missing_parent_financials(self):
+        notice=m.notice_record(NOTICE);url=notice['url']
+        proof={url:dict(scope='other_entity',publisher_code='600000.SH',report_subject_code='000001.SZ',company='子公司',sha256='a'*64)}
+        result=build(finance=[],verified=proof,previous={'catalog':[notice]})
+        self.assertEqual(result['status'],'PASS');self.assertEqual(result['counts']['pending'],0)
+        self.assertEqual(result['counts']['announcements'],0);self.assertEqual(result['catalog'],[])
+        self.assertEqual(result['scope_exclusions'][0]['report_subject_code'],'000001.SZ')
+        self.assertIsNone(m.report_scope_exclusion(notice,{url:dict(proof[url],publisher_code='600001.SH')}))
+        self.assertIsNone(m.report_scope_exclusion(notice,{url:dict(proof[url],sha256='invalid')}))
+        again=build(finance=[],notices=[],verified=proof,previous=result)
+        self.assertEqual(again['scope_exclusions'],result['scope_exclusions'])
+
+    def test_verified_unchanged_correction_keeps_original_reaction_day(self):
+        notice=dict(NOTICE,adjunctUrl='finalpage/2026-10-15/2.PDF',announcementId='2',announcementTitle='2026年第三季度报告（更正后）')
+        trade=dict(id=m.report_id(ROW),ann_date='2026-10-14',reaction_date='2026-10-14',status='未入选',status_note='高开不足2%',quarter_profit=40,quarter_yoy=100)
+        payload=dict(version='test',financial_asof='2026-10-15',updated_at=NOW,records=[trade],issues=[],calendar=['2026-10-14','2026-10-15'])
+        proof={'https://static.cninfo.com.cn/finalpage/2026-10-15/2.PDF':{'quarter_profit':40,'quarter_yoy':100}}
+        result=m.build(payload,[ROW],[ROW],{},lambda a,b:[notice],lambda rows:{'600000.SH':HISTORY},META,proof)
+        self.assertEqual(result['counts']['pending'],0)
+        self.assertEqual(result['reports'][0]['reaction_date'],'2026-10-14')
+        self.assertIn('财务值未变',result['reports'][0]['reason'])
+
     def test_full_coverage_and_quarter_not_cumulative(self):
         result=build();self.assertEqual(result['status'],'PASS');self.assertEqual(result['counts']['processed'],1)
         self.assertEqual(result['reports'][0]['quarter_yoy'],100);self.assertEqual(result['counts']['financial_candidates'],1)

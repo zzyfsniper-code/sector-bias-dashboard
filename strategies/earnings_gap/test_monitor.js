@@ -85,7 +85,13 @@ assert.equal(overview.candidates.find(r=>r.ts_code===first.ts_code).market.faile
 assert.equal(dailyOverview({...dailyMonitor,source_status:'FAILED'},dailyLive,[],intraday).announcements,null);
 assert.equal(dailyOverview({...dailyMonitor,financial_asof:'2026-10-14'},dailyLive,[],intraday).financial,null);
 assert.equal(dailyOverview(dailyMonitor,{...dailyLive,updated_at:'older'},[eligible],intraday).market,null);
-assert.equal(dailyOverview(dailyMonitor,dailyLive,[rejected,{...eligible,quote_fresh:false}],intraday).market,null);
+assert.equal(dailyOverview(dailyMonitor,dailyLive,[rejected,{...eligible,quote_fresh:false}],intraday).market,0);
+assert.equal(dailyOverview(dailyMonitor,dailyLive,[rejected,{...eligible,quote_fresh:false}],intraday).market_pending,1);
+assert.equal(dailyOverview(dailyMonitor,dailyLive,[eligible],intraday).market,1);
+assert.equal(dailyOverview(dailyMonitor,dailyLive,[eligible],intraday).market_pending,1);
+assert.equal(dailyOverview(dailyMonitor,dailyLive,[eligible],intraday,false).market,null);
+const unverified=dailyOverview({...dailyMonitor,reports:[{...first,complete:false}]},dailyLive,[],intraday);
+assert.equal(unverified.financial,0);assert.equal(unverified.candidates.length,0);
 const filled={...first,reaction_date:day,result:'剔除',reason:'已补缺口'};
 assert.equal(marketState(filled,day).failed,true);
 assert.equal(marketState({...filled,complete:false},day).label,'待复核');
