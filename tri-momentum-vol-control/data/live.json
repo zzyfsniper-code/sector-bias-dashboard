@@ -2,15 +2,11 @@
   "status": "PASS",
   "version": "tri-momentum-vol-v1.1-20261015",
   "name": "三元动量波控策略",
-  "updated_at": "2026-10-22T18:10:03.198244+08:00",
-  "data_as_of": "2026-10-22",
+  "updated_at": "2026-10-26T15:29:17.694776+08:00",
+  "data_as_of": "2026-10-23",
   "history_source": "Wind Excel WDF.Addin WSD PriceAdj=F",
   "intraday_source": "腾讯公开报价（浏览器直连，不进入信号计算）",
   "calendar": [
-    "2026-09-07",
-    "2026-09-08",
-    "2026-09-09",
-    "2026-09-10",
     "2026-09-11",
     "2026-09-14",
     "2026-09-15",
@@ -114,42 +110,44 @@
     "2027-02-16",
     "2027-02-17",
     "2027-02-18",
-    "2027-02-19"
+    "2027-02-19",
+    "2027-02-22",
+    "2027-02-23"
   ],
-  "calendar_start": "2026-09-07",
-  "calendar_end": "2027-02-19",
+  "calendar_start": "2026-09-11",
+  "calendar_end": "2027-02-23",
   "signal": {
-    "information_date": "2026-10-22",
+    "information_date": "2026-10-23",
     "selected_code": "159696.SZ",
     "selected_name": "纳指ETF易方达",
-    "selected_score": 0.04373757455268401,
-    "estimated_volatility": 0.223903963375189,
-    "risk_weight": 0.6252680742654221,
-    "cash_weight": 0.3747319257345779,
+    "selected_score": 0.015625,
+    "estimated_volatility": 0.22783953645291205,
+    "risk_weight": 0.6144675422868674,
+    "cash_weight": 0.3855324577131326,
     "scores": {
-      "159696.SZ": 0.04373757455268401,
-      "510300.SH": -0.09377758164165928,
-      "518880.SH": -0.0560072267389341
+      "159696.SZ": 0.015625,
+      "510300.SH": -0.08817110432125708,
+      "518880.SH": -0.08991008991008997
     },
     "volatilities": {
-      "159696.SZ": 0.223903963375189,
-      "510300.SH": 0.13113812537348243,
-      "518880.SH": 0.17664202133236576
+      "159696.SZ": 0.22783953645291205,
+      "510300.SH": 0.15334464959493965,
+      "518880.SH": 0.18564891825800786
     },
-    "execution_date": "2026-10-23",
-    "required_information_date": "2026-10-22",
-    "is_final": true,
-    "status": "FINAL"
+    "execution_date": "2026-10-30",
+    "required_information_date": "2026-10-29",
+    "is_final": false,
+    "status": "PREVIEW"
   },
   "model_current": {
-    "as_of": "2026-10-22",
-    "last_execution_date": "2026-10-16",
+    "as_of": "2026-10-23",
+    "last_execution_date": "2026-10-23",
     "weights": {
-      "159696.SZ": 0.6807233762721769,
+      "159696.SZ": 0.6252680742654206,
       "510300.SH": 0.0,
       "518880.SH": 0.0
     },
-    "cash_weight": 0.31927662372782306,
+    "cash_weight": 0.37473192573457936,
     "note": "历史规则推演持仓，非用户实际持仓"
   },
   "frozen_on": "2026-10-15",
@@ -160,10 +158,10 @@
     "time": "18:10",
     "engine": "Windows Task Scheduler; no Codex dependency"
   },
-  "record_count": 1,
+  "record_count": 2,
   "issues": [],
-  "run_id": "tri_20261022_181003",
-  "wind_run_id": "wind_excel_20261022_181011_67e19f96",
-  "price_sha256": "fb1b3e0d2530f5a74338d58dbdbfad772d422d4c2f430e2a9eb0036add5f38ed",
-  "total_history_records": 157
+  "run_id": "tri_20261026_152917",
+  "wind_run_id": "wind_excel_20261026_152927_6dbc9440",
+  "price_sha256": "7c3729d55effa3ee1c44a5e8efb2dcc3f7bfd3eefe881093669b29f65ae83250",
+  "total_history_records": 158
 }
