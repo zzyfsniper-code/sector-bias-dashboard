@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import pdfplumber
-from monitoring import is_a_share
+from monitoring import is_a_share, original_unchanged_report
 
 from strategy_core import number, quarter_profit, report_kind, simulate, qualifies, net_return, reaction_day, VERSION, VOLUME_EFFECTIVE, PULLBACK_EFFECTIVE, PULLBACK_REASON, pullback_excluded
 
@@ -54,6 +54,29 @@ def finance(filters, columns='ALL'):
         result = d['result']; rows.extend(result['data'])
         if page >= result['pages']: return rows
         page += 1; time.sleep(.15)
+
+
+def fill_listing_dates(meta, codes, today):
+    changed = False
+    for code in sorted(set(codes)):
+        if not is_a_share(code) or meta.get(code, {}).get('list_date'): continue
+        try:
+            url = 'https://emweb.securities.eastmoney.com/PC_HSF10/CompanySurvey/PageAjax'
+            profile = get_json(url, params={'code': code[-2:]+code[:6]})
+            if not isinstance(profile, dict): continue
+            rows = profile.get('fxxg', [])
+            if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict) or rows[0].get('SECUCODE') != code or rows[0].get('SECURITY_CODE') != code[:6]: continue
+            listed = datetime.strptime(str(rows[0].get('LISTING_DATE'))[:10], '%Y-%m-%d').date().isoformat()
+            if listed > today: continue
+            meta.setdefault(code, {}).update(list_date=listed, listing_source='东方财富公司资料（发行相关）',
+                listing_source_url=url+'?code='+code[-2:]+code[:6], listing_observed_at=datetime.now(TZ).isoformat())
+            changed = True
+        except (requests.RequestException, ValueError, TypeError, KeyError):
+            continue
+    if changed:
+        target=DATA/'stock_metadata.json';temp=target.with_suffix('.tmp')
+        temp.write_text(json.dumps(meta,ensure_ascii=False,allow_nan=False,separators=(',',':')),'utf-8');temp.replace(target)
+    return meta
 
 
 def daily(code, start, end, adjusted=True):
@@ -220,6 +243,7 @@ def update(sources=None):
             processed.add(f'live-{code}-{end}-{ann}')
             continue
         if f'live-{code}-{end}-{ann}' not in processed: published.append(r)
+    fill_listing_dates(meta,[r['SECUCODE'] for r in published],today)
     historical=sources.histories(published) if sources else financial_histories(published)
     for r in published:
         code = r['SECUCODE']; end = r['REPORTDATE'][:10]; ann = r['NOTICE_DATE'][:10]
@@ -251,6 +275,10 @@ def update(sources=None):
         if record.get('report_period') == 'FY':
             record.update(status='剔除',status_note='年报不参与策略')
             continue
+        reaction=reaction_day(record['ann_date'],reaction_calendar,record.get('available_at'))
+        if reaction and (datetime.fromisoformat(reaction)-datetime.fromisoformat(record['list_date'])).days<90:
+            record.update(status='剔除',status_note='上市不足90日',reaction_date=reaction)
+            continue
         key=(record['ts_code'],reaction_day(record['ann_date'],reaction_calendar,record.get('available_at')) or 'pending')
         newer=[r for r in current if (r['SECUCODE'],reaction_day(r['NOTICE_DATE'][:10],reaction_calendar) or 'pending')==key and r['REPORTDATE'][:10]>record['end_date']]
         if newer:record.update(status='剔除',status_note='同日采用更新报告期')
@@ -266,6 +294,12 @@ def update(sources=None):
         matched=original_links(needs)
         for record in existing.values():record.update(matched.get(record['id'],{}))
     except Exception:issues.append('部分原文暂缺，保留已有链接并提供巨潮检索')
+    proof_path=DATA/'announcement_checks.json'
+    verified=json.loads(proof_path.read_text('utf-8')) if proof_path.exists() else {}
+    for record in existing.values():
+        original=original_unchanged_report(record,existing.values(),verified)
+        if original:record.update(status='剔除',status_note='更正财务值未变，沿用首次财报反应日',
+            reaction_date=original.get('reaction_date'),original_signal_id=original['id'])
     volume_records=[r for r in existing.values() if not r.get('entry_date') and (reaction_day(r['ann_date'],reaction_calendar,r.get('available_at')) or '')>=VOLUME_EFFECTIVE and r.get('status') not in ['未入选','剔除']]
     if volume_records:
         try:

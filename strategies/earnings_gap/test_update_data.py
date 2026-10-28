@@ -11,6 +11,45 @@ import monitoring as m
 
 
 class FetchTest(unittest.TestCase):
+    def test_new_ipo_metadata_repair_excludes_before_volume_and_quotes(self):
+        row=dict(SECUCODE='301718.SZ',SECURITY_NAME_ABBR='测试新股',REPORTDATE='2026-09-30',NOTICE_DATE='2026-10-28',PARENT_NETPROFIT=110,ANNOUNCEMENT_URL='https://example.invalid/report')
+        history=[row]+[dict(row,REPORTDATE=end,NOTICE_DATE=ann,PARENT_NETPROFIT=amount) for end,ann,amount in [('2026-06-30','2026-09-23',70),('2025-09-30','2026-09-23',100),('2025-06-30','2026-09-23',80)]]
+        profile={'fxxg':[dict(SECUCODE='301718.SZ',SECURITY_CODE='301718',LISTING_DATE='2026-10-22')]}
+        schedule=json.loads((u.DATA/'trading_calendar.json').read_text('utf-8'))
+        class Morning(datetime):
+            @classmethod
+            def now(cls,tz=None):return cls(2026,10,28,8,30,tzinfo=u.TZ)
+        with tempfile.TemporaryDirectory() as folder:
+            data=Path(folder)
+            for name,value in [('live.json',dict(records=[])),('stock_metadata.json',{}),('calendar.json',['2026-10-27']),('trading_calendar.json',schedule)]:
+                (data/name).write_text(json.dumps(value),'utf-8')
+            with patch.object(u,'DATA',data),patch.object(u,'datetime',Morning),patch.object(u,'finance',return_value=[row]),patch.object(u,'financial_histories',return_value={'301718.SZ':history}),patch.object(u,'daily',return_value=[]),patch.object(u,'get_json',return_value=profile),patch('volume_data.prepare') as volume,patch.object(u,'closing_quotes') as quotes:
+                payload,_,_=u.update()
+            self.assertEqual(payload['issues'],[])
+            self.assertEqual(payload['records'][0]['status_note'],'上市不足90日')
+            self.assertFalse(payload['records'][0].get('entry_date'));volume.assert_not_called();quotes.assert_not_called()
+
+    def test_missing_listing_date_is_filled_once_and_persisted(self):
+        profile={'fxxg':[dict(SECUCODE='301718.SZ',SECURITY_CODE='301718',LISTING_DATE='2026-10-22 00:00:00')]}
+        with tempfile.TemporaryDirectory() as folder,patch.object(u,'DATA',Path(folder)),patch.object(u,'get_json',return_value=profile) as fetch:
+            meta={'600000.SH':dict(list_date='1999-11-10',industry='银行')}
+            u.fill_listing_dates(meta,['301718.SZ','301718.SZ','600000.SH','200530.SZ'],'2026-10-28')
+            self.assertEqual(meta['301718.SZ']['list_date'],'2026-10-22');fetch.assert_called_once()
+            self.assertEqual(meta['600000.SH'],dict(list_date='1999-11-10',industry='银行'))
+            self.assertEqual(json.loads((Path(folder)/'stock_metadata.json').read_text('utf-8')),meta)
+            u.fill_listing_dates(meta,['301718.SZ'],'2026-10-28');self.assertEqual(fetch.call_count,1)
+
+    def test_invalid_listing_identity_date_and_fetch_failure_stay_unconfirmed(self):
+        good=dict(SECUCODE='301718.SZ',SECURITY_CODE='301718',LISTING_DATE='2026-10-22')
+        cases=[[],{}, {'fxxg':[]},{'fxxg':['bad']},{'fxxg':[dict(good,SECUCODE='301717.SZ')]},
+               {'fxxg':[dict(good,LISTING_DATE='2026-10-29')]},{'fxxg':[dict(good,LISTING_DATE='invalid')]}]
+        for profile in cases:
+            with self.subTest(profile=profile),tempfile.TemporaryDirectory() as folder,patch.object(u,'DATA',Path(folder)),patch.object(u,'get_json',return_value=profile):
+                meta={};u.fill_listing_dates(meta,['301718.SZ'],'2026-10-28');self.assertEqual(meta,{})
+                self.assertFalse((Path(folder)/'stock_metadata.json').exists())
+        with tempfile.TemporaryDirectory() as folder,patch.object(u,'DATA',Path(folder)),patch.object(u,'get_json',side_effect=requests.ReadTimeout('offline')):
+            self.assertEqual(u.fill_listing_dates({},['301718.SZ'],'2026-10-28'),{})
+
     def test_pullback_closing_quote_and_daily_fallback_keep_old_entries(self):
         record=dict(id='live-test',ts_code='600000.SH',name='测试',ann_date='2026-10-23',list_date='2000-01-01',
                     report_period='Q3',end_date='2026-09-30',quarter_profit=100,quarter_yoy=30,status='等待开盘',

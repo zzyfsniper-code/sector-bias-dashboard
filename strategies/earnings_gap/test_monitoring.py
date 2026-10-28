@@ -21,6 +21,32 @@ def build(notices=None, finance=None, selected=None, previous=None, verified=Non
 
 
 class MonitoringTest(unittest.TestCase):
+    def test_superseded_report_does_not_need_missing_older_financial_row(self):
+        old=dict(NOTICE,announcementId='older',announcementTitle='2026年半年度报告（更正后）')
+        payload=dict(version='test',financial_asof='2026-10-14',updated_at=NOW,records=[dict(id=m.report_id(ROW),status='等待开盘',quarter_profit=40)],issues=[],calendar=['2026-10-13','2026-10-14'])
+        run=lambda notices:m.build(payload,[ROW],[ROW],{},lambda a,b:notices,lambda rows:{'600000.SH':HISTORY},META,{})
+        result=run([old,NOTICE])
+        older=next(r for r in result['reports'] if r['id']=='older')
+        self.assertEqual(result['status'],'PASS');self.assertTrue(older['complete'])
+        self.assertEqual(older['reason'],'同日采用更新报告期')
+        self.assertNotIn('更正原文已核验',older['reason'])
+        previous_day=dict(old,adjunctUrl='finalpage/2026-10-13/older.PDF')
+        result=run([previous_day,NOTICE])
+        self.assertEqual(result['counts']['pending'],1)
+
+    def test_verified_unchanged_correction_does_not_create_second_signal(self):
+        record=dict(id='new',ts_code='000722.SZ',end_date='2026-09-30',ann_date='2026-10-28',announcement_url='https://example.invalid/corrected',quarter_profit=89179126.98,quarter_yoy=45.071348)
+        prior=dict(record,id='original',ann_date='2026-10-27',reaction_date='2026-10-27')
+        proof={record['announcement_url']:dict(document_kind='corrected_report',sha256='a'*64,quarter_profit=89179126.98,quarter_yoy=45.07)}
+        self.assertEqual(m.original_unchanged_report(record,[prior,record],proof),prior)
+        self.assertIsNone(m.original_unchanged_report(dict(record,entry_date='2026-10-28'),[prior,record],proof))
+        self.assertIsNone(m.original_unchanged_report(dict(record,quarter_profit=89179128),[prior,record],proof))
+        self.assertIsNone(m.original_unchanged_report(record,[prior,record],{}))
+        self.assertIsNone(m.original_unchanged_report(record,[record],proof))
+        proof[record['announcement_url']].update(ts_code=record['ts_code'],end_date=record['end_date'],ann_date=record['ann_date'])
+        self.assertEqual(m.original_unchanged_report(dict(record,announcement_url='https://example.invalid/alternate'),[prior,record],proof),prior)
+        self.assertIsNone(m.original_unchanged_report(dict(record,ts_code='000723.SZ',announcement_url='https://example.invalid/alternate'),[prior,record],proof))
+
     def test_verified_other_entity_does_not_create_missing_parent_financials(self):
         notice=m.notice_record(NOTICE);url=notice['url']
         proof={url:dict(scope='other_entity',publisher_code='600000.SH',report_subject_code='000001.SZ',company='子公司',sha256='a'*64)}

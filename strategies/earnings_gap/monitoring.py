@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import re
 
-from strategy_core import quarter_profit, reaction_day
+from strategy_core import quarter_profit, reaction_day, number
 
 DATA = Path(__file__).resolve().parents[2] / 'earnings-gap/data'
 TZ = timezone(timedelta(hours=8))
@@ -108,6 +108,20 @@ def financial_check(row, history, meta, checked_at):
                 complete=ready, eligible=ready and profit >= 0 and yoy >= 30, reason=reason, checked_at=checked_at)
 
 
+def original_unchanged_report(record, records, verified):
+    proof = verified.get(record.get('announcement_url'), {})
+    if proof.get('document_kind') != 'corrected_report':
+        proof = next((p for p in verified.values() if p.get('document_kind')=='corrected_report' and
+                      all(p.get(k) is not None and p.get(k)==record.get(k) for k in ['ts_code','end_date','ann_date'])), {})
+    if record.get('entry_date') or proof.get('document_kind') != 'corrected_report' or not re.fullmatch(r'[0-9a-f]{64}', proof.get('sha256', '')):
+        return None
+    def same(row):
+        return all(number(row.get(k)) is not None and number(proof.get(k)) is not None and abs(number(row[k])-number(proof[k]))<=.011 for k in ['quarter_profit','quarter_yoy'])
+    if not same(record): return None
+    prior = [r for r in records if r['ts_code']==record['ts_code'] and r['end_date']==record['end_date'] and r['ann_date']<record['ann_date'] and same(r)]
+    return min(prior, key=lambda r:r['ann_date']) if prior else None
+
+
 def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_histories, meta, verified):
     today = payload['financial_asof']; start = max('2026-10-10', (datetime.fromisoformat(today) - timedelta(days=40)).date().isoformat())
     excluded = {n['url']:n for n in previous.get('scope_exclusions', []) if n.get('scope')=='other_entity' and report_scope_exclusion(n, verified)}
@@ -148,15 +162,21 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
     for row in sorted(finance_rows, key=lambda r: r['NOTICE_DATE'], reverse=True):
         if not is_a_share(row['SECUCODE']): continue
         by_period.setdefault((row['SECUCODE'], row['REPORTDATE'][:10]), row)
-    records = {r['id']: r for r in payload['records']}; rows = []
+    records = {r['id']: r for r in payload['records']}; rows = []; latest_notice = {}
+    for notice in catalog.values():
+        day=reaction_day(notice['ann_date'],payload.get('reaction_calendar',payload.get('calendar',[])),notice.get('available_at'))
+        if day:latest_notice[(notice['ts_code'],day)]=max(latest_notice.get((notice['ts_code'],day),''),notice['end_date'])
     for notice in sorted(catalog.values(), key=lambda n: (n['ann_date'], n['id']), reverse=True):
         item = dict(notice, complete=False, quarter_profit=None, quarter_yoy=None, financial_eligible=False,
                     reaction_date=reaction_day(notice['ann_date'], payload.get('reaction_calendar', payload.get('calendar', [])), notice.get('available_at')))
         row = by_period.get((notice['ts_code'], notice['end_date']))
+        correction_verified = False
         if notice['end_date'][5:7] == '12':
             item.update(complete=True, financial_eligible=False, strategy_excluded=True, result='已排除', reason='年报不参与策略')
         elif notice['name'].upper().startswith(('ST', '*ST')):
             item.update(complete=True, result='已排除', reason='ST股票')
+        elif latest_notice.get((notice['ts_code'],item['reaction_date']),'')>notice['end_date']:
+            item.update(complete=True, result='已排除', reason='同日采用更新报告期')
         elif row is None:
             reason='巨潮已有正式公告，东财/Tushare未补齐，待本机Wind Excel补数' if payload.get('financial_source_order') else '巨潮已有正式公告，财务接口尚未覆盖'
             item.update(result='待补数据', reason=reason)
@@ -172,6 +192,7 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
             if notice['corrected']:
                 proof = verified.get(notice['url'], {})
                 same = check.get('complete') and proof and abs(proof['quarter_profit'] - check['quarter_profit']) <= .011 and abs(proof['quarter_yoy'] - check['quarter_yoy']) <= .011
+                correction_verified = bool(same)
                 if not same: item.update(complete=False, result='待复核', reason='更正公告尚未与单季财务值核对')
                 else: item['reason'] += '；更正原文已核验'
             trade = records.get(report_id(row))
@@ -179,11 +200,12 @@ def build(payload, finance_rows, selected_rows, previous, fetch_notices, fetch_h
                 item.update(result=trade['status'], reason=trade.get('status_note') or trade.get('exit_reason') or '进入行情筛选')
                 if trade.get('data_pending') or abs(trade.get('quarter_profit', check['quarter_profit']) - check['quarter_profit']) > .011:
                     item.update(complete=False, result='待复核', reason='行情数据待补或财务值已变化，信号记录需核验')
-                elif notice['corrected'] and trade.get('reaction_date') and trade.get('ann_date')!=notice['ann_date'] and abs(trade.get('quarter_yoy', check['quarter_yoy'])-check['quarter_yoy'])<=.011:
-                    item.update(reaction_date=trade['reaction_date'], reason=item['reason']+'；更正财务值未变，沿用首次财报反应日')
+                elif notice['corrected'] and trade.get('reaction_date') and (trade.get('ann_date')!=notice['ann_date'] or trade.get('original_signal_id')) and abs(trade.get('quarter_yoy', check['quarter_yoy'])-check['quarter_yoy'])<=.011:
+                    detail='更正财务值未变，沿用首次财报反应日'
+                    item.update(reaction_date=trade['reaction_date'], reason=item['reason']+('；'+detail if detail not in item['reason'] else ''))
             elif item['complete'] and item['financial_eligible']:
                 item.update(complete=False, result='待复核', reason='财务条件符合，但尚未建立行情跟踪记录')
-        if notice['corrected'] and item['complete'] and not item.get('strategy_excluded') and '更正原文已核验' not in item['reason']:
+        if correction_verified and item['complete'] and '更正原文已核验' not in item['reason']:
             item['reason'] += '；更正原文已核验'
         rows.append(item)
     covered = {(n['ts_code'], n['end_date']) for n in catalog.values()}
