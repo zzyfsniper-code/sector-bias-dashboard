@@ -13,7 +13,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,6 +41,10 @@ jobs:
       - name: Record rule verification failure
         if: failure() && steps.verify.outcome == 'failure'
         run: python strategies/earnings_gap/monitoring.py --fail "规则或监控校验失败，新交易数据未发布"
+      - name: Publish verified candidates before optional display refresh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python strategies/earnings_gap/publish.py --data-only
       - name: Refresh display-only PB and industry statistics
         continue-on-error: true
         timeout-minutes: 8

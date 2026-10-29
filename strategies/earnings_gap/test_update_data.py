@@ -122,8 +122,9 @@ class FetchTest(unittest.TestCase):
             for name,value in [('live.json',dict(records=[record])),('stock_metadata.json',{'600000.SH':{'list_date':'2000-01-01'}}),
                                ('calendar.json',['2026-10-16']),('trading_calendar.json',real_schedule)]:
                 (data/name).write_text(json.dumps(value),encoding='utf-8')
-            with patch.object(u,'DATA',data),patch.object(u,'datetime',Monday),patch.object(u,'finance',return_value=[row]),patch.object(u,'daily',return_value=bars):
+            with patch.object(u,'DATA',data),patch.object(u,'datetime',Monday),patch.object(u,'finance',return_value=[row]),patch.object(u,'daily',return_value=bars) as daily:
                 result,_,_=u.update()
+            daily.assert_called_once_with('000001.SH','2026-10-10','2026-10-19',False)
             self.assertEqual(result['records'][0]['reaction_date'],'2026-10-19')
             self.assertIsNone(result['records'][0]['entry_date'])
             self.assertEqual(result['calendar'],['2026-10-16'])

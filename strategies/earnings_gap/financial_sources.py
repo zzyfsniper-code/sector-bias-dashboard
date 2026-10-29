@@ -1,5 +1,5 @@
 """Fill missing cumulative parent profits: Eastmoney -> Tushare -> Wind Excel cache."""
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import math
 import os
@@ -113,7 +113,8 @@ class FinancialSources:
         self.catalog={n['id']:n for n in old.get('catalog',[]) if start<=n['ann_date']<=today and not report_scope_exclusion(n,verified)}
         if primary_error and not self.catalog:raise primary_error
         try:
-            for raw in self.notices(start,today):
+            source_start=max(start,(datetime.fromisoformat(old['source_asof'])-timedelta(days=2)).date().isoformat()) if old.get('source_asof') else start
+            for raw in self.notices(source_start,today):
                 notice=notice_record(raw)
                 if notice and start<=notice['ann_date']<=today:
                     if report_scope_exclusion(notice,verified):self.catalog.pop(notice['id'],None)
@@ -127,8 +128,9 @@ class FinancialSources:
             if key in existing or key in missing or not is_a_share(notice['ts_code']) or notice['name'].upper().startswith(('ST','*ST')):continue
             missing[key]=dict(SECUCODE=notice['ts_code'],REPORTDATE=notice['end_date'],NOTICE_DATE=notice['ann_date'],
                               SECURITY_NAME_ABBR=notice['name'],PARENT_NETPROFIT=None,ANNOUNCEMENT_URL=notice['url'])
+        self.histories(list(missing.values()))
         for row in missing.values():
-            self.histories([row]);history=self.history_cache[(row['SECUCODE'],row['NOTICE_DATE'],row['REPORTDATE'])]
+            history=self.history_cache[(row['SECUCODE'],row['NOTICE_DATE'],row['REPORTDATE'])]
             current=next((r for r in history if r['REPORTDATE'][:10]==row['REPORTDATE']),None)
             if current and valid(current.get('PARENT_NETPROFIT')):
                 row.update(PARENT_NETPROFIT=current['PARENT_NETPROFIT'],FINANCIAL_SOURCE=current.get('FINANCIAL_SOURCE','东方财富公开定期财报'),

@@ -270,6 +270,7 @@ def update(sources=None):
             source=x.get('FINANCIAL_SOURCE','东方财富定期财报')) for x in history if x['REPORTDATE'][:10] in
             [end,f'{y}-{prev}',f'{y-1}-{end[5:]}',f'{y-1}-{prev}']]
         existing[record['id']] = record
+    latest_period={(r['SECUCODE'],reaction_day(r['NOTICE_DATE'][:10],reaction_calendar) or 'pending'):r['REPORTDATE'][:10] for r in current}
     for record in existing.values():
         if record.get('entry_date'):continue
         if record.get('report_period') == 'FY':
@@ -280,8 +281,7 @@ def update(sources=None):
             record.update(status='剔除',status_note='上市不足90日',reaction_date=reaction)
             continue
         key=(record['ts_code'],reaction_day(record['ann_date'],reaction_calendar,record.get('available_at')) or 'pending')
-        newer=[r for r in current if (r['SECUCODE'],reaction_day(r['NOTICE_DATE'][:10],reaction_calendar) or 'pending')==key and r['REPORTDATE'][:10]>record['end_date']]
-        if newer:record.update(status='剔除',status_note='同日采用更新报告期')
+        if latest_period.get(key,'')>record['end_date']:record.update(status='剔除',status_note='同日采用更新报告期')
     needs=[r for r in existing.values() if not r.get('announcement_url') and not r.get('exit_date')]
     notices=[]
     # Prefer CNINFO for small daily cohorts. Large cohorts use the validated batch interface.
@@ -319,6 +319,7 @@ def update(sources=None):
         if record.get('entry_date')==today:return record
         reaction=reaction_day(record['ann_date'],reaction_calendar,record.get('available_at'))
         if reaction is None:return dict(record,status='等待开盘',reaction_date=None)
+        if not record.get('entry_date') and reaction>final_day:return simulate(record,[],[],calendar,reaction_calendar)
         if not record.get('entry_date') and (datetime.fromisoformat(reaction)-datetime.fromisoformat(record['list_date'])).days<90:
             return dict(record,status='剔除',status_note='上市不足90日',reaction_date=reaction)
         q=final_quotes.get(record['ts_code'][-2:].lower()+record['ts_code'][:6])

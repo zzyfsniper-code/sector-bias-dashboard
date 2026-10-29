@@ -14,6 +14,29 @@ NOTICE=dict(secCode='601059',secName='测试',announcementId='1',announcementTit
 
 
 class SourcesTest(unittest.TestCase):
+    def test_discovery_batches_missing_companies_and_reuses_history(self):
+        other=dict(ROW,SECUCODE='601198.SH')
+        history={ROW['SECUCODE']:HISTORY,other['SECUCODE']:[dict(r,SECUCODE=other['SECUCODE']) for r in HISTORY]}
+        notices=[NOTICE,dict(NOTICE,secCode='601198',announcementId='2',adjunctUrl='finalpage/2026-10-19/2.PDF')]
+        with tempfile.TemporaryDirectory() as folder,patch.object(f,'tushare_income') as ts:
+            fetch=Mock(return_value=history)
+            source=f.FinancialSources(folder,Mock(return_value=[]),fetch,Mock(return_value=notices))
+            rows=source.discover('2026-10-10','2026-10-19')
+            self.assertEqual({r['SECUCODE'] for r in rows},set(history))
+            fetch.assert_called_once();self.assertEqual(len(fetch.call_args.args[0]),2)
+            source.histories(rows);fetch.assert_called_once();ts.assert_not_called()
+
+    def test_discovery_overlaps_verified_catalog_and_reuses_notice_request(self):
+        import monitoring as m
+        with tempfile.TemporaryDirectory() as folder:
+            old=m.notice_record(dict(NOTICE,announcementId='old',adjunctUrl='finalpage/2026-10-11/old.PDF'))
+            (Path(folder)/'monitor.json').write_text(json.dumps(dict(source_asof='2026-10-18',catalog=[old])),'utf-8')
+            source=self.source(folder)
+            source.discover('2026-10-10','2026-10-19')
+            self.assertIn('old',source.catalog)
+            source.fetch_notices.assert_called_once_with('2026-10-16','2026-10-19')
+            source.notices('2026-10-16','2026-10-19');source.fetch_notices.assert_called_once()
+
     def test_other_entity_report_never_fetches_parent_fallbacks(self):
         import monitoring as m
         notice=m.notice_record(NOTICE)

@@ -1,6 +1,6 @@
 import unittest
 from copy import deepcopy
-from unittest.mock import patch
+from unittest.mock import patch,Mock
 import update_data as updater
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +9,22 @@ from volume_data import TIMES, POOL, build_model, profile_from_tencent, prepare
 from strategy_core import simulate
 
 class VolumeTest(unittest.TestCase):
+    def test_profile_budget_preserves_verified_curve_and_fresh_required_baseline(self):
+        rows=[dict(date=day,volume_shares=1000,fractions=[(i+1)/len(TIMES) for i in range(len(TIMES))]) for day in ['2026-10-14','2026-10-15','2026-10-16','2026-10-19','2026-10-20']]
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            cache=dict(daily_asof='2026-10-21',baselines={POOL[0]:dict(date='2026-10-21',volume_shares=2000)},profiles={POOL[0]:rows})
+            (root/'volume_cache.json').write_text(json.dumps(cache),'utf-8')
+            client=Mock();client.minutes.side_effect=RuntimeError('slow minute source')
+            records=[dict(ts_code=POOL[0])]
+            with patch('volume_data.time.monotonic',side_effect=[0,0,91]):
+                model=prepare(root,records,'2026-10-22',['2026-10-21','2026-10-22'],client)
+            client.assert_not_called();client.minutes.assert_called_once_with(POOL[0])
+            self.assertEqual(records[0]['volume_reference_day'],'2026-10-22')
+            self.assertEqual(records[0]['volume_previous_shares'],2000)
+            self.assertEqual(model['stock_profiles'][POOL[0]]['through'],'2026-10-20')
+            self.assertTrue(any('90秒' in error for error in model['issues']))
+
     def test_daily_accumulation_switches_to_own_profile_and_reuses_cache(self):
         rows=[dict(date=day,volume_shares=24200,fractions=[(i+1)/len(TIMES) for i in range(len(TIMES))]) for day in ['2026-10-15','2026-10-16','2026-10-19','2026-10-20']]
         class Client:

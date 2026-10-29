@@ -94,15 +94,23 @@ def prepare(data_dir,records,today,calendar,client=None):
         cache.update(daily_asof=prior,baselines=current)
     codes=sorted({r['ts_code'] for r in records if not r.get('entry_date')})
     requests=list(dict.fromkeys(POOL+codes))[:60]
-    profiles=cache.setdefault('profiles',{});errors=[]
+    profiles=cache.setdefault('profiles',{});errors=[];started=time.monotonic()
     for code in requests:
         known=profiles.get(code,[])
         if known and known[-1]['date']>=prior:continue
+        if time.monotonic()-started>=90:
+            errors.append('量能曲线补充达到90秒预算，沿用已核验历史曲线；前日成交量基准已更新')
+            break
         start=(date.fromisoformat(today)-timedelta(days=45)).isoformat() if len(known)<20 else (date.fromisoformat(known[-1]['date'])+timedelta(days=1)).isoformat()
         if start>prior:continue
         try:
-            daily_rows=client('daily','trade_date,vol',ts_code=code,start_date=start.replace('-',''),end_date=prior.replace('-',''))
-            daily={r['trade_date'][:4]+'-'+r['trade_date'][4:6]+'-'+r['trade_date'][6:]:float(r['vol'])*100 for r in daily_rows if r.get('vol') is not None}
+            base=cache['baselines'].get(code)
+            if known and base and base['date']==prior:
+                daily={r['date']:r['volume_shares'] for r in known}
+                daily[prior]=base['volume_shares']
+            else:
+                daily_rows=client('daily','trade_date,vol',ts_code=code,start_date=start.replace('-',''),end_date=prior.replace('-',''))
+                daily={r['trade_date'][:4]+'-'+r['trade_date'][4:6]+'-'+r['trade_date'][6:]:float(r['vol'])*100 for r in daily_rows if r.get('vol') is not None}
             minutes=client.minutes(code)
             new=profile_from_tencent(minutes,code,daily)
             combined={r['date']:r for r in known+new if r['date']<today};profiles[code]=[combined[k] for k in sorted(combined)][-20:]
