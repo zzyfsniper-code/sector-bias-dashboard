@@ -3793,6 +3793,30 @@
       },
       "record_type": "历史模型调仓（非实际成交）",
       "origin": "frozen_model"
+    },
+    {
+      "execution_date": "2026-10-30",
+      "information_date": "2026-10-29",
+      "selected_code": "159696.SZ",
+      "selected_name": "纳指ETF易方达",
+      "selected_score": 0.009051929490233368,
+      "estimated_volatility": 0.23257779350954438,
+      "risk_weight": 0.6019491280204908,
+      "cash_weight": 0.39805087197950917,
+      "turnover": 0.022429090686924592,
+      "fee": 2.2122443121416648e-05,
+      "previous_weights": {
+        "159696.SZ": 0.6243647175358341,
+        "510300.SH": 0.0,
+        "518880.SH": 0.0
+      },
+      "target_weights": {
+        "159696.SZ": 0.6019491280204908,
+        "510300.SH": 0.0,
+        "518880.SH": 0.0
+      },
+      "record_type": "历史模型调仓（非实际成交）",
+      "origin": "frozen_model"
     }
   ],
   "actual_fills_recorded": false
