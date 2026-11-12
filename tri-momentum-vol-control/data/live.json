@@ -2,8 +2,8 @@
   "status": "PASS",
   "version": "tri-momentum-vol-v1.1-20261015",
   "name": "三元动量波控策略",
-  "updated_at": "2026-11-11T18:10:03.416652+08:00",
-  "data_as_of": "2026-11-11",
+  "updated_at": "2026-11-12T18:10:03.252389+08:00",
+  "data_as_of": "2026-11-12",
   "history_source": "Wind Excel WDF.Addin WSD PriceAdj=F",
   "intraday_source": "腾讯公开报价（浏览器直连，不进入信号计算）",
   "calendar": [
@@ -113,42 +113,43 @@
     "2027-03-08",
     "2027-03-09",
     "2027-03-10",
-    "2027-03-11"
+    "2027-03-11",
+    "2027-03-12"
   ],
-  "calendar_start": "2026-09-27",
-  "calendar_end": "2027-03-11",
+  "calendar_start": "2026-09-28",
+  "calendar_end": "2027-03-12",
   "signal": {
-    "information_date": "2026-11-11",
-    "selected_code": "518880.SH",
-    "selected_name": "黄金ETF",
-    "selected_score": -0.021600566572237967,
-    "estimated_volatility": 0.21858187799926326,
-    "risk_weight": 0.640492255265882,
-    "cash_weight": 0.35950774473411795,
+    "information_date": "2026-11-12",
+    "selected_code": "510300.SH",
+    "selected_name": "沪深300ETF",
+    "selected_score": -0.02880075542965055,
+    "estimated_volatility": 0.16238221273499204,
+    "risk_weight": 0.8621633961133427,
+    "cash_weight": 0.1378366038866573,
     "scores": {
-      "159696.SZ": -0.02400000000000002,
-      "510300.SH": -0.021687883074021586,
-      "518880.SH": -0.021600566572237967
+      "159696.SZ": -0.050738007380073946,
+      "510300.SH": -0.02880075542965055,
+      "518880.SH": -0.0548281505728313
     },
     "volatilities": {
-      "159696.SZ": 0.3001421938403047,
-      "510300.SH": 0.16483986470273532,
-      "518880.SH": 0.21858187799926326
+      "159696.SZ": 0.2780331311991577,
+      "510300.SH": 0.16238221273499204,
+      "518880.SH": 0.23388020087567646
     },
     "execution_date": "2026-11-13",
     "required_information_date": "2026-11-12",
-    "is_final": false,
-    "status": "PREVIEW"
+    "is_final": true,
+    "status": "FINAL"
   },
   "model_current": {
-    "as_of": "2026-11-11",
+    "as_of": "2026-11-12",
     "last_execution_date": "2026-11-06",
     "weights": {
       "159696.SZ": 0.0,
       "510300.SH": 0.0,
-      "518880.SH": 0.6730173083350468
+      "518880.SH": 0.6675100843651961
     },
-    "cash_weight": 0.3269826916649532,
+    "cash_weight": 0.3324899156348039,
     "note": "历史规则推演持仓，非用户实际持仓"
   },
   "frozen_on": "2026-10-15",
@@ -161,8 +162,8 @@
   },
   "record_count": 4,
   "issues": [],
-  "run_id": "tri_20261111_181003",
-  "wind_run_id": "wind_excel_20261111_181011_ababa8f5",
-  "price_sha256": "6d21751118abf0bcd48ee0b5e37c171cc3dbd86c66d2219becb296447e617c0e",
+  "run_id": "tri_20261112_181003",
+  "wind_run_id": "wind_excel_20261112_181016_40e5c5ce",
+  "price_sha256": "0c936f65d79222964cb150df6b675043ceb091f01498b51d71a59b355a556314",
   "total_history_records": 160
 }
