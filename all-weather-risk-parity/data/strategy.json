@@ -4,17 +4,17 @@
   "strategy_number": "03",
   "strategy_name": "多资产风险平价",
   "status": "PASS",
-  "run_id": "all_weather_rp_live_20261111_210501",
-  "generated_at": "2026-11-11T21:05:06+08:00",
-  "data_as_of": "2026-11-11",
-  "next_trade_date": "2026-11-12",
+  "run_id": "all_weather_rp_live_20261113_205958",
+  "generated_at": "2026-11-13T21:00:02+08:00",
+  "data_as_of": "2026-11-13",
+  "next_trade_date": "2026-11-16",
   "execution": "季度末收盘形成信号，下一交易日收盘执行；执行日之后的收益开始计入",
   "source": {
     "primary": "Tushare Pro",
     "update": {
-      "previous_latest": "2026-11-10",
-      "latest": "2026-11-11",
-      "rows_added": 5
+      "previous_latest": "2026-11-11",
+      "latest": "2026-11-13",
+      "rows_added": 10
     }
   },
   "trade": {
@@ -42,8 +42,8 @@
         "current_weight": 0.15118204835353874,
         "target_weight": 0.15118204835353874,
         "levered_target_weight": 0.2267730725303081,
-        "latest_price": 4.15,
-        "price_date": "2026-11-11"
+        "latest_price": 4.083,
+        "price_date": "2026-11-13"
       },
       {
         "code": "513100.SH",
@@ -53,8 +53,8 @@
         "current_weight": 0.10614462079379018,
         "target_weight": 0.10614462079379018,
         "levered_target_weight": 0.15921693119068528,
-        "latest_price": 2.233,
-        "price_date": "2026-11-11"
+        "latest_price": 2.23,
+        "price_date": "2026-11-13"
       },
       {
         "code": "518880.SH",
@@ -64,8 +64,8 @@
         "current_weight": 0.14267333085267112,
         "target_weight": 0.14267333085267112,
         "levered_target_weight": 0.2140099962790067,
-        "latest_price": 8.289,
-        "price_date": "2026-11-11"
+        "latest_price": 7.954,
+        "price_date": "2026-11-13"
       },
       {
         "code": "511010.SH",
@@ -75,8 +75,8 @@
         "current_weight": 0.6,
         "target_weight": 0.6,
         "levered_target_weight": 0.8999999999999999,
-        "latest_price": 141.34,
-        "price_date": "2026-11-11"
+        "latest_price": 141.339,
+        "price_date": "2026-11-13"
       }
     ],
     "cash_asset": "511880.SH",
@@ -93,14 +93,14 @@
       "financing_rate": 0.0,
       "metrics": {
         "start": "2014-04-01",
-        "end": "2026-11-11",
-        "total_return": 3.212423026718895,
-        "cagr": 0.12076316651755481,
-        "volatility": 0.07973405722939006,
+        "end": "2026-11-13",
+        "total_return": 3.177036707311328,
+        "cagr": 0.11995875023935687,
+        "volatility": 0.07973226729455048,
         "max_drawdown": -0.09329582205071585,
-        "sharpe_zero_rf": 1.5211269795738576,
-        "calmar": 1.2944113022757615,
-        "annual_turnover": 1.5230522974283107,
+        "sharpe_zero_rf": 1.5115020072854244,
+        "calmar": 1.2857890911143586,
+        "annual_turnover": 1.5223913938494744,
         "rebalances": 51
       }
     },
@@ -112,14 +112,14 @@
       "financing_rate": 0.0,
       "metrics": {
         "start": "2014-04-01",
-        "end": "2026-11-11",
-        "total_return": 7.395243401829834,
-        "cagr": 0.1837466730574251,
-        "volatility": 0.11960108584408509,
+        "end": "2026-11-13",
+        "total_return": 7.289559444678709,
+        "cagr": 0.1824723023470789,
+        "volatility": 0.11959840094182571,
         "max_drawdown": -0.13787999837513898,
-        "sharpe_zero_rf": 1.5211269795738578,
-        "calmar": 1.3326564782623054,
-        "annual_turnover": 1.5230522974283107,
+        "sharpe_zero_rf": 1.5115020072854242,
+        "calmar": 1.3234138707386316,
+        "annual_turnover": 1.5223913938494744,
         "rebalances": 51
       }
     },
@@ -131,14 +131,14 @@
       "financing_rate": 0.03,
       "metrics": {
         "start": "2014-04-01",
-        "end": "2026-11-11",
-        "total_return": 5.995599101387959,
-        "cagr": 0.16675322534107506,
-        "volatility": 0.11960108584408509,
+        "end": "2026-11-13",
+        "total_return": 5.90670711161061,
+        "cagr": 0.1654933962818752,
+        "volatility": 0.11959840094182571,
         "max_drawdown": -0.1392210664510689,
-        "sharpe_zero_rf": 1.395710058028895,
-        "calmar": 1.1977585691004795,
-        "annual_turnover": 1.5230522974283107,
+        "sharpe_zero_rf": 1.3860822702163962,
+        "calmar": 1.1887094424753601,
+        "annual_turnover": 1.5223913938494744,
         "rebalances": 51
       }
     }
@@ -201,9 +201,9 @@
     ]
   },
   "latest": {
-    "base_nav": 4.208210603692176,
-    "levered_0_nav": 8.38265053672709,
-    "levered_3_nav": 6.801696737106151,
+    "base_nav": 4.172859670604017,
+    "levered_0_nav": 8.277125105511692,
+    "levered_3_nav": 6.715268634514693,
     "turnover": 0.0
   },
   "signals": [
@@ -28219,6 +28219,24 @@
       "base_dd": -0.037934001783686555,
       "levered_0_dd": -0.05717950007832029,
       "levered_3_dd": -0.06328041774866544
+    },
+    {
+      "date": "2026-11-12",
+      "base": 4.185325667391613,
+      "levered_0": 8.314271203456114,
+      "levered_3": 6.7458087682403844,
+      "base_dd": -0.04316587375007552,
+      "levered_0_dd": -0.06487031778524854,
+      "levered_3_dd": -0.07097722589408273
+    },
+    {
+      "date": "2026-11-13",
+      "base": 4.172859670604017,
+      "levered_0": 8.277125105511692,
+      "levered_3": 6.715268634514693,
+      "base_dd": -0.04601580517525128,
+      "levered_0_dd": -0.0690482448598243,
+      "levered_3_dd": -0.07518316779522083
     }
   ],
   "rules": {
@@ -28259,9 +28277,9 @@
   },
   "validation": {
     "status": "PASS",
-    "price_date": "2026-11-11",
+    "price_date": "2026-11-13",
     "signal_count": 51,
-    "daily_rows": 3067,
+    "daily_rows": 3069,
     "no_future_price_in_signal": true,
     "cost_model": "one_way_10bp"
   }
