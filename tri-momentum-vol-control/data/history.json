@@ -3841,6 +3841,30 @@
       },
       "record_type": "历史模型调仓（非实际成交）",
       "origin": "frozen_model"
+    },
+    {
+      "execution_date": "2026-11-13",
+      "information_date": "2026-11-12",
+      "selected_code": "510300.SH",
+      "selected_name": "沪深300ETF",
+      "selected_score": -0.02880075542965055,
+      "estimated_volatility": 0.1623822127349921,
+      "risk_weight": 0.8621633961133424,
+      "cash_weight": 0.13783660388665764,
+      "turnover": 1.5247235355429332,
+      "fee": 0.0015082327931810844,
+      "previous_weights": {
+        "159696.SZ": 0.0,
+        "510300.SH": 0.0,
+        "518880.SH": 0.6638747002511285
+      },
+      "target_weights": {
+        "159696.SZ": 0.0,
+        "510300.SH": 0.8621633961133424,
+        "518880.SH": 0.0
+      },
+      "record_type": "历史模型调仓（非实际成交）",
+      "origin": "frozen_model"
     }
   ],
   "actual_fills_recorded": false
