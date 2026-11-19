@@ -4,35 +4,35 @@
   "strategy_number": "02",
   "strategy_name": "中证500资金流向与底部杠杆",
   "status": "PASS",
-  "run_id": "csi500_flow_live_20261118_210103",
-  "generated_at": "2026-11-18T21:01:08+08:00",
-  "data_as_of": "2026-11-18",
-  "next_trade_date": "2026-11-19",
+  "run_id": "csi500_flow_live_20261119_210429",
+  "generated_at": "2026-11-19T21:04:32+08:00",
+  "data_as_of": "2026-11-19",
+  "next_trade_date": "2026-11-20",
   "execution": "T 日收盘形成信号，T+1 开盘按目标仓位交易",
   "source": {
     "primary": "Tushare Pro",
     "index": "000905.SH",
     "trading_proxy": "510500.SH",
     "update": {
-      "previous_latest": "2026-11-17",
+      "previous_latest": "2026-11-18",
       "missing_dates": [
-        "2026-11-18"
+        "2026-11-19"
       ],
       "rows_added": 1,
-      "latest": "2026-11-18",
+      "latest": "2026-11-19",
       "weight_snapshot": "2026-10-30"
     },
     "dates": {
-      "moneyflow": "2026-11-18",
-      "index": "2026-11-18",
-      "etf": "2026-11-18"
+      "moneyflow": "2026-11-19",
+      "index": "2026-11-19",
+      "etf": "2026-11-19"
     }
   },
   "trade": {
     "action": "NO_TRADE",
     "action_text": "维持现有目标仓位",
-    "signal": "无新信号",
-    "signal_reason": "hold_cash",
+    "signal": "退出信号",
+    "signal_reason": "exit_signal",
     "current_target": 0.0,
     "current_exposure": 0.0,
     "base_target": 0,
@@ -43,42 +43,42 @@
   "leverage": {
     "active": false,
     "armed": false,
-    "drawdown_250": -0.3044012283041433,
+    "drawdown_250": -0.3077515694502815,
     "trigger_drawdown": -0.15,
     "rearm_drawdown": -0.05,
     "exit_positive_days": 5,
     "current_positive_streak": 0
   },
   "indicators": {
-    "mf_ratio": 0.000336257415200573,
-    "alpha": 0.00693136346685343,
+    "mf_ratio": -0.029136776380473916,
+    "alpha": 0.007723356904037637,
     "prior_alpha_min": 0.0040080610540847795,
     "prior_alpha_max": 0.007501195802742044,
     "member_coverage": 1.0,
     "active_members": 500,
     "expected_members": 500,
     "weight_snapshot_date": "2026-10-30",
-    "index_close": 6282.216,
-    "index_pct_chg": -0.0127
+    "index_close": 6251.9578,
+    "index_pct_chg": -0.4816
   },
   "performance": {
     "period": {
       "start": "2016-01-04",
-      "end": "2026-11-18"
+      "end": "2026-11-19"
     },
     "candidate": {
       "first_date": "2016-01-04",
-      "last_date": "2026-11-18",
+      "last_date": "2026-11-19",
       "final_nav": 3.097890904595465,
-      "annual_return": 0.11392703517264668,
-      "annual_volatility": 0.16696757655924727,
+      "annual_return": 0.11388154654199312,
+      "annual_volatility": 0.1669360295691941,
       "max_drawdown": -0.3653963626523058,
-      "sharpe": 0.729138092114071,
-      "average_exposure": 0.5314722229168308,
+      "sharpe": 0.7289998503443859,
+      "average_exposure": 0.5312710600769683,
       "max_exposure": 2.113312258949417,
       "regime_count": 9,
       "completed_regimes": 9,
-      "regime_active_fraction": 0.1495645588792124,
+      "regime_active_fraction": 0.14950794852384558,
       "average_regime_days": 43.888888888888886,
       "overlay_win_rate": 0.7777777777777778,
       "worst_overlay_return": 0.0,
@@ -87,17 +87,17 @@
     },
     "base": {
       "final_nav": 1.9842610169105552,
-      "annual_return": 0.06757010054627921,
-      "annual_volatility": 0.14190867367147755,
+      "annual_return": 0.06754368027825808,
+      "annual_volatility": 0.1418818347801009,
       "max_drawdown": -0.38204046575744144,
-      "sharpe": 0.5315593910430095
+      "sharpe": 0.5314587088867013
     },
     "benchmark": {
-      "final_nav": 0.8995921817158405,
-      "annual_return": -0.010045779583619074,
-      "annual_volatility": 0.2293773358277957,
+      "final_nav": 0.8952593093420166,
+      "annual_return": -0.010497784223738815,
+      "annual_volatility": 0.2293388604495417,
       "max_drawdown": -0.43126450229299484,
-      "sharpe": 0.07123501746318618
+      "sharpe": 0.06921681974917718
     }
   },
   "validation": {
@@ -3190,7 +3190,8 @@
       "2026-11-13",
       "2026-11-16",
       "2026-11-17",
-      "2026-11-18"
+      "2026-11-18",
+      "2026-11-19"
     ],
     "candidate_nav": [
       1.0,
@@ -5824,6 +5825,7 @@
       3.032874,
       2.997171,
       3.129178,
+      3.097891,
       3.097891,
       3.097891,
       3.097891,
@@ -8476,6 +8478,7 @@
       1.984261,
       1.984261,
       1.984261,
+      1.984261,
       1.984261
     ],
     "benchmark_nav": [
@@ -11119,7 +11122,8 @@
       0.925836,
       0.901735,
       0.899706,
-      0.899592
+      0.899592,
+      0.895259
     ],
     "candidate_drawdown": [
       0.0,
@@ -13753,6 +13757,7 @@
       -0.212395,
       -0.221666,
       -0.187386,
+      -0.195511,
       -0.195511,
       -0.195511,
       -0.195511,
@@ -16405,6 +16410,7 @@
       -0.195511,
       -0.195511,
       -0.195511,
+      -0.195511,
       -0.195511
     ],
     "regime_active": [
@@ -18982,6 +18988,7 @@
       true,
       true,
       true,
+      false,
       false,
       false,
       false,
@@ -21691,7 +21698,8 @@
       0.00681103,
       0.00694451,
       0.00695341,
-      0.00693136
+      0.00693136,
+      0.00772336
     ],
     "prior_alpha_min": [
       null,
@@ -24316,6 +24324,7 @@
       0.00461332,
       0.00433522,
       0.0041656,
+      0.00400806,
       0.00400806,
       0.00400806,
       0.00400806,
@@ -26977,6 +26986,7 @@
       0.0075012,
       0.0075012,
       0.0075012,
+      0.0075012,
       0.0075012
     ],
     "raw_signal": [
@@ -29620,7 +29630,8 @@
       0,
       0,
       0,
-      0
+      0,
+      -1
     ],
     "base_target": [
       0,
@@ -32253,6 +32264,7 @@
       1,
       1,
       1,
+      0,
       0,
       0,
       0,
@@ -34906,7 +34918,8 @@
       "hold_cash",
       "hold_cash",
       "hold_cash",
-      "hold_cash"
+      "hold_cash",
+      "exit_signal"
     ]
   },
   "execution_count": 66
