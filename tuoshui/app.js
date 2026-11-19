@@ -51,6 +51,13 @@ async function refresh(){
  if(!res.ok)throw Error('最新数据暂不可用，请稍后刷新。');const d=await res.json();
  el('error').textContent='';el('board').hidden=false;el('login').hidden=true;
  el('asof').textContent=d.as_of;el('nav').textContent=d.nav.toFixed(4);el('stage').textContent=st[d.stage];el('weight').textContent=pct(d.exposure);
+ const steps={processing:'正在处理',daily:'等待股票日线',basic:'等待每日指标',limits:'等待涨跌停价',index:'等待基准指数',industry:'等待行业收盘',themes:'等待主题收盘',wind:'等待全指股息率',credit:'等待贷款数据',rates:'等待国债数据',articles:'等待脱水文章',upload:'等待上传',validation:'等待账本核对'};
+ const pending=d.close_note,notice=el('closeProgress'),macro=el('economyMeta'),e=d.economy_note;
+ notice.hidden=true;
+ if(pending&&pending.day>d.as_of){notice.textContent=pending.day+' 正式收盘 · '+steps[pending.step]+'（'+pending.asof.slice(11,16)+'）';notice.hidden=false}
+ else if(d.server_day===d.session&&d.server_minute>=902){notice.textContent='等待本机上传今天的正式收盘结果';notice.hidden=false}
+ macro.hidden=!e;
+ if(e)macro.textContent='中长期贷款同比 '+e.growth.toFixed(2)+'%（'+e.month+'）　十年期国债收益率：中国 '+e.cn10.toFixed(2)+'%（'+e.cn_day+'）／美国 '+e.us10.toFixed(2)+'%（'+e.us_day+'）';
  if(d.pool&&poolDay!==d.as_of){poolDay=d.as_of;pool=d.pool;el('poolTitle').textContent='收盘基础池 · '+pool.length+'只';showPool()}
  const tick=d.ticks.at(-1),now=d.server_minute,expected=Math.min(898,2*Math.floor((now-1)/2));
  const overdue=tick&&now>=882&&tick.slot<expected;
