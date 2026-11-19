@@ -1,21 +1,31 @@
 const shareRequest = (() => {
   const host = 'https://tuoshui-portfolio-view.pages.dev';
+  const storageKey = 'tuoshui.viewer.session';
   let session = '';
+  try { session = sessionStorage.getItem(storageKey) || ''; } catch {}
+  function remember(value) {
+    session = value;
+    try {
+      if (value) sessionStorage.setItem(storageKey, value);
+      else sessionStorage.removeItem(storageKey);
+    } catch {}
+  }
   return async (path, options = {}) => {
     const headers = new Headers(options.headers);
     if (path !== '/api/login') {
       if (!session) return new Response(null, {status: 401});
       headers.set('Authorization', 'Bearer ' + session);
     }
+    if (path === '/api/logout') remember('');
     const reply = await fetch(host + path.replace('/api/', '/share/'), {
       ...options, headers, cache: 'no-store', credentials: 'omit', redirect: 'error',
     });
     if (path === '/api/login' && reply.ok) {
       const data = await reply.json();
       if (!/^[a-f0-9]{64}$/.test(data.session)) throw Error('登录响应异常');
-      session = data.session;
+      remember(data.session);
     } else if (reply.status === 401 || (path === '/api/logout' && reply.ok)) {
-      session = '';
+      remember('');
     }
     return reply;
   };
@@ -33,9 +43,11 @@ let pool=[],poolDay='';
 function showPool(){const query=el('poolFilter').value.trim().toLowerCase();const rows=pool.filter(x=>(x.name+x.code+x.title).toLowerCase().includes(query));table('pool',['股票','最近提及','文章'],rows.map(x=>[x.name+' '+x.code,x.time,x.title]));if(!rows.length)el('pool').textContent='没有匹配的股票或文章'}
 el('poolFilter').oninput=showPool;
 async function refresh(){
- if(busy)return;busy=true;try{
- const res=await shareRequest('/api/board',{cache:'no-store'});
- if(res.status===401){el('board').hidden=true;el('login').hidden=false;return}
+ if(busy)return;busy=true;el('loadRetry').hidden=true;
+ if(el('board').hidden)el('error').textContent='正在读取持仓和最新调仓记录…';
+ try{
+ const res=await shareRequest('/api/board',{cache:'no-store',signal:AbortSignal.timeout(90000)});
+ if(res.status===401){el('board').hidden=true;el('login').hidden=false;el('error').textContent='';return}
  if(!res.ok)throw Error('最新数据暂不可用，请稍后刷新。');const d=await res.json();
  el('error').textContent='';el('board').hidden=false;el('login').hidden=true;
  el('asof').textContent=d.as_of;el('nav').textContent=d.nav.toFixed(4);el('stage').textContent=st[d.stage];el('weight').textContent=pct(d.exposure);
@@ -50,7 +62,22 @@ async function refresh(){
  table('holdings',['股票','代码','类别','收盘权重','最近报价','行情时间'],d.holdings.map(x=>[x.name,x.code,role[x.kind],pct(x.weight),x.price??'待更新',x.quote_time?x.quote_time.slice(4,6)+'-'+x.quote_time.slice(6,8)+' '+x.quote_time.slice(8,10)+':'+x.quote_time.slice(10,12):'—']));table('orders',['日期','股票','类别','方向','权重变化'],[...d.orders].reverse().map(x=>[x.date,x.name,role[x.kind],x.weight>0?'买入':'卖出',pct(x.weight)]));
  const a=d.history.map(x=>Math.log(x[1])),lo=Math.min(...a),hi=Math.max(...a),line=a.map((v,i)=>[(8+i/(a.length-1)*784).toFixed(1),(160-150*(v-lo)/(hi-lo||1)).toFixed(1)].join(',')).join(' '),svg=el('chart');
  svg.replaceChildren();const poly=document.createElementNS('http://www.w3.org/2000/svg','polyline');poly.setAttribute('fill','none');poly.setAttribute('stroke','#356d55');poly.setAttribute('stroke-width','2');poly.setAttribute('points',line);svg.append(poly);el('range').textContent=d.history[0][0]+' 至 '+d.as_of+' · 对数刻度';
- }catch(e){el('error').textContent='刷新失败。已显示的数据以标注的日期和时间为准。'}finally{busy=false}
+ }catch(e){el('error').textContent=el('board').hidden?'暂时未能读取持仓，可以重试。':'刷新未完成，当前数据的时间见上方。';el('loadRetry').hidden=false}finally{busy=false}
 }
-el('login').onsubmit=async e=>{e.preventDefault();try{const r=await shareRequest('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:el('pass').value})});if(!r.ok){el('loginStatus').textContent=r.status===429?'尝试次数较多，请稍后再试':'密码错误或服务暂不可用';return}el('pass').value='';el('loginStatus').textContent='';await refresh()}catch{el('loginStatus').textContent='连接失败'}};
-el('logout').onclick=async()=>{const r=await shareRequest('/api/logout',{method:'POST'});if(r.ok)location.reload()};el('refresh').onclick=refresh;refresh();setInterval(()=>{if(!document.hidden&&!el('board').hidden)refresh()},30000);
+el('login').onsubmit=async e=>{
+ e.preventDefault();
+ const button=el('login').querySelector('button'),status=el('loginStatus');
+ if(button.disabled)return;
+ button.disabled=true;status.textContent='正在验证密码…';
+ try{
+  const r=await shareRequest('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:el('pass').value}),signal:AbortSignal.timeout(90000)});
+  if(!r.ok){
+   if(r.status===429){const seconds=Number(r.headers.get('Retry-After'));status.textContent=seconds>0?'登录次数已达上限，请在 '+Math.ceil(seconds/60)+' 分钟后重试。':'登录次数已达上限，请稍后重试。'}
+   else status.textContent=r.status===401?'密码错误，请重新输入。':'登录服务暂时不可用，请重试。';
+   return;
+  }
+  el('pass').value='';status.textContent='';el('login').hidden=true;await refresh();
+ }catch{status.textContent='未能连接登录服务，请重试。'}finally{button.disabled=false}
+};
+el('logout').onclick=async()=>{try{await shareRequest('/api/logout',{method:'POST',signal:AbortSignal.timeout(15000)})}finally{location.reload()}};
+el('refresh').onclick=refresh;el('loadRetry').onclick=refresh;refresh();setInterval(()=>{if(!document.hidden&&!el('board').hidden)refresh()},30000);
