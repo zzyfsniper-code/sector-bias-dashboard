@@ -48,15 +48,29 @@ function recentOrders(){
     if(!rows.length)empty(body,6);
     $('recentOrders').scrollTop=0;
 }
-function overview(){const date=$('snapshotDate').value,rows=[...(data.holdings[date]||[])].sort((a,b)=>b.weight-a.weight),s=data.series.find(x=>x.date===date),b=$('holdings');b.replaceChildren();$('holdingCount').textContent=rows.length+'只';for(const r of rows){const tr=el('tr');tr.append(stockCell(r.code,r.name));const td=el('td');td.append(el('span',roles[r.role]||r.role,'badge '+(r.role==='dividend'?'defensive':r.role)));tr.append(td);cell(tr,pct(r.weight),'num');cell(tr,r.entry);cell(tr,num(r.price),'num');cell(tr,pct(r.pnl),'num '+(r.pnl>=0?'up':'down'));cell(tr,r.in_pool?'池内':'已退池 · 延续持有');b.append(tr)}if(!rows.length)empty(b,7);$('stage').textContent=date+' · '+stages[s.stage];$('allocation').replaceChildren();[['趋势仓',s.legacy_exposure,'#91392d'],['红利低波',s.style_exposure,'#467367'],['进攻仓',s.attack_exposure,'#b98d49'],['现金',1-s.exposure,'#c6c9cb']].forEach(([name,v,color])=>{const row=el('div',undefined,'alloc-row'),label=el('div',undefined,'alloc-label'),bar=el('div',undefined,'bar'),fill=el('i');label.append(el('span',name),el('strong',pct(v)));fill.style.width=Math.max(0,Math.min(100,v*100))+'%';fill.style.background=color;bar.append(fill);row.append(label,bar);$('allocation').append(row)});recentOrders()}
+function overview(){const date=$('snapshotDate').value,rows=[...(data.holdings[date]||[])].sort((a,b)=>b.weight-a.weight),s=data.series.find(x=>x.date===date),b=$('holdings');b.replaceChildren();$('holdingCount').textContent=rows.length+'只';for(const r of rows){const tr=el('tr');tr.append(stockCell(r.code,r.name));const td=el('td');td.append(el('span',roles[r.role]||r.role,'badge '+(r.role==='dividend'?'defensive':r.role)));tr.append(td);cell(tr,pct(r.weight),'num');cell(tr,r.entry);cell(tr,num(r.price),'num');cell(tr,pct(r.pnl),'num '+(r.pnl>=0?'up':'down'));cell(tr,r.in_pool?'池内':'已退池 · 延续持有');b.append(tr)}if(!rows.length)empty(b,7);renderAllocation(date,s);recentOrders()}
+function renderAllocation(date,s){
+ const bar=$('allocationBar'),list=$('allocation');
+ $('stage').textContent=(bar?'收盘快照　':'')+date+' · '+stages[s.stage];
+ list.replaceChildren();if(bar)bar.replaceChildren();
+ [['趋势仓',s.legacy_exposure,'#91392d'],['红利低波',s.style_exposure,'#467367'],['进攻仓',s.attack_exposure,'#b98d49'],['现金',1-s.exposure,'#c6c9cb']].forEach(([name,v,color])=>{
+   if(bar){
+     const segment=el('i'),item=el('span'),dot=el('i');
+     segment.style.width=Math.max(0,Math.min(100,v*100))+'%';segment.style.backgroundColor=color;bar.append(segment);
+     dot.style.backgroundColor=color;item.append(dot,el('span',name),el('strong',pct(v)));list.append(item);
+   }else{const row=el('div',undefined,'alloc-row'),label=el('div',undefined,'alloc-label'),bar=el('div',undefined,'bar'),fill=el('i');label.append(el('span',name),el('strong',pct(v)));fill.style.width=Math.max(0,Math.min(100,v*100))+'%';fill.style.background=color;bar.append(fill);row.append(label,bar);$('allocation').append(row)}
+ });
+}
 function pool(){const query=$('poolSearch').value.trim().toLowerCase(),scope=$('poolScope').value,rows=data.pool.filter(r=>(r.code+r.name+(r.last_article_title||'')).toLowerCase().includes(query)&&(scope==='all'||scope==='held'&&r.held||scope==='candidate'&&(r.defensive||r.attack||r.trend))),body=$('poolRows');body.replaceChildren();for(const r of rows){const tr=el('tr');tr.dataset.code=r.code;tr.append(stockCell(r.code,r.name));cell(tr,r.held?'持仓':r.signal);cell(tr,r.trend?'符合':'—');cell(tr,r.defensive?'符合':'—');cell(tr,r.attack?'符合':'—');cell(tr,num(r.price),'num');cell(tr,r.can_buy?'可买':'受限');cell(tr,r.last_published_ts?new Date(r.last_published_ts*1000).toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}):'—');const article=el('td',undefined,'article-title');article.append(el('span',r.last_article_title||'文章标题暂缺'),el('small','文章 '+r.last_article_id));tr.append(article);body.append(tr)}if(!rows.length)empty(body,9);$('poolMatch').textContent='显示 '+rows.length+' / '+data.pool.length+' 只'}
 function orders(){const query=$('orderSearch').value.trim().toLowerCase(),from=$('orderFrom').value,to=$('orderTo').value,side=$('orderSide').value,rows=data.orders.filter(r=>(r.ts_code+r.name).toLowerCase().includes(query)&&(!from||r.date>=from)&&(!to||r.date<=to)&&(!side||r.side===side)).slice().reverse(),pages=Math.max(1,Math.ceil(rows.length/40));orderPage=Math.min(orderPage,pages-1);const body=$('orderRows');body.replaceChildren();for(const r of rows.slice(orderPage*40,(orderPage+1)*40)){const tr=el('tr');cell(tr,r.date.slice(0,10));tr.append(stockCell(r.ts_code,r.name));cell(tr,orderAction(r),r.side==='buy'?'up':'down');cell(tr,pct(r.weight_change),'num');cell(tr,num(r.raw_close),'num');cell(tr,r.in_pool?'是':'否');body.append(tr)}if(!rows.length)empty(body,6);$('orderCount').textContent=rows.length+' 笔流水 · 第 '+(orderPage+1)+' / '+pages+' 页';$('previous').disabled=orderPage===0;$('next').disabled=orderPage>=pages-1;if($('lastPage')){$('firstPage').disabled=orderPage===0;$('lastPage').disabled=orderPage>=pages-1;$('lastPage').onclick=()=>{orderPage=pages-1;orders()}}}
 function chart(){
     if(!data||!$('navChart').offsetWidth)return;
-    const cursor=chartRows[chartIndex]?.date||$('snapshotDate').value,range=$('period').value,start=range==='all'?null:new Date(new Date(data.as_of).valueOf()-Number(range)*864e5);
-    chartRows=data.series.filter(x=>!start||new Date(x.date)>=start);
+    const cursor=chartRows[chartIndex]?.date||$('snapshotDate').value,option=$('period').selectedOptions[0],range=option.value;
+    const start=range==='custom'?option.dataset.from:range==='all'?'':new Date(Date.parse(data.as_of)-Number(range)*864e5).toISOString().slice(0,10);
+    const end=range==='custom'?option.dataset.to:data.as_of;
+    chartRows=data.series.filter(x=>x.date>=start&&x.date<=end);
     if(!chartRows.length){$('chartTip').textContent='此范围没有记录';return}
-    chartIndex=chartRows.findIndex(r=>r.date===cursor);if(chartIndex<0)chartIndex=chartRows.length-1;
+    chartIndex=chartRows.findIndex(r=>r.date===cursor);if(chartIndex<0)chartIndex=cursor<chartRows[0].date?0:chartRows.length-1;
     const a=chartRows[0],current=chartRows[chartIndex],values=chartRows.flatMap(r=>[r.nav/a.nav,r.benchmark_nav/a.benchmark_nav]);
     $('chartTip').textContent=current.date+' · 全期净值 '+current.nav.toFixed(4)+' · 实际仓位 '+pct(current.exposure);
     $('navValue').textContent=(current.nav/a.nav).toFixed(4);$('drawdownValue').textContent=pct(current.drawdown)+' / '+pct(current.max_drawdown);$('regimeValue').textContent=stages[current.stage];$('holdingsValue').textContent=current.holdings+' 只';
@@ -87,14 +101,58 @@ function inspectChart(event,commit=false){if(!chartRows.length)return;const box=
 function snapshotChanged(){overview();const date=$('snapshotDate').value;if(!chartRows.some(r=>r.date===date))$('period').value='all';chartRows=[];chartIndex=-1;chart()}
 document.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===button));document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==button.dataset.tab);chart()});$('snapshotDate').onchange=snapshotChanged;$('period').onchange=chart;['poolSearch','poolScope'].forEach(id=>$(id).oninput=pool);['orderSearch','orderFrom','orderTo','orderSide'].forEach(id=>$(id).oninput=()=>{orderPage=0;orders()});$('previous').onclick=()=>{orderPage--;orders()};$('next').onclick=()=>{orderPage++;orders()};$('downloadPool').onclick=()=>download('股票池_'+data.as_of+'.csv',data.pool);$('downloadOrders').onclick=()=>download('调仓历史.csv',data.orders);window.addEventListener('resize',chart);for(const id of chartIds){const canvas=$(id);canvas.onpointermove=e=>inspectChart(e);canvas.onclick=e=>inspectChart(e,true);canvas.onkeydown=e=>{if(!chartRows.length)return;if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();chartIndex=e.key==='Home'?0:e.key==='End'?chartRows.length-1:Math.max(0,Math.min(chartRows.length-1,chartIndex+(e.key==='ArrowRight'?1:-1)));chart()}else if(e.key==='Enter'){e.preventDefault();$('snapshotDate').value=chartRows[chartIndex].date;overview()}}}
 
+const rangeControls=[...document.querySelectorAll('.time-range')].map(box=>({
+ rail:box.querySelector('.range-rail'),start:box.querySelector('.range-start'),end:box.querySelector('.range-end'),
+ selection:box.querySelector('.range-selection'),dates:box.querySelector('output'),reset:box.querySelector('button')
+}));
+const period=$('period'),custom=period.querySelector('[value="custom"]');
+let lastSeries,lastFirst,lastEnd;
+function syncTimeRanges(){
+ if(!chartRows.length)return;
+ const first=chartRows[0],end=chartRows.at(-1),series=data.series;
+ if(series===lastSeries&&first===lastFirst&&end===lastEnd)return;
+ lastSeries=series;lastFirst=first;lastEnd=end;
+ const max=series.length-1,lo=series.indexOf(first),hi=series.indexOf(end);
+ for(const c of rangeControls){
+   for(const [input,index] of [[c.start,lo],[c.end,hi]]){
+     input.max=max;input.value=index;input.disabled=max===0;input.setAttribute('aria-valuetext',series[index].date);
+   }
+   c.dates.textContent=first.date+' — '+end.date;c.reset.disabled=lo===0&&hi===max;
+   // Offset the thumbs by one diameter so both can be grabbed even on the same day.
+   const inset=fraction=>'calc('+100*fraction+'% + '+(11-44*fraction)+'px)';
+   c.selection.style.left=inset(lo/(max||1));c.selection.style.right=inset((max-hi)/(max||1));
+ }
+}
+for(const c of rangeControls){
+ function select(input){
+   if(!data)return;
+   if(input===c.start)input.value=Math.min(+input.value,+c.end.value);
+   else input.value=Math.max(+input.value,+c.start.value);
+   const lo=+c.start.value,hi=+c.end.value;
+   custom.dataset.from=data.series[lo].date;custom.dataset.to=data.series[hi].date;
+   period.value=lo===0&&hi===data.series.length-1?'all':'custom';
+   chart();
+ }
+ c.start.oninput=()=>select(c.start);c.end.oninput=()=>select(c.end);
+ c.reset.onclick=()=>{period.value='all';chart()};
+ c.rail.onclick=e=>{
+   if(e.target instanceof HTMLInputElement||!data||data.series.length<2)return;
+   const rect=c.rail.getBoundingClientRect(),x=e.clientX-rect.left,span=rect.width-44,max=data.series.length-1;
+   const left=11+span*c.start.value/max,right=33+span*c.end.value/max;
+   const input=x<(left+right)/2?c.start:c.end;
+   input.value=Math.round(max*(x-(input===c.start?11:33))/span);
+   input.focus({preventScroll:true});select(input);
+ };
+}
 const signalCanvas=$('marketChart');
-const switches=[...document.querySelectorAll('#marketSignals input')];
+const switches=[...document.querySelectorAll('#marketSignals input[type=checkbox]')];
 const signalStyles={
  macro:{title:'股债性价比',column:2,states:{'-1':['偏弱','#ae7150'],0:['中性','#dedbd2'],1:['偏强','#437767']}},
  trend:{title:'趋势',column:3,states:{true:['弱势','#ae7150'],false:['强势','#437767']}},
  rebound:{title:'反弹',column:4,states:{true:['触发','#a13733'],false:['未触发','#dedbd2']}}
 };
 window.drawMarketSignals=function(){
+ syncTimeRanges();
  const rows=chartRows,active=switches.filter(input=>input.checked).map(input=>input.value);
  const hasIndex=active.includes('index'),bands=active.filter(id=>id!=='index');
  const current=data?.signals?.get(rows[chartIndex]?.date);
@@ -163,6 +221,11 @@ signalCanvas.onpointermove=e=>inspectChart(e);
 signalCanvas.onclick=e=>inspectChart(e,true);
 signalCanvas.onkeydown=$('navChart').onkeydown;
 $('firstPage').onclick=()=>{orderPage=0;orders()};
+window.showCloseAllocation=function(d){
+ const weights={legacy:0,dividend:0,attack:0};
+ for(const h of d.holdings)weights[h.kind]+=h.weight;
+ renderAllocation(d.as_of,{stage:d.stage,exposure:d.exposure,legacy_exposure:weights.legacy,style_exposure:weights.dividend,attack_exposure:weights.attack});
+};
 window.setPortfolioArchive=function(a){
  const oldDate=$('snapshotDate').value,wasLatest=!data||oldDate===data.as_of;
  const series=a.series.map(([date,nav,benchmark_nav,drawdown,max_drawdown,stage,holdings,exposure,legacy_exposure,style_exposure,attack_exposure])=>
@@ -282,7 +345,7 @@ function update(d){
  if(!d.holdings.length)byId('quotes').textContent='该收盘日空仓';
  const e=d.economy_note;byId('economyMeta').hidden=!e;
  if(e)byId('economyMeta').textContent='中长期贷款同比 '+e.growth.toFixed(2)+'%（'+e.month+'）　十年期国债：中国 '+e.cn10.toFixed(2)+'%（'+e.cn_day+'），美国 '+e.us10.toFixed(2)+'%（'+e.us_day+'）';
- if(revision!==d.display_revision){revision=d.display_revision;byId('archivePanels').hidden=true}
+ if(revision!==d.display_revision){revision=d.display_revision;byId('archivePanels').hidden=true;window.showCloseAllocation(d)}
  void archive(d);
 }
 async function refresh(initial=null){
