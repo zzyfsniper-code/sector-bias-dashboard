@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src https://tuoshui-portfolio-view.pages.dev; base-uri 'none'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><link rel="preconnect" href="https://tuoshui-portfolio-view.pages.dev" crossorigin><link rel="icon" href="data:,"><link rel="stylesheet" href="./style.css?v=fba8173eec86"><script src="./app.js?v=4b9c6a80dda9" defer></script><title>脱水组合｜策略研究室</title></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src https://tuoshui-portfolio-view.pages.dev; base-uri 'none'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><link rel="preconnect" href="https://tuoshui-portfolio-view.pages.dev" crossorigin><link rel="icon" href="data:,"><link rel="stylesheet" href="./style.css?v=fba8173eec86"><script src="./app.js?v=9a8fbfc39664" defer></script><title>脱水组合｜策略研究室</title></head><body>
 <form id="login" class="access" hidden><h1>脱水组合</h1><p>输入访问密码查看持仓与调仓记录。</p><label for="pass">访问密码</label><input id="pass" type="password" autocomplete="current-password" required><button class="primary">进入看板</button><p id="loginStatus" role="status"></p></form>
 <main id="board" hidden><section class="lab-hero"><div><div class="eyebrow">组合跟踪</div><h1>脱水组合</h1><p>收盘模拟组合与盘中预计调仓</p></div><div class="headline-data"><div><span>最近确认收盘</span><strong id="asof"></strong></div><div><span>组合净值</span><strong id="nav"></strong></div></div></section>
 <section id="metrics" class="metrics" aria-label="组合指标"></section><p id="closeProgress" class="notice" hidden></p>
@@ -21,7 +21,7 @@
 <div class="chart-label"><h3>大势判断综合信号</h3><strong id="regimeValue"></strong></div><div class="chart regime-chart"><canvas id="regimeChart" tabindex="0" role="img" aria-label="强势、普通弱势、抄底阶段，左右方向键选择日期，回车查看持仓"></canvas></div><div class="legend regime-legend"><span class="strong-state">强势</span><span class="weak-state">普通弱势</span><span class="dip-state">抄底</span></div>
 <div class="chart-label"><h3>持仓个股数量</h3><strong id="holdingsValue"></strong></div><div class="chart compact-chart"><canvas id="holdingsChart" tabindex="0" role="img" aria-label="每日收盘持仓股票数量，左右方向键选择日期，回车查看持仓"></canvas></div><p class="footnote">四图按同一日期联动；回撤始终相对全历史净值高点，缩短区间不重置。持股数为当日收盘调仓后数量。也可聚焦图表后使用←／→，回车同步持仓快照。</p></article>
 <article class="card" id="marketSignals">
-  <div class="card-head"><div><h2>中证全指与大势信号</h2><p>按交易日收盘 · 点击图中日期查看当日持仓</p></div></div>
+  <div class="card-head"><div><h2>中证全指与大势信号</h2><p>指数图底色表示股债性价比，线色表示趋势，红色描边表示反弹区间。点选切换标记可查看当天持仓。</p></div></div>
   <fieldset class="signal-switches"><legend>显示图层</legend>
     <label><input type="checkbox" value="index" checked>中证全指</label>
     <label><input type="checkbox" value="macro" checked>股债性价比信号</label>
@@ -29,7 +29,7 @@
     <label><input type="checkbox" value="rebound" checked>反弹信号</label>
   </fieldset>
   <output id="signalReadout" class="chart-readout"></output>
-  <canvas id="marketChart" tabindex="0" role="img" aria-label="中证全指收盘点位与所选信号。左右键选择日期，回车查看当日持仓。"></canvas>
+  <canvas id="marketChart" tabindex="0" role="img" aria-label="中证全指收盘点位与股债、趋势、反弹信号叠加图。左右键选择日期，回车查看当日持仓。"></canvas>
   <p class="footnote" id="signalLegend"></p>
   <div class="time-range" role="group" aria-label="大势时间区间">
     <div class="range-caption"><span>时间区间</span><output></output><button type="button" class="range-reset">全期</button></div>

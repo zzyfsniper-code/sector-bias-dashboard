@@ -151,8 +151,39 @@ const signalStyles={
  trend:{title:'趋势',column:3,states:{true:['弱势','#ae7150'],false:['强势','#437767']}},
  rebound:{title:'反弹',column:4,states:{true:['触发','#a13733'],false:['未触发','#dedbd2']}}
 };
+let signalMarks=[];
+function forRuns(points,column,draw){
+ let start=0;
+ for(let end=1;end<=points.length;end++){
+   const state=points[start][column];
+   if(end<points.length&&points[end][column]===state)continue;
+   draw(start,end,state);start=end;
+ }
+}
+function drawSwitchMarks(ctx,marks,left,right,top,bottom){
+ const boxes=[];
+ // Label the inspected date first when several changes occupy the same part of the plot.
+ const ordered=[...marks.filter(m=>m.i===chartIndex),...marks.filter(m=>m.i!==chartIndex)];
+ for(const m of ordered){
+   const w=ctx.measureText(m.label).width+6,h=15;
+   const x=Math.max(left,Math.min(m.x-w/2,right-w));
+   for(const y of [m.y-h-7,m.y+7]){
+     if(y<top||y+h>bottom||boxes.some(b=>x<b.x+b.w+3&&x+w+3>b.x&&y<b.y+b.h+2&&y+h+2>b.y))continue;
+     ctx.fillStyle='#fffdf8eb';ctx.fillRect(x,y,w,h);ctx.fillStyle='#34424a';ctx.fillText(m.label,x+3,y+11);
+     boxes.push({x,y,w,h});break;
+   }
+ }
+ for(const m of marks){
+   ctx.beginPath();
+   if(m.id==='trend'){ctx.moveTo(m.x,m.y-5);ctx.lineTo(m.x+5,m.y);ctx.lineTo(m.x,m.y+5);ctx.lineTo(m.x-5,m.y);ctx.closePath()}
+   else if(m.id==='rebound'){ctx.moveTo(m.x,m.y-5);ctx.lineTo(m.x+5,m.y+4);ctx.lineTo(m.x-5,m.y+4);ctx.closePath()}
+   else ctx.arc(m.x,m.y,4,0,Math.PI*2);
+   ctx.fillStyle=m.color;ctx.fill();ctx.lineWidth=1.2;ctx.strokeStyle='#374148';ctx.stroke();
+ }
+}
 window.drawMarketSignals=function(){
  syncTimeRanges();
+ signalMarks=[];
  const rows=chartRows,active=switches.filter(input=>input.checked).map(input=>input.value);
  const hasIndex=active.includes('index'),bands=active.filter(id=>id!=='index');
  const current=data?.signals?.get(rows[chartIndex]?.date);
@@ -178,7 +209,8 @@ window.drawMarketSignals=function(){
    legend.dataset.layers=legendKey;
  }
  signalCanvas.hidden=false;
- const height=(hasIndex?156:0)+bands.length*26+37;
+ const pricePanel=194,plotHeight=160;
+ const height=(hasIndex?pricePanel:0)+bands.length*26+37;
  signalCanvas.style.height=height+'px';
  const width=signalCanvas.clientWidth;if(width<80)return;
  const ratio=window.devicePixelRatio||1;
@@ -188,28 +220,52 @@ window.drawMarketSignals=function(){
  const ctx=signalCanvas.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);
  const left=48,right=width-14,step=(right-left)/Math.max(1,rows.length-1),x=i=>left+i*step;
  const points=rows.map(r=>data.signals.get(r.date));
+ const edge=i=>i===0?left:i===points.length?right:x(i)-step/2;
  let top=12;ctx.font='11px system-ui';ctx.textAlign='left';ctx.lineWidth=1;
  if(hasIndex){
    const values=points.map(v=>v[1]),low=Math.min(...values),high=Math.max(...values);
-   const y=v=>top+126*(high-v)/(high-low||1);
+   const y=v=>top+plotHeight*(high===low ? 0.5 : (high-v)/(high-low));
+   if(bands.includes('macro'))forRuns(points,2,(start,end,state)=>{
+     if(!state)return;
+     ctx.fillStyle=state>0?'#dceae2':'#f5e4d7';ctx.fillRect(edge(start),top,edge(end)-edge(start),plotHeight);
+   });
    for(let t=0;t<=2;t++){
      const value=low+(high-low)*t/2;ctx.fillStyle='#57656b';ctx.fillText(value.toFixed(0),0,y(value)+4);
      ctx.strokeStyle='#e3dfd5';ctx.beginPath();ctx.moveTo(left,y(value));ctx.lineTo(right,y(value));ctx.stroke();
    }
-   ctx.strokeStyle='#365b75';ctx.lineWidth=1.6;ctx.beginPath();
-   values.forEach((v,i)=>{if(i)ctx.lineTo(x(i),y(v));else ctx.moveTo(x(i),y(v))});ctx.stroke();
+   function strokeRun(start,end,color,lineWidth){
+     ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.beginPath();
+     if(start>0)ctx.moveTo(edge(start),(y(values[start-1])+y(values[start]))/2);else ctx.moveTo(x(start),y(values[start]));
+     for(let i=start;i<end;i++)ctx.lineTo(x(i),y(values[i]));
+     if(end<values.length)ctx.lineTo(edge(end),(y(values[end-1])+y(values[end]))/2);
+     ctx.stroke();
+   }
+   ctx.lineJoin='round';
+   if(bands.includes('rebound'))forRuns(points,4,(start,end,on)=>{if(on)strokeRun(start,end,'#da8580',6)});
+   if(bands.includes('trend'))forRuns(points,3,(start,end,weak)=>strokeRun(start,end,signalStyles.trend.states[weak][1],1.8));
+   else strokeRun(0,points.length,'#365b75',1.6);
+   // Check the preceding trading day even when the slider starts at a transition.
+   const prior=data.series[data.series.indexOf(rows[0])-1];
+   let previous=prior?data.signals.get(prior.date):null;
+   points.forEach((point,i)=>{
+     const changed=previous?bands.filter(id=>point[signalStyles[id].column]!==previous[signalStyles[id].column]):[];
+     changed.forEach((id,j)=>{
+       const layer=signalStyles[id],state=point[layer.column],[name,color]=layer.states[state];
+       const label=id==='macro'?'股债'+name:id==='trend'?'趋势'+name:state?'反弹开启':'反弹结束';
+       const markY=y(point[1])+(j-(changed.length-1)/2)*11;
+       signalMarks.push({i,id,label,color,x:x(i),y:markY});
+     });
+     previous=point;
+   });
    ctx.fillStyle='#365b75';ctx.beginPath();ctx.arc(x(chartIndex),y(current[1]),3,0,Math.PI*2);ctx.fill();
-   top+=156;
+   drawSwitchMarks(ctx,signalMarks,left,right,top,top+plotHeight);
+   top+=pricePanel;
  }
  for(const id of bands){
    const band=signalStyles[id];ctx.fillStyle='#445158';ctx.fillText(id==='macro'?'股债':band.title,2,top+13);
-   let start=0;
-   for(let i=1;i<=points.length;i++){
-     const state=points[start][band.column];
-     if(i<points.length&&points[i][band.column]===state)continue;
-     const begin=start===0?left:x(start)-step/2,end=i===points.length?right:x(i)-step/2;
-     ctx.fillStyle=band.states[state][1];ctx.fillRect(begin,top,Math.max(.5,end-begin),17);start=i;
-   }
+   forRuns(points,band.column,(start,end,state)=>{
+     ctx.fillStyle=band.states[state][1];ctx.fillRect(edge(start),top,Math.max(.5,edge(end)-edge(start)),17);
+   });
    top+=26;
  }
  ctx.lineWidth=1;ctx.strokeStyle='#84634c';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x(chartIndex),8);ctx.lineTo(x(chartIndex),top-4);ctx.stroke();ctx.setLineDash([]);
@@ -217,8 +273,19 @@ window.drawMarketSignals=function(){
  signalCanvas.dataset.cursorDate=current[0];signalCanvas.dataset.layers=legendKey;
 };
 for(const input of switches)input.onchange=()=>window.drawMarketSignals();
-signalCanvas.onpointermove=e=>inspectChart(e);
-signalCanvas.onclick=e=>inspectChart(e,true);
+function inspectSignal(e,commit){
+ const box=signalCanvas.getBoundingClientRect(),px=e.clientX-box.left,py=e.clientY-box.top;
+ let nearest=null,radius=e.pointerType==='touch'?12:7;
+ for(const m of signalMarks){
+   const distance=Math.hypot(m.x-px,m.y-py);
+   if(distance<=radius){nearest=m;radius=distance}
+ }
+ if(!nearest){inspectChart(e,commit);return}
+ chartIndex=nearest.i;chart();
+ if(commit){$('snapshotDate').value=chartRows[chartIndex].date;overview()}
+}
+signalCanvas.onpointermove=e=>inspectSignal(e,false);
+signalCanvas.onclick=e=>inspectSignal(e,true);
 signalCanvas.onkeydown=$('navChart').onkeydown;
 $('firstPage').onclick=()=>{orderPage=0;orders()};
 window.showCloseAllocation=function(d){
