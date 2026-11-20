@@ -81,11 +81,87 @@ function chart(){
         ctx.strokeStyle='#b1896d';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(xx(chartIndex),t);ctx.lineTo(xx(chartIndex),t+h);ctx.stroke();ctx.setLineDash([]);
         ctx.fillStyle='#727b85';ctx.fillText(a.date,l,box.height-4);ctx.fillText(chartRows.at(-1).date,box.width-76,box.height-4);
     }
+    window.drawMarketSignals?.();
 }
 function inspectChart(event,commit=false){if(!chartRows.length)return;const box=event.currentTarget.getBoundingClientRect();chartIndex=Math.round(Math.max(0,Math.min(1,(event.clientX-box.left-48)/(box.width-62)))*(chartRows.length-1));chart();if(commit){$('snapshotDate').value=chartRows[chartIndex].date;overview()}}
 function snapshotChanged(){overview();const date=$('snapshotDate').value;if(!chartRows.some(r=>r.date===date))$('period').value='all';chartRows=[];chartIndex=-1;chart()}
 document.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===button));document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==button.dataset.tab);chart()});$('snapshotDate').onchange=snapshotChanged;$('period').onchange=chart;['poolSearch','poolScope'].forEach(id=>$(id).oninput=pool);['orderSearch','orderFrom','orderTo','orderSide'].forEach(id=>$(id).oninput=()=>{orderPage=0;orders()});$('previous').onclick=()=>{orderPage--;orders()};$('next').onclick=()=>{orderPage++;orders()};$('downloadPool').onclick=()=>download('股票池_'+data.as_of+'.csv',data.pool);$('downloadOrders').onclick=()=>download('调仓历史.csv',data.orders);window.addEventListener('resize',chart);for(const id of chartIds){const canvas=$(id);canvas.onpointermove=e=>inspectChart(e);canvas.onclick=e=>inspectChart(e,true);canvas.onkeydown=e=>{if(!chartRows.length)return;if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();chartIndex=e.key==='Home'?0:e.key==='End'?chartRows.length-1:Math.max(0,Math.min(chartRows.length-1,chartIndex+(e.key==='ArrowRight'?1:-1)));chart()}else if(e.key==='Enter'){e.preventDefault();$('snapshotDate').value=chartRows[chartIndex].date;overview()}}}
 
+const signalCanvas=$('marketChart');
+const switches=[...document.querySelectorAll('#marketSignals input')];
+const signalStyles={
+ macro:{title:'股债性价比',column:2,states:{'-1':['偏弱','#ae7150'],0:['中性','#dedbd2'],1:['偏强','#437767']}},
+ trend:{title:'趋势',column:3,states:{true:['弱势','#ae7150'],false:['强势','#437767']}},
+ rebound:{title:'反弹',column:4,states:{true:['触发','#a13733'],false:['未触发','#dedbd2']}}
+};
+window.drawMarketSignals=function(){
+ const rows=chartRows,active=switches.filter(input=>input.checked).map(input=>input.value);
+ const hasIndex=active.includes('index'),bands=active.filter(id=>id!=='index');
+ const current=data?.signals?.get(rows[chartIndex]?.date);
+ const readout=$('signalReadout'),legend=$('signalLegend');
+ if(!current||!active.length){
+   readout.textContent=current?'勾选上方任一项即可显示。':'该收盘账本尚无分项信号。';
+   signalCanvas.hidden=true;legend.replaceChildren();return;
+ }
+ const names=[current[0]];
+ if(hasIndex)names.push('中证全指 '+current[1].toFixed(2)+' 点');
+ for(const id of bands){
+   const band=signalStyles[id];names.push(band.title+' '+band.states[current[band.column]][0]);
+ }
+ readout.textContent=names.join(' · ');
+ const labels=new Map();
+ for(const id of bands)for(const [name,color] of Object.values(signalStyles[id].states))labels.set(name,color);
+ const legendKey=active.join(',');
+ if(legend.dataset.layers!==legendKey||!legend.hasChildNodes()){
+   legend.replaceChildren();
+   for(const [name,color] of labels){
+     const item=el('span',name),dot=el('i');dot.style.background=color;item.prepend(dot);legend.append(item);
+   }
+   legend.dataset.layers=legendKey;
+ }
+ signalCanvas.hidden=false;
+ const height=(hasIndex?156:0)+bands.length*26+37;
+ signalCanvas.style.height=height+'px';
+ const width=signalCanvas.clientWidth;if(width<80)return;
+ const ratio=window.devicePixelRatio||1;
+ if(signalCanvas.width!==Math.round(width*ratio)||signalCanvas.height!==Math.round(height*ratio)){
+   signalCanvas.width=Math.round(width*ratio);signalCanvas.height=Math.round(height*ratio);
+ }
+ const ctx=signalCanvas.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);
+ const left=48,right=width-14,step=(right-left)/Math.max(1,rows.length-1),x=i=>left+i*step;
+ const points=rows.map(r=>data.signals.get(r.date));
+ let top=12;ctx.font='11px system-ui';ctx.textAlign='left';ctx.lineWidth=1;
+ if(hasIndex){
+   const values=points.map(v=>v[1]),low=Math.min(...values),high=Math.max(...values);
+   const y=v=>top+126*(high-v)/(high-low||1);
+   for(let t=0;t<=2;t++){
+     const value=low+(high-low)*t/2;ctx.fillStyle='#57656b';ctx.fillText(value.toFixed(0),0,y(value)+4);
+     ctx.strokeStyle='#e3dfd5';ctx.beginPath();ctx.moveTo(left,y(value));ctx.lineTo(right,y(value));ctx.stroke();
+   }
+   ctx.strokeStyle='#365b75';ctx.lineWidth=1.6;ctx.beginPath();
+   values.forEach((v,i)=>{if(i)ctx.lineTo(x(i),y(v));else ctx.moveTo(x(i),y(v))});ctx.stroke();
+   ctx.fillStyle='#365b75';ctx.beginPath();ctx.arc(x(chartIndex),y(current[1]),3,0,Math.PI*2);ctx.fill();
+   top+=156;
+ }
+ for(const id of bands){
+   const band=signalStyles[id];ctx.fillStyle='#445158';ctx.fillText(id==='macro'?'股债':band.title,2,top+13);
+   let start=0;
+   for(let i=1;i<=points.length;i++){
+     const state=points[start][band.column];
+     if(i<points.length&&points[i][band.column]===state)continue;
+     const begin=start===0?left:x(start)-step/2,end=i===points.length?right:x(i)-step/2;
+     ctx.fillStyle=band.states[state][1];ctx.fillRect(begin,top,Math.max(.5,end-begin),17);start=i;
+   }
+   top+=26;
+ }
+ ctx.lineWidth=1;ctx.strokeStyle='#84634c';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x(chartIndex),8);ctx.lineTo(x(chartIndex),top-4);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='#57656b';ctx.fillText(rows[0].date,left,height-6);ctx.textAlign='right';ctx.fillText(rows.at(-1).date,right,height-6);
+ signalCanvas.dataset.cursorDate=current[0];signalCanvas.dataset.layers=legendKey;
+};
+for(const input of switches)input.onchange=()=>window.drawMarketSignals();
+signalCanvas.onpointermove=e=>inspectChart(e);
+signalCanvas.onclick=e=>inspectChart(e,true);
+signalCanvas.onkeydown=$('navChart').onkeydown;
 $('firstPage').onclick=()=>{orderPage=0;orders()};
 window.setPortfolioArchive=function(a){
  const oldDate=$('snapshotDate').value,wasLatest=!data||oldDate===data.as_of;
@@ -100,7 +176,7 @@ window.setPortfolioArchive=function(a){
  const ledger=a.orders.map(([date,ts_code,name,side,weight_change,raw_close,in_pool,new_position,full_exit,reason])=>
    ({date,ts_code,name,side,weight_change,raw_close,in_pool,new_position,full_exit,reason}));
  const previousDay=data?.as_of;
- data={as_of:a.as_of,series,holdings,pool:stocks,orders:ledger};
+ data={as_of:a.as_of,series,holdings,pool:stocks,orders:ledger,signals:new Map((a.signals||[]).map(row=>[row[0],row]))};
  $('snapshotDate').replaceChildren(...series.slice().reverse().map(r=>new Option(r.date,r.date)));
  $('snapshotDate').value=wasLatest?a.as_of:oldDate;
  if(!$('snapshotDate').value)$('snapshotDate').value=a.as_of;
