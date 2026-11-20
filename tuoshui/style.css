@@ -26,6 +26,8 @@ a{color:var(--red)}.chart-readout{background:#f1ede5;color:var(--ink)}.paginatio
 .access h1{font-size:38px}.access>p{margin:10px 0;color:var(--muted)}.access label{display:block;margin:22px 0 6px}.access input,.access button{width:100%}.access button{margin:14px 0 0}.access #loginStatus{color:var(--red);min-height:20px}
 .lab-hero,.headline-data{display:flex;justify-content:space-between;align-items:end;gap:28px}.lab-hero{margin:5px 0 24px}.lab-hero p{margin-top:10px;color:var(--muted)}.headline-data span,.headline-data strong{display:block}.headline-data span{color:var(--muted);font-size:12px}.headline-data strong{font:600 27px Georgia,serif}.headline-data>div:last-child strong{color:var(--red)}
 .live-card h3{font-size:16px;margin:22px 0 8px}.live-card details{margin-top:12px}.live-card summary{cursor:pointer;color:var(--red);width:fit-content}
+.live-card #closeDecision{font-size:15px;color:var(--ink);font-weight:600}
+#estimateBlock>summary{font-size:16px;font-weight:600;color:var(--ink)}#allocationPreview{margin:8px 0 0;color:var(--muted);font-size:13px}
 .timestamps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 18px;border-block:1px solid var(--line);padding:12px 0;margin:0 0 10px}
 .timestamps dt{font-size:12px}.timestamps dd{font-weight:600;line-height:1.6}.connection:has(p:empty):has(button[hidden]){display:none}.connection{max-width:1232px;margin:16px auto;padding:0 16px;color:var(--red)}
 #archiveStatus:not(:empty){padding:12px 16px;background:#f6ecdc;margin-bottom:16px}footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:16px}footer span:first-child{margin-right:auto}.live-card p{overflow-wrap:anywhere}

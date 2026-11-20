@@ -48,7 +48,7 @@ function recentOrders(){
     if(!rows.length)empty(body,6);
     $('recentOrders').scrollTop=0;
 }
-function overview(){const date=$('snapshotDate').value,rows=[...(data.holdings[date]||[])].sort((a,b)=>b.weight-a.weight),s=data.series.find(x=>x.date===date),b=$('holdings');b.replaceChildren();$('holdingCount').textContent=rows.length+'只';for(const r of rows){const tr=el('tr');tr.append(stockCell(r.code,r.name));const td=el('td');td.append(el('span',roles[r.role]||r.role,'badge '+(r.role==='dividend'?'defensive':r.role)));tr.append(td);cell(tr,pct(r.weight),'num');cell(tr,r.entry);cell(tr,num(r.price),'num');cell(tr,pct(r.pnl),'num '+(r.pnl>=0?'up':'down'));cell(tr,r.in_pool?'池内':'已退池 · 延续持有');b.append(tr)}if(!rows.length)empty(b,7);renderAllocation(date,s);recentOrders()}
+function overview(){const date=$('snapshotDate').value,rows=[...(data.holdings[date]||[])].sort((a,b)=>b.weight-a.weight),s=data.series.find(x=>x.date===date),b=$('holdings');b.replaceChildren();$('holdingCount').textContent=rows.length+'只';for(const r of rows){const tr=el('tr');tr.append(stockCell(r.code,r.name));const td=el('td');td.append(el('span',roles[r.role]||r.role,'badge '+(r.role==='dividend'?'defensive':r.role)));tr.append(td);cell(tr,pct(r.weight),'num');cell(tr,r.entry);cell(tr,num(r.price),'num');cell(tr,pct(r.pnl),'num '+(r.pnl>=0?'up':'down'));cell(tr,r.in_pool?'池内':'已退池 · 延续持有');b.append(tr)}if(!rows.length)empty(b,7);recentOrders()}
 function renderAllocation(date,s){
  const bar=$('allocationBar'),list=$('allocation');
  $('stage').textContent=(bar?'收盘快照　':'')+date+' · '+stages[s.stage];
@@ -376,9 +376,17 @@ window.renderLiveTable=function(id,labels,rows){
  const body=tab.createTBody();for(const row of rows){const tr=body.insertRow();row.forEach((value,i)=>{
    const td=tr.insertCell();td.textContent=value;
    if(labels[i]==='当日涨跌幅')td.className=value.startsWith('+')?'up':value.startsWith('-')?'down':'';
+   if(labels[i]==='方向')td.className=['买入','加仓'].includes(value)?'up':'down';
  })}
 };
 let busy=false,revision='',shown='',loading='';
+function direction(before,after){
+ return after>before?(before<=1e-9?'买入':'加仓'):(after<=1e-9?'卖出':'减仓');
+}
+function countSides(orders,change){
+ const count=side=>new Set(orders.filter(o=>Math.sign(change(o))===side).map(o=>o.code)).size;
+ return '买方 '+count(1)+' 只、卖方 '+count(-1)+' 只';
+}
 function requestBoard(view){return shareRequest('/api/board?view='+view,{cache:'no-store',signal:AbortSignal.timeout(90000)})}
 function signedOut(){
  revision='';shown='';byId('archivePanels').hidden=true;byId('board').hidden=true;byId('logout').hidden=true;byId('login').hidden=false;
@@ -408,30 +416,65 @@ function update(d){
    ['最大回撤',percent(m.mdd)],['持仓数量',d.holdings.length+' 只'],['实际仓位',percent(d.exposure)],['基础股票池',d.pool_count+' 只']];
  byId('metrics').replaceChildren(...cards.map(([label,value])=>{const box=document.createElement('div');box.className='metric';const span=document.createElement('span'),strong=document.createElement('strong');span.textContent=label;strong.textContent=value;box.append(span,strong);return box}));
  const stamp=d.holdings.map(x=>x.quote_time).filter(Boolean).sort().at(-1);
- const last=d.ticks.at(-1),valid=d.ticks.filter(x=>x.status==='estimated').at(-1),min=d.server_minute;
+ const ticks=d.ticks.filter(x=>x.day===d.server_day);
+ const last=ticks.at(-1),valid=ticks.filter(x=>x.status==='estimated').at(-1),min=d.server_minute;
+ const confirmed=d.server_day===d.as_of,session=d.server_day===d.session;
+ const todayOrders=d.orders.filter(o=>o.date===d.as_of);
+ const names=stagesLive,estimate=valid?names[valid.stage]:'';
+ const official=names[d.stage],pending=session&&min>=900;
  byId('quoteAt').textContent=cnTime(stamp);byId('estimateAt').textContent=valid?cnTime(valid.generated):'今日暂无';
  byId('confirmedAt').textContent=cnTime(d.confirmed_at);byId('checkedAt').textContent=cnTime(d.checked_at);
  const live=d.server_day===d.session&&((min>=570&&min<=690)||(min>=780&&min<900));
  const stale=live&&(!d.quote_batch_at||Date.parse(d.checked_at)-Date.parse(d.quote_batch_at)>4*60000);
- byId('streamState').textContent=stagesLive[d.stage]+' · '+(live?(stale?'尚未收到最近一轮持仓行情，请核对每只股票的报价时间':'交易时段，持仓报价按本机采集批次更新'):d.server_day===d.session&&min<570?'尚未开盘，显示最近收盘或已取得的报价':d.server_day===d.as_of?'当日正式收盘已确认':'当前为非连续交易时段')+'。';
+ byId('streamState').textContent=live?(stale?'持仓行情更新延迟，请查看每只股票的报价时间。':'交易时段，持仓行情按本机采集批次更新。'):'';
  const steps={processing:'正在处理',daily:'等待股票日线',basic:'等待每日指标',limits:'等待涨跌停价',index:'等待基准指数',industry:'等待行业收盘',themes:'等待主题收盘',wind:'等待全指股息率',credit:'等待贷款数据',rates:'等待国债数据',articles:'等待脱水文章',upload:'等待上传',validation:'等待账本核对'};
  const notice=byId('closeProgress'),note=d.close_note;
- const wait=note&&note.day>d.as_of?note.day+' 正式收盘 · '+steps[note.step]+' · '+cnTime(note.asof):
-   d.server_day>=d.session&&(d.server_day>d.session||min>=902)?'等待本机上传新的正式收盘结果':'';
+ const wait=note&&note.day>d.as_of?note.day+' 正式收盘 · '+(steps[note.step]||'等待核对')+' · '+cnTime(note.asof):
+   pending||d.server_day>d.session?'等待本机上传 '+d.session+' 的正式收盘结果':'';
  notice.hidden=!wait;notice.textContent=wait;
+ const result=todayOrders.length?'已调仓 · '+countSides(todayOrders,o=>o.weight):'无需调仓';
+ const decision=confirmed?d.as_of+' 正式收盘已确认 · '+official+' · '+result:
+   session?d.server_day+(pending?' 已收盘，正式调仓待确认':' 正式调仓待收盘确认')+(valid?' · 盘中预计'+(valid.orders.length?'调仓，'+countSides(valid.orders,o=>o.after-o.before):'无需调仓'):''):
+   '最近确认 '+d.as_of+' · '+official+' · '+result+'。下一次待确认交易日 '+d.session;
+ byId('closeDecision').textContent=decision;
+ byId('holdingsTitle').textContent='已确认持仓与行情 · '+d.as_of+' · '+d.holdings.length+' 只';
+ byId('recentLedgerStatus').textContent=confirmed?d.as_of+' 正式收盘已确认 · '+result:
+   '正式流水更新至 '+d.as_of+(session?'。'+d.server_day+' 的调仓待收盘核对。':'。');
+ const preview=byId('allocationPreview');preview.hidden=confirmed||!valid;
+ if(!preview.hidden){
+   let text='盘中预计 '+cnTime(valid.generated).slice(11)+' · '+(official===estimate?estimate:official+' → '+estimate);
+   // All post-trade weights are known if every previous holding appears in this estimate.
+   const changed=new Set(valid.orders.map(o=>o.code));
+   if(d.holdings.every(h=>changed.has(h.code))){
+     const targets=valid.orders.filter(o=>o.after>1e-9);
+     const groups=['legacy','dividend','attack'].map(k=>[rolesLive[k],targets.filter(o=>o.kind===k).reduce((a,o)=>a+o.after,0)]);
+     groups.push(['现金',Math.max(0,1-targets.reduce((a,o)=>a+o.after,0))]);
+     text+=' · 预计持有 '+targets.length+' 只 · '+groups.filter(([,w])=>w>1e-9).map(([k,w])=>k+' '+percent(w)).join('、');
+   }
+   preview.textContent=text;
+ }
+ byId('confirmedTrades').hidden=!confirmed;
+ if(confirmed){
+   const held=new Map(d.holdings.map(h=>[h.code,h.weight]));
+   renderLiveTable('closeOrders',['股票','方向','权重变化','收盘后权重'],todayOrders.map(o=>{
+     const after=held.get(o.code)||0;
+     return [o.name+' '+o.code,direction(after-o.weight,after),(o.weight>0?'+':'')+percent(o.weight),percent(after)];
+   }));
+   if(!todayOrders.length)byId('closeOrders').textContent='正式账本当日没有调仓记录。';
+ }
+ const block=byId('estimateBlock'),mode=d.server_day+(confirmed?'-closed':'-open');
+ if(block.dataset.mode!==mode){block.open=!confirmed;block.dataset.mode=mode}
  let status='';let rows=[];
- if(last){
-   const when=cnTime(last.generated);
-   if(last.status==='estimated'){
-     rows=last.orders.map(x=>[x.name+' '+x.code,x.after>x.before?'买入':'卖出',percent(x.before),percent(x.after),dayChange(x.price,x.prev_close,x.ts,last.day),cnTime(x.ts)]);
-     status=when+' · '+(rows.length?'预计调仓 '+rows.length+' 只':'预计无需调仓');
-   }else status=when+' · 本轮未形成名单，'+last.reason;
-   if(min>=900)status+='（盘中记录）';
-   else if(last.slot<Math.min(898,2*Math.floor((min-1)/2)))status+=' · 最新一轮尚未收到';
- }else status=d.server_day===d.session?(min<880?'今日 14:40 开始产生预计调仓':'今日暂未收到预计调仓记录'):'今日暂无预计调仓记录。下一次已知交易日 '+d.session;
+ if(valid){
+   rows=valid.orders.map(x=>[x.name+' '+x.code,direction(x.before,x.after),percent(x.before),percent(x.after),dayChange(x.price,x.prev_close,x.ts,valid.day),cnTime(x.ts)]);
+   status=cnTime(valid.generated)+' · 预计'+estimate+' · '+(rows.length?'预计调仓 '+rows.length+' 只':'预计无需调仓');
+   if(last!==valid)status+='。随后一轮未形成名单，'+last.reason;
+   else if(live&&last.slot<Math.min(898,2*Math.floor((min-1)/2)))status+=' · 最新一轮尚未收到';
+ }else if(last)status=cnTime(last.generated)+' · 本轮未形成名单，'+last.reason;
+ else status=session&&min<880?'今日 14:40 开始产生预计调仓':'今日暂无预计调仓记录';
  byId('status').textContent=status;
  renderLiveTable('changes',['股票','方向','调仓前','预计调仓后','当日涨跌幅','估算用行情时间'],rows);
- renderLiveTable('ticks',['生成时间','行情截至','结果'],d.ticks.map(x=>[cnTime(x.generated),cnTime(x.asof),x.status==='estimated'?'完成 · '+x.orders.length+' 只':x.reason]));
+ renderLiveTable('ticks',['生成时间','行情截至','结果'],ticks.map(x=>[cnTime(x.generated),cnTime(x.asof),x.status==='estimated'?names[x.stage]+' · '+x.orders.length+' 只':x.reason]));
  renderLiveTable('quotes',['股票','代码','仓位身份','收盘权重','最近报价','当日涨跌幅','行情时间'],d.holdings.map(x=>[x.name,x.code,rolesLive[x.kind],percent(x.weight),x.price?.toFixed(2)??'—',dayChange(x.price,x.prev_close,x.quote_time,d.server_day),cnTime(x.quote_time)]));
  if(!d.holdings.length)byId('quotes').textContent='该收盘日空仓';
  const e=d.economy_note;byId('economyMeta').hidden=!e;
