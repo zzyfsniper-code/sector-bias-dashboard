@@ -167,19 +167,7 @@ function forRuns(points,column,draw){
    draw(start,end,state);start=end;
  }
 }
-function drawSwitchMarks(ctx,marks,left,right,top,bottom){
- const boxes=[];
- // Label the inspected date first when several changes occupy the same part of the plot.
- const ordered=[...marks.filter(m=>m.i===chartIndex),...marks.filter(m=>m.i!==chartIndex)];
- for(const m of ordered){
-   const w=ctx.measureText(m.label).width+6,h=15;
-   const x=Math.max(left,Math.min(m.x-w/2,right-w));
-   for(const y of [m.y-h-7,m.y+7]){
-     if(y<top||y+h>bottom||boxes.some(b=>x<b.x+b.w+3&&x+w+3>b.x&&y<b.y+b.h+2&&y+h+2>b.y))continue;
-     ctx.fillStyle='#fffdf8eb';ctx.fillRect(x,y,w,h);ctx.fillStyle='#34424a';ctx.fillText(m.label,x+3,y+11);
-     boxes.push({x,y,w,h});break;
-   }
- }
+function drawSwitchMarks(ctx,marks){
  for(const m of marks){
    ctx.beginPath();
    if(m.id==='trend'){ctx.moveTo(m.x,m.y-5);ctx.lineTo(m.x+5,m.y);ctx.lineTo(m.x,m.y+5);ctx.lineTo(m.x-5,m.y);ctx.closePath()}
@@ -285,15 +273,14 @@ window.drawMarketSignals=function(){
      points.forEach((point,i)=>{
        const changed=previous?bands.filter(id=>point[signalStyles[id].column]!==previous[signalStyles[id].column]):[];
        changed.forEach((id,j)=>{
-         const layer=signalStyles[id],state=point[layer.column],[name,color]=layer.states[state];
-         const label=id==='macro'?'股债'+name:id==='trend'?'趋势'+name:state?'反弹开启':'反弹结束';
+         const layer=signalStyles[id],color=layer.states[point[layer.column]][1];
          const markY=y(point[1])+(j-(changed.length-1)/2)*11;
-         signalMarks.push({i,id,label,color,x:x(i),y:markY});
+         signalMarks.push({i,id,color,x:x(i),y:markY});
        });
        previous=point;
      });
      ctx.fillStyle='#365b75';ctx.beginPath();ctx.arc(x(chartIndex),y(current[1]),3,0,Math.PI*2);ctx.fill();
-     drawSwitchMarks(ctx,signalMarks,left,right,top,top+plotHeight);
+     drawSwitchMarks(ctx,signalMarks);
    }
    top+=pricePanel;
  }
