@@ -152,6 +152,13 @@ const signalStyles={
  rebound:{title:'反弹',column:4,states:{true:['触发','#a13733'],false:['未触发','#dedbd2']}}
 };
 let signalMarks=[];
+const curveStyles={
+ percentile:{title:'股债性价比百分位',column:5,color:'#7954a1'},
+ ema45:{title:'EMA45',column:6,color:'#197eac'},
+ ema180:{title:'EMA180',column:7,color:'#ad711c'}
+};
+const plotLeft=48;
+let plotRightInset=14;
 function forRuns(points,column,draw){
  let start=0;
  for(let end=1;end<=points.length;end++){
@@ -184,9 +191,12 @@ function drawSwitchMarks(ctx,marks,left,right,top,bottom){
 window.drawMarketSignals=function(){
  syncTimeRanges();
  signalMarks=[];
- const rows=chartRows,active=switches.filter(input=>input.checked).map(input=>input.value);
- const hasIndex=active.includes('index'),bands=active.filter(id=>id!=='index');
+ const rows=chartRows;
  const current=data?.signals?.get(rows[chartIndex]?.date);
+ for(const input of switches)if(input.value in curveStyles)input.disabled=!Number.isFinite(current?.[curveStyles[input.value].column]);
+ const active=switches.filter(input=>input.checked&&!input.disabled).map(input=>input.value);
+ const hasIndex=active.includes('index'),hasPercentile=active.includes('percentile');
+ const curves=active.filter(id=>id in curveStyles),bands=active.filter(id=>id in signalStyles);
  const readout=$('signalReadout'),legend=$('signalLegend');
  if(!current||!active.length){
    readout.textContent=current?'勾选上方任一项即可显示。':'该收盘账本尚无分项信号。';
@@ -194,6 +204,10 @@ window.drawMarketSignals=function(){
  }
  const names=[current[0]];
  if(hasIndex)names.push('中证全指 '+current[1].toFixed(2)+' 点');
+ for(const id of curves){
+   const curve=curveStyles[id],value=current[curve.column];
+   names.push(curve.title+' '+(id==='percentile'?(value*100).toFixed(2)+'%':value.toFixed(2)+' 点'));
+ }
  for(const id of bands){
    const band=signalStyles[id];names.push(band.title+' '+band.states[current[band.column]][0]);
  }
@@ -209,8 +223,8 @@ window.drawMarketSignals=function(){
    legend.dataset.layers=legendKey;
  }
  signalCanvas.hidden=false;
- const pricePanel=194,plotHeight=160;
- const height=(hasIndex?pricePanel:0)+bands.length*26+37;
+ const hasPlot=hasIndex||curves.length>0,pricePanel=240,plotHeight=200;
+ const height=(hasPlot?pricePanel:0)+bands.length*26+37;
  signalCanvas.style.height=height+'px';
  const width=signalCanvas.clientWidth;if(width<80)return;
  const ratio=window.devicePixelRatio||1;
@@ -218,47 +232,69 @@ window.drawMarketSignals=function(){
    signalCanvas.width=Math.round(width*ratio);signalCanvas.height=Math.round(height*ratio);
  }
  const ctx=signalCanvas.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);
- const left=48,right=width-14,step=(right-left)/Math.max(1,rows.length-1),x=i=>left+i*step;
+ plotRightInset=hasPercentile?48:14;
+ const left=plotLeft,right=width-plotRightInset,step=(right-left)/Math.max(1,rows.length-1),x=i=>left+i*step;
  const points=rows.map(r=>data.signals.get(r.date));
  const edge=i=>i===0?left:i===points.length?right:x(i)-step/2;
- let top=12;ctx.font='11px system-ui';ctx.textAlign='left';ctx.lineWidth=1;
- if(hasIndex){
-   const values=points.map(v=>v[1]),low=Math.min(...values),high=Math.max(...values);
+ let top=hasPlot?22:12;ctx.font='11px system-ui';ctx.textAlign='left';ctx.lineWidth=1;
+ if(hasPlot){
+   const values=points.map(v=>v[1]);
+   const priceColumns=curves.filter(id=>id!=='percentile').map(id=>curveStyles[id].column);
+   if(hasIndex)priceColumns.push(1);
+   const visiblePrices=points.flatMap(point=>priceColumns.map(col=>point[col]));
+   const low=priceColumns.length?Math.min(...visiblePrices):0,high=priceColumns.length?Math.max(...visiblePrices):0;
    const y=v=>top+plotHeight*(high===low ? 0.5 : (high-v)/(high-low));
+   const yPercent=v=>top+plotHeight*(1-v);
    if(bands.includes('macro'))forRuns(points,2,(start,end,state)=>{
      if(!state)return;
      ctx.fillStyle=state>0?'#dceae2':'#f5e4d7';ctx.fillRect(edge(start),top,edge(end)-edge(start),plotHeight);
    });
-   for(let t=0;t<=2;t++){
-     const value=low+(high-low)*t/2;ctx.fillStyle='#57656b';ctx.fillText(value.toFixed(0),0,y(value)+4);
-     ctx.strokeStyle='#e3dfd5';ctx.beginPath();ctx.moveTo(left,y(value));ctx.lineTo(right,y(value));ctx.stroke();
+   const ticks=hasPercentile?4:2;
+   if(priceColumns.length){ctx.fillStyle='#57656b';ctx.fillText('点位',1,11)}
+   if(hasPercentile){ctx.fillStyle=curveStyles.percentile.color;ctx.fillText('百分位',right+6,11)}
+   for(let t=0;t<=ticks;t++){
+     const fraction=t/ticks,level=yPercent(fraction);
+     if(priceColumns.length&&(high!==low||t===ticks/2)){
+       ctx.fillStyle='#57656b';ctx.fillText((low+(high-low)*fraction).toFixed(0),1,level+4);
+     }
+     if(hasPercentile){ctx.fillStyle=curveStyles.percentile.color;ctx.fillText((fraction*100)+'%',right+6,level+4)}
+     ctx.strokeStyle='#e3dfd5';ctx.beginPath();ctx.moveTo(left,level);ctx.lineTo(right,level);ctx.stroke();
    }
-   function strokeRun(start,end,color,lineWidth){
-     ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.beginPath();
-     if(start>0)ctx.moveTo(edge(start),(y(values[start-1])+y(values[start]))/2);else ctx.moveTo(x(start),y(values[start]));
-     for(let i=start;i<end;i++)ctx.lineTo(x(i),y(values[i]));
-     if(end<values.length)ctx.lineTo(edge(end),(y(values[end-1])+y(values[end]))/2);
-     ctx.stroke();
+   for(const id of curves){
+     const {column,color}=curveStyles[id],axis=id==='percentile'?yPercent:y;
+     ctx.strokeStyle=color;ctx.lineWidth=id==='percentile'?1:1.6;ctx.setLineDash(id==='ema180'?[6,3]:[]);ctx.beginPath();
+     points.forEach((point,i)=>{if(i)ctx.lineTo(x(i),axis(point[column]));else ctx.moveTo(x(0),axis(point[column]))});
+     ctx.stroke();ctx.setLineDash([]);
+     ctx.fillStyle=color;ctx.beginPath();ctx.arc(x(chartIndex),axis(current[column]),2.6,0,Math.PI*2);ctx.fill();
    }
-   ctx.lineJoin='round';
-   if(bands.includes('rebound'))forRuns(points,4,(start,end,on)=>{if(on)strokeRun(start,end,'#da8580',6)});
-   if(bands.includes('trend'))forRuns(points,3,(start,end,weak)=>strokeRun(start,end,signalStyles.trend.states[weak][1],1.8));
-   else strokeRun(0,points.length,'#365b75',1.6);
-   // Check the preceding trading day even when the slider starts at a transition.
-   const prior=data.series[data.series.indexOf(rows[0])-1];
-   let previous=prior?data.signals.get(prior.date):null;
-   points.forEach((point,i)=>{
-     const changed=previous?bands.filter(id=>point[signalStyles[id].column]!==previous[signalStyles[id].column]):[];
-     changed.forEach((id,j)=>{
-       const layer=signalStyles[id],state=point[layer.column],[name,color]=layer.states[state];
-       const label=id==='macro'?'股债'+name:id==='trend'?'趋势'+name:state?'反弹开启':'反弹结束';
-       const markY=y(point[1])+(j-(changed.length-1)/2)*11;
-       signalMarks.push({i,id,label,color,x:x(i),y:markY});
+   if(hasIndex){
+     function strokeRun(start,end,color,lineWidth){
+       ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.beginPath();
+       if(start>0)ctx.moveTo(edge(start),(y(values[start-1])+y(values[start]))/2);else ctx.moveTo(x(start),y(values[start]));
+       for(let i=start;i<end;i++)ctx.lineTo(x(i),y(values[i]));
+       if(end<values.length)ctx.lineTo(edge(end),(y(values[end-1])+y(values[end]))/2);
+       ctx.stroke();
+     }
+     ctx.lineJoin='round';
+     if(bands.includes('rebound'))forRuns(points,4,(start,end,on)=>{if(on)strokeRun(start,end,'#da8580',6)});
+     if(bands.includes('trend'))forRuns(points,3,(start,end,weak)=>strokeRun(start,end,signalStyles.trend.states[weak][1],1.8));
+     else strokeRun(0,points.length,'#365b75',1.6);
+     // Check the preceding trading day even when the slider starts at a transition.
+     const prior=data.series[data.series.indexOf(rows[0])-1];
+     let previous=prior?data.signals.get(prior.date):null;
+     points.forEach((point,i)=>{
+       const changed=previous?bands.filter(id=>point[signalStyles[id].column]!==previous[signalStyles[id].column]):[];
+       changed.forEach((id,j)=>{
+         const layer=signalStyles[id],state=point[layer.column],[name,color]=layer.states[state];
+         const label=id==='macro'?'股债'+name:id==='trend'?'趋势'+name:state?'反弹开启':'反弹结束';
+         const markY=y(point[1])+(j-(changed.length-1)/2)*11;
+         signalMarks.push({i,id,label,color,x:x(i),y:markY});
+       });
+       previous=point;
      });
-     previous=point;
-   });
-   ctx.fillStyle='#365b75';ctx.beginPath();ctx.arc(x(chartIndex),y(current[1]),3,0,Math.PI*2);ctx.fill();
-   drawSwitchMarks(ctx,signalMarks,left,right,top,top+plotHeight);
+     ctx.fillStyle='#365b75';ctx.beginPath();ctx.arc(x(chartIndex),y(current[1]),3,0,Math.PI*2);ctx.fill();
+     drawSwitchMarks(ctx,signalMarks,left,right,top,top+plotHeight);
+   }
    top+=pricePanel;
  }
  for(const id of bands){
@@ -274,14 +310,15 @@ window.drawMarketSignals=function(){
 };
 for(const input of switches)input.onchange=()=>window.drawMarketSignals();
 function inspectSignal(e,commit){
+ if(!chartRows.length)return;
  const box=signalCanvas.getBoundingClientRect(),px=e.clientX-box.left,py=e.clientY-box.top;
  let nearest=null,radius=e.pointerType==='touch'?12:7;
  for(const m of signalMarks){
    const distance=Math.hypot(m.x-px,m.y-py);
    if(distance<=radius){nearest=m;radius=distance}
  }
- if(!nearest){inspectChart(e,commit);return}
- chartIndex=nearest.i;chart();
+ const relativeX=(px-plotLeft)/(box.width-plotLeft-plotRightInset);
+ chartIndex=nearest?nearest.i:Math.round(Math.max(0,Math.min(1,relativeX))*(chartRows.length-1));chart();
  if(commit){$('snapshotDate').value=chartRows[chartIndex].date;overview()}
 }
 signalCanvas.onpointermove=e=>inspectSignal(e,false);

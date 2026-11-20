@@ -32,6 +32,7 @@ a{color:var(--red)}.chart-readout{background:#f1ede5;color:var(--ink)}.paginatio
 @media(max-width:750px){.timestamps{grid-template-columns:repeat(2,minmax(0,1fr))}.lab-hero{align-items:start}}
 @media(max-width:550px){.lab-hero{display:block}.headline-data{justify-content:start;margin-top:16px}.headline-data strong{font-size:23px}.timestamps{gap:9px;font-size:12px}.tabs{overflow-x:auto;white-space:nowrap}.filters>*{min-width:0}.pagination button{margin-left:4px;padding:6px 9px}}
 body::before{content:none}
+.line-key{width:18px;display:inline-block;border-top:2px solid}.line-key.percentile{border-color:#7954a1}.line-key.ema45{border-color:#197eac}.line-key.ema180{border-color:#ad711c;border-top-style:dashed}
 .allocation-strip{margin:16px 0 0;padding:12px 0;border-block:1px solid var(--line)}
 .allocation-heading,.allocation-strip #allocation{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 16px}
 .live-card .allocation-heading h3{margin:0}.allocation-heading #stage{font-size:12px;color:var(--muted)}
